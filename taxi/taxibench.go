@@ -151,7 +151,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			if !*showOut {
+			if *showOut {
 				fmt.Printf("%s", output)
 			}
 			fmt.Println("Command returned", cmd.ProcessState.ExitCode())
@@ -174,7 +174,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				if !*showOut {
+				if *showOut {
 					fmt.Printf("%s", output)
 				}
 				fmt.Println("Command returned", cmd.ProcessState.ExitCode())
