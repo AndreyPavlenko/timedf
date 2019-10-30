@@ -92,7 +92,7 @@ func main() {
 	dnd := flag.Bool("dnd", false, "Do not delete old table. KEEP IN MIND that in this case -fs values have no effect because table is taken from previous runs.")
 	dni := flag.Bool("dni", false, "Do not create new table and import any data from CSV files. KEEP IN MIND that in this case -fs values have no effect because table is taken from previous runs.")
 	times := flag.Uint("t", 5, "Number of times to run every benchmark. Best result is selected")
-	showOut := flag.Bool("sco", false, "Hide commands output")
+	showOut := flag.Bool("sco", false, "Show commands output")
 	showBench := flag.Bool("sbo", false, "Show benchmarks output")
 	repFile := flag.String("r", "report.csv", "Report file name")
 	testme := flag.Bool("test", false, "Run tests")
