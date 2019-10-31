@@ -88,6 +88,7 @@ func main() {
 	var fragmentSizes arrayFlags
 	flag.Var(&fragmentSizes, "fs", "Fragment size to use for created table. Multiple values are allowed and encouraged.")
 	executable := flag.String("e", omnisciExecutable, "Path to executable \"omnisql\"")
+	createTable := flag.Bool("ct", false, "Use CREATE TABLE WITH (STORAGE_TYPE='CSV:trips.csv'). KEEP IN MIND that currently it is possible to load JUST ONE CSV file with this statement, so join all data into one big file, so -df value has no effect.")
 	datafiles := flag.Uint("df", 1, "Number of datafiles to input into database for processing")
 	datafilesPattern := flag.String("dp", taxiTripsDirectory, "Wildcard pattern of datafiles that should be loaded")
 	dnd := flag.Bool("dnd", false, "Do not delete old table. KEEP IN MIND that in this case -fs values have no effect because table is taken from previous runs.")
@@ -120,6 +121,7 @@ func main() {
 	omnisciCmdLine = append(omnisciCmdLine, "--port", strconv.Itoa(*serverPort))
 
 	tripsTmpl := template.Must(template.ParseFiles("trips.tmpl"))
+	createTableTripsTmpl := template.Must(template.ParseFiles("create_table_trips.tmpl"))
 
 	for _, fs := range fragmentSizes {
 		fmt.Println("RUNNING WITH FRAGMENT SIZE", fs)
@@ -140,24 +142,6 @@ func main() {
 
 		// Data files import
 		if !*dni {
-			// Create new table
-			fmt.Println("Creating new table taxitestdb with fragment size", fs)
-			cmd := exec.Command(*executable, omnisciCmdLine...)
-			pipeReader, pipeWriter := io.Pipe()
-			cmd.Stdin = pipeReader
-			go func() {
-				tripsTmpl.ExecuteTemplate(pipeWriter, "trips", fs)
-				pipeWriter.Close()
-			}()
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				log.Fatal(err)
-			}
-			if *showOut {
-				fmt.Printf("%s", output)
-			}
-			fmt.Println("Command returned", cmd.ProcessState.ExitCode())
-
 			dataFileNames, err := filepath.Glob(*datafilesPattern)
 			if err != nil {
 				log.Fatal(err)
@@ -167,11 +151,24 @@ func main() {
 			if *datafiles > uint(len(dataFileNames)) {
 				*datafiles = uint(len(dataFileNames))
 			}
-			for df := uint(0); df < *datafiles; df++ {
-				fmt.Println("Importing datafile", dataFileNames[df])
+
+			if *createTable {
+				// Create new table specifying fragment size and import file
+				fmt.Println("Creating new table taxitestdb with fragment size", fs, "and data file", dataFileNames[0])
 				cmd := exec.Command(*executable, omnisciCmdLine...)
-				cmdString := fmt.Sprintf(command2ImportCSV, dataFileNames[df])
-				cmd.Stdin = strings.NewReader(cmdString)
+				pipeReader, pipeWriter := io.Pipe()
+				cmd.Stdin = pipeReader
+				go func() {
+					createTableTripsTmpl.ExecuteTemplate(pipeWriter, "create_table_trips",
+						struct {
+							FragmentSize uint64
+							DataFile     string
+						}{
+							FragmentSize: fs,
+							DataFile:     dataFileNames[0],
+						})
+					pipeWriter.Close()
+				}()
 				output, err := cmd.CombinedOutput()
 				if err != nil {
 					log.Fatal(err)
@@ -180,6 +177,39 @@ func main() {
 					fmt.Printf("%s", output)
 				}
 				fmt.Println("Command returned", cmd.ProcessState.ExitCode())
+			} else {
+				// Create new table
+				fmt.Println("Creating new table taxitestdb with fragment size", fs)
+				cmd := exec.Command(*executable, omnisciCmdLine...)
+				pipeReader, pipeWriter := io.Pipe()
+				cmd.Stdin = pipeReader
+				go func() {
+					tripsTmpl.ExecuteTemplate(pipeWriter, "trips", fs)
+					pipeWriter.Close()
+				}()
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					log.Fatal(err)
+				}
+				if *showOut {
+					fmt.Printf("%s", output)
+				}
+				fmt.Println("Command returned", cmd.ProcessState.ExitCode())
+
+				for df := uint(0); df < *datafiles; df++ {
+					fmt.Println("Importing datafile", dataFileNames[df])
+					cmd := exec.Command(*executable, omnisciCmdLine...)
+					cmdString := fmt.Sprintf(command2ImportCSV, dataFileNames[df])
+					cmd.Stdin = strings.NewReader(cmdString)
+					output, err := cmd.CombinedOutput()
+					if err != nil {
+						log.Fatal(err)
+					}
+					if *showOut {
+						fmt.Printf("%s", output)
+					}
+					fmt.Println("Command returned", cmd.ProcessState.ExitCode())
+				}
 			}
 		}
 
