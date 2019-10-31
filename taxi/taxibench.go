@@ -18,7 +18,7 @@ import (
 
 const (
 	omnisciExecutable  = "build/bin/omnisql"
-	taxyTripsDirectory = "/localdisk/work/trips_x*.csv"
+	taxiTripsDirectory = "/localdisk/work/trips_x*.csv"
 
 	command1DropTableTrips = "drop table taxitestdb;"
 	command2ImportCSV      = "COPY taxitestdb FROM '%s' WITH (header='false');"
@@ -87,8 +87,9 @@ var myFlags arrayFlags
 func main() {
 	var fragmentSizes arrayFlags
 	flag.Var(&fragmentSizes, "fs", "Fragment size to use for created table. Multiple values are allowed and encouraged.")
+	executable := flag.String("e", omnisciExecutable, "Path to executable \"omnisql\"")
 	datafiles := flag.Uint("df", 1, "Number of datafiles to input into database for processing")
-        datafilesPattern := flag.String("dp", taxyTripsDirectory, "Wildcard pattern of datafiles that should be loaded")
+	datafilesPattern := flag.String("dp", taxiTripsDirectory, "Wildcard pattern of datafiles that should be loaded")
 	dnd := flag.Bool("dnd", false, "Do not delete old table. KEEP IN MIND that in this case -fs values have no effect because table is taken from previous runs.")
 	dni := flag.Bool("dni", false, "Do not create new table and import any data from CSV files. KEEP IN MIND that in this case -fs values have no effect because table is taken from previous runs.")
 	times := flag.Uint("t", 5, "Number of times to run every benchmark. Best result is selected")
@@ -101,6 +102,7 @@ func main() {
 
 	if *testme {
 		test()
+		return
 	}
 
 	if *datafiles <= 0 {
@@ -124,7 +126,7 @@ func main() {
 		// Delete old table
 		if !*dnd {
 			fmt.Println("Deleting taxitestdb old database")
-			cmd := exec.Command(omnisciExecutable, omnisciCmdLine...)
+			cmd := exec.Command(*executable, omnisciCmdLine...)
 			cmd.Stdin = strings.NewReader(command1DropTableTrips)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
@@ -140,7 +142,7 @@ func main() {
 		if !*dni {
 			// Create new table
 			fmt.Println("Creating new table taxitestdb with fragment size", fs)
-			cmd := exec.Command(omnisciExecutable, omnisciCmdLine...)
+			cmd := exec.Command(*executable, omnisciCmdLine...)
 			pipeReader, pipeWriter := io.Pipe()
 			cmd.Stdin = pipeReader
 			go func() {
@@ -160,14 +162,14 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			} else if len(dataFileNames) == 0 {
-				log.Fatal("Could not find any data files matching", taxyTripsDirectory)
+				log.Fatal("Could not find any data files matching", taxiTripsDirectory)
 			}
 			if *datafiles > uint(len(dataFileNames)) {
 				*datafiles = uint(len(dataFileNames))
 			}
 			for df := uint(0); df < *datafiles; df++ {
 				fmt.Println("Importing datafile", dataFileNames[df])
-				cmd := exec.Command(omnisciExecutable, omnisciCmdLine...)
+				cmd := exec.Command(*executable, omnisciCmdLine...)
 				cmdString := fmt.Sprintf(command2ImportCSV, dataFileNames[df])
 				cmd.Stdin = strings.NewReader(cmdString)
 				output, err := cmd.CombinedOutput()
@@ -188,7 +190,7 @@ func main() {
 			errstr := ""
 			for iter := uint(1); iter <= *times; iter++ {
 				fmt.Println("Running benchmark number", benchNumber+1, "Iteration number", iter)
-				cmd := exec.Command(omnisciExecutable, omnisciCmdLine...)
+				cmd := exec.Command(*executable, omnisciCmdLine...)
 				cmd.Stdin = strings.NewReader(benchString)
 				output, err := cmd.CombinedOutput()
 				if err != nil {
