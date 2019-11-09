@@ -1,9 +1,18 @@
+import mysql.connector
 import subprocess
 import argparse
+import pathlib
 import glob
 import sys
 import re
 import io
+import os
+
+# Load database reporting functions
+pathToReportDir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
+print(pathToReportDir)
+sys.path.insert(1, pathToReportDir)
+import report
 
 omnisciExecutable  = "build/bin/omnisql"
 taxiTripsDirectory = "/localdisk/work/trips_x*.csv"
@@ -248,6 +257,17 @@ if args.t < 1:
 
 omnisciCmdLine = [args.e] + omnisciCmdLine + ["--port", str(args.port)]
 
+if args.db_user is not "":
+    print("Connecting to database")
+    db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
+    db_reporter = report.DbReport(db, "nyctaxi", "taxibench", {
+        'FilesNumber': 'INT UNSIGNED NOT NULL',
+        'FragmentSize': 'BIGINT UNSIGNED NOT NULL',
+        'BenchName': 'VARCHAR(500) NOT NULL',
+        'BestExecTimeMS': 'BIGINT UNSIGNED',
+        'BestTotalTimeMS': 'BIGINT UNSIGNED'
+    })
+
 for fs in args.fs:
     print("RUNNING WITH FRAGMENT SIZE", fs)
     # Delete old table
@@ -329,14 +349,15 @@ for fs in args.fs:
                     print("Command returned", process.returncode)
                     execTime = float("inf")
                     totalTime = float("inf")
-                    matches = re.search(timingRegexpRegexp, output).groups()
-                    if len(matches) == 2:
-                        execTime = int(matches[0])
-                        totalTime = int(matches[1])
-                        print("Iteration", iii, "exec time", execTime, "total time", totalTime)
-                    else:
-                        print("Failed to parse command output:", output)
-                        errstr = getErrorLine(strout)
+                    if process.returncode == 0:
+                        matches = re.search(timingRegexpRegexp, output).groups()
+                        if len(matches) == 2:
+                            execTime = int(matches[0])
+                            totalTime = int(matches[1])
+                            print("Iteration", iii, "exec time", execTime, "total time", totalTime)
+                        else:
+                            print("Failed to parse command output:", output)
+                            errstr = getErrorLine(strout)
                     if bestExecTime > execTime:
                         bestExecTime = execTime
                     if bestTotalTime > totalTime:
@@ -348,5 +369,13 @@ for fs in args.fs:
                       bestExecTime, ",",
                       bestTotalTime, ",",
                       errstr, '\n', file=report, sep='', end='', flush=True)
+                if db_reporter is not None:
+                    db_reporter.submit({
+                        'FilesNumber': dataFilesNumber,
+                        'FragmentSize': fs,
+                        'BenchName': str(benchNumber),
+                        'BestExecTimeMS': bestExecTime,
+                        'BestTotalTimeMS': bestTotalTime
+                    })
     except IOError as err:
         print("Failed writing report file", args.r, err)
