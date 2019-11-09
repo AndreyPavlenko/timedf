@@ -371,6 +371,7 @@ for fs in args.fs:
                       errstr, '\n', file=report, sep='', end='', flush=True)
                 if db_reporter is not None:
                     db_reporter.submit({
+                        'CommitHash': args.commit,
                         'FilesNumber': dataFilesNumber,
                         'FragmentSize': fs,
                         'BenchName': str(benchNumber),
