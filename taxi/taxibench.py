@@ -260,12 +260,15 @@ omnisciCmdLine = [args.e] + omnisciCmdLine + ["--port", str(args.port)]
 if args.db_user is not "":
     print("Connecting to database")
     db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
-    db_reporter = report.DbReport(db, "nyctaxi", "taxibench", {
+    db_reporter = report.DbReport(db, "taxibench", {
         'FilesNumber': 'INT UNSIGNED NOT NULL',
         'FragmentSize': 'BIGINT UNSIGNED NOT NULL',
         'BenchName': 'VARCHAR(500) NOT NULL',
         'BestExecTimeMS': 'BIGINT UNSIGNED',
         'BestTotalTimeMS': 'BIGINT UNSIGNED'
+    }, {
+        'ScriptName': 'taxibench.py',
+        'CommitHash': args.commit
     })
 
 for fs in args.fs:
@@ -371,7 +374,6 @@ for fs in args.fs:
                       errstr, '\n', file=report, sep='', end='', flush=True)
                 if db_reporter is not None:
                     db_reporter.submit({
-                        'CommitHash': args.commit,
                         'FilesNumber': dataFilesNumber,
                         'FragmentSize': fs,
                         'BenchName': str(benchNumber),
