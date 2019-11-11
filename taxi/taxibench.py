@@ -238,8 +238,8 @@ parser.add_argument("-port", default=62074, type=int, help="TCP port that omnisq
 parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
 parser.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server")
 parser.add_argument("-db-user", default="", help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.")
-parser.add_argument("-db-pass", default="omnscidb", help="Password to use to connect to MySQL database")
-parser.add_argument("-db-name", default="omnscidb", help="MySQL database to use to store benchmark results")
+parser.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database")
+parser.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results")
 
 parser.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
 
