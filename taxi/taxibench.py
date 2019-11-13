@@ -257,6 +257,7 @@ if args.t < 1:
 
 omnisciCmdLine = [args.e] + omnisciCmdLine + ["--port", str(args.port)]
 
+db_reporter = None
 if args.db_user is not "":
     print("Connecting to database")
     db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
