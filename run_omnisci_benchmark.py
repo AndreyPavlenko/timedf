@@ -1,3 +1,4 @@
+from braceexpand import braceexpand
 import mysql.connector
 import subprocess
 import threading
@@ -90,7 +91,7 @@ required.add_argument("-t", "--import-table-name", dest="import_table_name", req
 required.add_argument("-l", "--label", dest="label", required=True,
                       help="Benchmark run label")
 required.add_argument("-f", "--import-file", dest="import_file", required=True,
-                      help="Absolute path to file or wildcard on omnisci_server machine with data for import test. If wildcard is used, multiple COPY statements are executed to import every file. Number of files may be limited by --max-import-files switch.")
+                      help="Absolute path to file or wildcard on omnisci_server machine with data for import test. If wildcard is used, all files are imported in one COPY statement. Limiting number of files is possible using curly braces wildcard, e.g. trips_xa{a,b,c}.csv.gz.")
 required.add_argument("-c", "--table-schema-file", dest="table_schema_file", required=True,
                       help="Path to local file with CREATE TABLE sql statement for the import table")
 required.add_argument("-d", "--queries-dir", dest="queries_dir",
@@ -101,8 +102,6 @@ required.add_argument("-i", "--iterations", dest="iterations", type=int, require
 # Fragment size
 optional.add_argument('-fs', dest="fragment_size", action='append', type=int,
                       help="Fragment size to use for created table. Multiple values are allowed and encouraged. If no -fs switch is specified, default fragment size is used and templated CREATE TABLE sql files cannot be used.")
-optional.add_argument("--max-import-files", dest="max_import_files",
-                      help="Maximum number of files to import when -f specifies a wildcard.")
 
 # MySQL database parameters
 optional.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
@@ -167,14 +166,16 @@ if args.db_user is not "":
         'CommitHash': args.commit
     })
 
-data_file_names = glob.glob(args.import_file)
-if args.max_import_files is not None:
-    datafiles = len(data_file_names[:args.max_import_files])
-    import_cmdline += ['--max-import-files', args.max_import_files]
-else:
-    datafiles = len(data_file_names)
 
-print("NUMBER OF DATAFILES FOUND:", datafiles)
+# Use bash to determine number of matching files because python
+# doesn't support curly brace expansion
+#cmdline="bash -c 'ls -1 " + args.import_file + " | wc -l '"
+#datafiles = int(subprocess.check_output(cmdline, shell=True).decode().strip())
+
+datafiles = list(braceexpand(args.import_file))
+datafiles = [x for f in datafiles for x in glob.glob(f)]
+print("NUMBER OF DATAFILES FOUND:", len(datafiles))
+
 if args.omnisci_cwd is not None:
     server_cwd = args.omnisci_cwd
 else:
