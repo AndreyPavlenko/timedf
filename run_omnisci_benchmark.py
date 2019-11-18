@@ -40,8 +40,8 @@ def execute_benchmark(fragment_size, report):
         print(datafiles, ",",
               fs, ",",
               result['name'], ",",
-              result['results']['query_exec_avg'], ",",
-              result['results']['query_total_avg'], ",",
+              result['results']['query_exec_min'], ",",
+              result['results']['query_total_min'], ",",
               result['results']['query_error_info'],
               '\n', file=report, sep='', end='', flush=True)
         if db_reporter is not None:
