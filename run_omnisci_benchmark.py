@@ -203,7 +203,7 @@ with open(args.report, "w") as report:
 
 print("TERMINATING SERVER")
 server_process.send_signal(signal.SIGINT)
-time.sleep(1)
+time.sleep(2)
 server_process.kill()
 time.sleep(1)
 server_process.terminate()
