@@ -26,7 +26,7 @@ def execute_process(cmdline):
 def execute_benchmark(fragment_size, report):
     cmdline = import_cmdline
     if fragment_size is not None:
-        cmdline += ['--fragment_size', str(fragment_size)]
+        cmdline += ['--fragment-size', str(fragment_size)]
         fs = fragment_size
     else:
         fs = 0
