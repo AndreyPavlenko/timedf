@@ -172,9 +172,10 @@ if args.db_user is not "":
 #cmdline="bash -c 'ls -1 " + args.import_file + " | wc -l '"
 #datafiles = int(subprocess.check_output(cmdline, shell=True).decode().strip())
 
-datafiles = list(braceexpand(args.import_file))
-datafiles = [x for f in datafiles for x in glob.glob(f)]
-print("NUMBER OF DATAFILES FOUND:", len(datafiles))
+datafiles_names = list(braceexpand(args.import_file))
+datafiles_names = [x for f in datafiles_names for x in glob.glob(f)]
+datafiles = len(datafiles_names)
+print("NUMBER OF DATAFILES FOUND:", datafiles)
 
 if args.omnisci_cwd is not None:
     server_cwd = args.omnisci_cwd
