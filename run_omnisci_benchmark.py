@@ -170,6 +170,7 @@ if args.db_user is not "":
 data_file_names = glob.glob(args.import_file)
 if args.max_import_files is not None:
     datafiles = len(data_file_names[:args.max_import_files])
+    import_cmdline += ['--max-import-files', args.max_import_files]
 else:
     datafiles = len(data_file_names)
 
