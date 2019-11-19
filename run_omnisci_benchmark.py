@@ -90,18 +90,28 @@ required.add_argument("-t", "--import-table-name", dest="import_table_name", req
 # Required by omnisci benchmark scripts
 required.add_argument("-l", "--label", dest="label", required=True,
                       help="Benchmark run label")
-required.add_argument("-f", "--import-file", dest="import_file", required=True,
+required.add_argument("-i", "--iterations", dest="iterations", type=int, required=True,
+                      help="Number of iterations per query. Must be > 1")
+required.add_argument("-m", "--mode", dest="mode", choices=['synthetic', 'dataset'], required=True,
+                      help="Select benchmark mode. It is either synthetic or dataset. Required switches for synthetic benchmark are --synthetic-query, --num-fragments and --fragment-size. Required switches for dataset benchmark are --import-file, --table-schema-file and --queries-dir and --fragment-size is optional.")
+
+# Fragment size
+optional.add_argument('-fs', '--fragment-size', dest="fragment_size", action='append', type=int,
+                      help="Fragment size to use for created table. Multiple values are allowed and encouraged. If no -fs switch is specified, default fragment size is used and templated CREATE TABLE sql files cannot be used.")
+
+# Required for synthetic benchmarks
+optional.add_argument("-nf", "--num-fragments", dest="num_synthetic_fragments",
+                      help="Number of fragments to generate for synthetic benchmark. Data size is fragment_size * num_fragments")
+optional.add_argument("-sq", "--synthetic-query", choices=['BaselineHash', 'MultiStep', 'NonGroupedAgg', 'PerfectHashMultiCol', 'PerfectHashSingleCol', 'Sort'], dest="synthetic_query",
+                      help="Synthetic benchmark query group")
+
+# Required for traditional data benchmarks
+optional.add_argument("-f", "--import-file", dest="import_file",
                       help="Absolute path to file or wildcard on omnisci_server machine with data for import test. If wildcard is used, all files are imported in one COPY statement. Limiting number of files is possible using curly braces wildcard, e.g. trips_xa{a,b,c}.csv.gz.")
 required.add_argument("-c", "--table-schema-file", dest="table_schema_file", required=True,
                       help="Path to local file with CREATE TABLE sql statement for the import table")
 required.add_argument("-d", "--queries-dir", dest="queries_dir",
                       help='Absolute path to dir with query files. [Default: "queries" dir in same location as script]')
-required.add_argument("-i", "--iterations", dest="iterations", type=int, required=True,
-                      help="Number of iterations per query. Must be > 1")
-
-# Fragment size
-optional.add_argument('-fs', dest="fragment_size", action='append', type=int,
-                      help="Fragment size to use for created table. Multiple values are allowed and encouraged. If no -fs switch is specified, default fragment size is used and templated CREATE TABLE sql files cannot be used.")
 
 # MySQL database parameters
 optional.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
@@ -113,6 +123,15 @@ optional.add_argument("-db-name", default="omniscidb", help="MySQL database to u
 optional.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
 
 args = parser.parse_args()
+
+if args.mode is 'synthetic':
+    if args.synthetic_query is None or args.num_synthetic_fragments is None or args.fragment_size is None:
+        print("For synthetic type of benchmark the following parameters are mandatory: --synthetic-query, --num-fragments and --fragment-size.")
+        sys.exit(3)
+else:
+    if args.import_file is None or args.table_schema_file is None or args.queries_dir is None:
+        print("For dataset type of benchmark the following parameters are mandatory: --import-file, --table-schema-file and --queries-dir and --fragment-size is optional.")
+        sys.exit(3)
 
 server_cmdline = [args.omnisci_executable,
                   'data',
