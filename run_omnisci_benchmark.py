@@ -20,8 +20,7 @@ def execute_process(cmdline):
     except OSError as err:
         print("Failed to start", omnisciCmdLine, err)
     if process.returncode != 0:
-        print("Command returned", process.returncode)
-        sys.exit(2)
+        raise Exception("Command returned {}".format(process.returncode))
 
 def execute_benchmark(fragment_size, report):
     cmdline = import_cmdline
@@ -205,25 +204,27 @@ try:
 except OSError as err:
     print("Failed to start", omnisciCmdLine, err)
     sys.exit(1)
-pt = threading.Thread(target=print_omnisci_output, args=(server_process.stdout,), daemon=True)
-pt.start()
 
-# Allow server to start up. It has to open TCP port and start
-# listening, otherwise the following benchmarks fail.
-time.sleep(5)
+try:
+    pt = threading.Thread(target=print_omnisci_output, args=(server_process.stdout,), daemon=True)
+    pt.start()
 
-with open(args.report, "w") as report:
-    if args.fragment_size is not None:
-        for fs in args.fragment_size:
-            print("RUNNING IMPORT WITH FRAGMENT SIZE", fs)
-            execute_benchmark(fs, report)
-    else:
-        print("RUNNING IMPORT WITH DEFAULT FRAGMENT SIZE")
-        execute_benchmark(None, report)
+    # Allow server to start up. It has to open TCP port and start
+    # listening, otherwise the following benchmarks fail.
+    time.sleep(5)
 
-print("TERMINATING SERVER")
-server_process.send_signal(signal.SIGINT)
-time.sleep(2)
-server_process.kill()
-time.sleep(1)
-server_process.terminate()
+    with open(args.report, "w") as report:
+        if args.fragment_size is not None:
+            for fs in args.fragment_size:
+                print("RUNNING IMPORT WITH FRAGMENT SIZE", fs)
+                execute_benchmark(fs, report)
+        else:
+            print("RUNNING IMPORT WITH DEFAULT FRAGMENT SIZE")
+            execute_benchmark(None, report)
+finally:
+    print("TERMINATING SERVER")
+    server_process.send_signal(signal.SIGINT)
+    time.sleep(2)
+    server_process.kill()
+    time.sleep(1)
+    server_process.terminate()
