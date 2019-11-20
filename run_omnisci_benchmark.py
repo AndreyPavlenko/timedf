@@ -137,6 +137,15 @@ if args.omnisci_cwd is not None:
 else:
     server_cwd = pathlib.Path(args.omnisci_executable).parent.parent
 
+data_dir = os.path.join(server_cwd, "data")
+if not os.path.isdir(data_dir):
+    print("CREATING DATA DIR", data_dir)
+    os.makedirs(data_dir)
+if not os.path.isdir(os.path.join(data_dir, "mapd_data")):
+    print("INITIALIZING DATA DIR", data_dir)
+    initdb_executable = os.path.join(pathlib.Path(args.omnisci_executable).parent, "initdb")
+    execute_process([initdb_executable, '-f', '--data', data_dir])
+
 server_cmdline = [args.omnisci_executable,
                   'data',
                   '--port', str(args.omnisci_port),
