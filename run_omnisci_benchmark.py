@@ -50,15 +50,23 @@ def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdlin
               result['name'], ",",
               result['results']['query_exec_min'], ",",
               result['results']['query_total_min'], ",",
-              result['results']['query_error_info'],
-              '\n', file=report, sep='', end='', flush=True)
+              result['results']['query_exec_max'], ",",
+              result['results']['query_total_max'], ",",
+              result['results']['query_exec_avg'], ",",
+              result['results']['query_total_avg'], ",",
+              result['results']['query_error_info'], '\n',
+              file=report, sep='', end='', flush=True)
         if db_reporter is not None:
             db_reporter.submit({
                 'FilesNumber': datafiles,
                 'FragmentSize': fs,
                 'BenchName': result['name'],
-                'BestExecTimeMS': str(result['results']['query_exec_avg']),
-                'BestTotalTimeMS': result['results']['query_total_avg']
+                'BestExecTimeMS': str(result['results']['query_exec_min']),
+                'BestTotalTimeMS': result['results']['query_total_min'],
+                'WorstExecTimeMS': str(result['results']['query_exec_max']),
+                'WorstTotalTimeMS': result['results']['query_total_max'],
+                'AverageExecTimeMS': str(result['results']['query_exec_avg']),
+                'AverageTotalTimeMS': result['results']['query_total_avg']
             })
 
 def print_omnisci_output(stdout):
@@ -127,6 +135,7 @@ optional.add_argument("-db-port", default=3306, type=int, help="Port number of M
 optional.add_argument("-db-user", default="", help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.")
 optional.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database")
 optional.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results")
+optional.add_argument("-db-table", help="Table to use to store results for this benchmark.")
 
 optional.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
 
@@ -223,16 +232,23 @@ else:
 
 db_reporter = None
 if args.db_user is not "":
-    print("Connecting to database")
+    if args.db_table is None:
+        print("--db-table parameter is mandatory to store results in MySQL database")
+        sys.exit(4)
+    print("CONNECTING TO DATABASE")
     db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
-    db_reporter = report.DbReport(db, "taxibench", {
+    db_reporter = report.DbReport(db, args.db_table, {
         'FilesNumber': 'INT UNSIGNED NOT NULL',
         'FragmentSize': 'BIGINT UNSIGNED NOT NULL',
         'BenchName': 'VARCHAR(500) NOT NULL',
         'BestExecTimeMS': 'BIGINT UNSIGNED',
-        'BestTotalTimeMS': 'BIGINT UNSIGNED'
+        'BestTotalTimeMS': 'BIGINT UNSIGNED',
+        'WorstExecTimeMS': 'BIGINT UNSIGNED',
+        'WorstTotalTimeMS': 'BIGINT UNSIGNED',
+        'AverageExecTimeMS': 'BIGINT UNSIGNED',
+        'AverageTotalTimeMS': 'BIGINT UNSIGNED'
     }, {
-        'ScriptName': 'taxibench.py',
+        'ScriptName': 'run_omnisci_benchmark.py',
         'CommitHash': args.commit
     })
 
@@ -251,6 +267,7 @@ try:
     time.sleep(5)
 
     with open(args.report, "w") as report:
+        print("datafiles,fragment_size,query,query_exec_min,query_total_min,query_exec_max,query_total_max,query_exec_avg,query_total_avg,query_error_info", file=report, flush=True)
         if args.fragment_size is not None:
             for fs in args.fragment_size:
                 print("RUNNING WITH FRAGMENT SIZE", fs)
