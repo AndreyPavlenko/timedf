@@ -12,9 +12,9 @@ import sys
 import os
 import io
 
-def execute_process(cmdline):
+def execute_process(cmdline, cwd=None):
     try:
-        process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         out = process.communicate()[0].strip().decode()
         print(out)
     except OSError as err:
@@ -22,18 +22,27 @@ def execute_process(cmdline):
     if process.returncode != 0:
         raise Exception("Command returned {}".format(process.returncode))
 
-def execute_benchmark(fragment_size, report):
-    cmdline = import_cmdline
-    if fragment_size is not None:
-        cmdline += ['--fragment-size', str(fragment_size)]
-        fs = fragment_size
+def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdline, fragment_size, results_file_name, report):
+    if import_cmdline is not None:
+        # Import dataset mode
+        if fragment_size is not None:
+            import_cmdline += ['--fragment-size', str(fragment_size)]
+            fs = fragment_size
+        else:
+            fs = 0
+        print('IMPORT COMMAND LINE:', import_cmdline)
+        execute_process(import_cmdline)
     else:
-        fs = 0
-    execute_process(cmdline)
+        # Synthetic benchmark mode
+        benchmark_cmdline += ['--fragment_size', str(fragment_size)]
+        fs = fragment_size
 
-    cmdline = benchmark_cmdline
-    execute_process(cmdline)
-    with open("benchmark.json", "r") as results_file:
+    # Execute benchmark
+    print('BENCHMARK COMMAND LINE', benchmark_cmdline)
+    execute_process(benchmark_cmdline, cwd=benchmark_cwd)
+
+    # Parse report
+    with open(results_file_name, "r") as results_file:
         results = json.load(results_file)
     for result in results:
         print(datafiles, ",",
@@ -75,7 +84,7 @@ required.add_argument('-path', dest="benchmarks_path", required=True,
 required.add_argument("-e", "--executable", dest="omnisci_executable", required=True,
                       help="Path to omnisci_server executable.")
 optional.add_argument("-w", "--workdir", dest="omnisci_cwd",
-                      help="Path to omnisci working directory. By default parent directory of executable location is used.")
+                      help="Path to omnisci working directory. By default parent directory of executable location is used. Data directory is used in this location.")
 optional.add_argument("-o", "--port", dest="omnisci_port", default=62274, type=int,
                       help="TCP port number to run omnisci_server on.")
 required.add_argument("-u", "--user", dest="user", default="admin", required=True,
@@ -107,9 +116,9 @@ optional.add_argument("-sq", "--synthetic-query", choices=['BaselineHash', 'Mult
 # Required for traditional data benchmarks
 optional.add_argument("-f", "--import-file", dest="import_file",
                       help="Absolute path to file or wildcard on omnisci_server machine with data for import test. If wildcard is used, all files are imported in one COPY statement. Limiting number of files is possible using curly braces wildcard, e.g. trips_xa{a,b,c}.csv.gz.")
-required.add_argument("-c", "--table-schema-file", dest="table_schema_file", required=True,
+optional.add_argument("-c", "--table-schema-file", dest="table_schema_file",
                       help="Path to local file with CREATE TABLE sql statement for the import table")
-required.add_argument("-d", "--queries-dir", dest="queries_dir",
+optional.add_argument("-d", "--queries-dir", dest="queries_dir",
                       help='Absolute path to dir with query files. [Default: "queries" dir in same location as script]')
 
 # MySQL database parameters
@@ -123,14 +132,10 @@ optional.add_argument("-commit", default="12345678901234567890123456789012345678
 
 args = parser.parse_args()
 
-if args.mode is 'synthetic':
-    if args.synthetic_query is None or args.num_synthetic_fragments is None or args.fragment_size is None:
-        print("For synthetic type of benchmark the following parameters are mandatory: --synthetic-query, --num-fragments and --fragment-size.")
-        sys.exit(3)
+if args.omnisci_cwd is not None:
+    server_cwd = args.omnisci_cwd
 else:
-    if args.import_file is None or args.table_schema_file is None or args.queries_dir is None:
-        print("For dataset type of benchmark the following parameters are mandatory: --import-file, --table-schema-file and --queries-dir and --fragment-size is optional.")
-        sys.exit(3)
+    server_cwd = pathlib.Path(args.omnisci_executable).parent.parent
 
 server_cmdline = [args.omnisci_executable,
                   'data',
@@ -139,35 +144,73 @@ server_cmdline = [args.omnisci_executable,
                   '--calcite-port', "62279",
                   '--config', 'omnisci.conf']
 
-import_cmdline = ['python3',
-                  os.path.join(args.benchmarks_path, 'run_benchmark_import.py'),
-                  '-u', args.user,
-                  '-p', args.passwd,
-                  '-s', 'localhost',
-                  '-o', str(args.omnisci_port),
-                  '-n', args.name,
-                  '-t', args.import_table_name,
-                  '-l', args.label,
-                  '-f', args.import_file,
-                  '-c', args.table_schema_file,
-                  '-e', 'output',
-                  '-v',
-                  '--no-drop-table-after']
+dataset_import_cmdline = ['python3',
+                          os.path.join(args.benchmarks_path, 'run_benchmark_import.py'),
+                          '-u', args.user,
+                          '-p', args.passwd,
+                          '-s', 'localhost',
+                          '-o', str(args.omnisci_port),
+                          '-n', args.name,
+                          '-t', args.import_table_name,
+                          '-l', args.label,
+                          '-f', args.import_file,
+                          '-c', args.table_schema_file,
+                          '-e', 'output',
+                          '-v',
+                          '--no-drop-table-after']
 
-benchmark_cmdline = ['python3',
-                     os.path.join(args.benchmarks_path, 'run_benchmark.py'),
-                     '-u', args.user,
-                     '-p', args.passwd,
-                     '-s', 'localhost',
-                     '-o', str(args.omnisci_port),
-                     '-n', args.name,
-                     '-t', args.import_table_name,
-                     '-l', args.label,
-                     '-d', args.queries_dir,
-                     '-i', str(args.iterations),
-                     '-e', 'file_json',
-                     '-j', 'benchmark.json',
-                     '-v']
+dataset_benchmark_cmdline = ['python3',
+                             os.path.join(args.benchmarks_path, 'run_benchmark.py'),
+                             '-u', args.user,
+                             '-p', args.passwd,
+                             '-s', 'localhost',
+                             '-o', str(args.omnisci_port),
+                             '-n', args.name,
+                             '-t', args.import_table_name,
+                             '-l', args.label,
+                             '-d', args.queries_dir,
+                             '-i', str(args.iterations),
+                             '-e', 'file_json',
+                             '-j', 'benchmark.json',
+                             '-v']
+
+synthetic_benchmark_cmdline = ['python3',
+                               os.path.join(args.benchmarks_path, 'run_synthetic_benchmark.py'),
+                               '--user', args.user,
+                               '--password', args.passwd,
+                               '--server', 'localhost',
+                               '--port', str(args.omnisci_port),
+                               '--dest_port', str(args.omnisci_port),
+                               '--name', args.name,
+                               '--table_name', args.import_table_name,
+                               '--label', args.label,
+                               '--iterations', str(args.iterations),
+                               '--print_results',
+                               '--query', args.synthetic_query,
+                               '--num_fragments', str(args.num_synthetic_fragments),
+                               '--data_dir', os.path.join(server_cwd, 'data'),
+                               '--gpu_label', 'CPU',
+                               '--result_dir', 'synthetic_results']
+
+if args.mode == 'synthetic':
+    if args.synthetic_query is None or args.num_synthetic_fragments is None or args.fragment_size is None:
+        print("For synthetic type of benchmark the following parameters are mandatory: --synthetic-query, --num-fragments and --fragment-size.")
+        sys.exit(3)
+    datafiles = 0
+    results_file_name = os.path.join(args.benchmarks_path, 'synthetic_results', args.label, 'CPU', 'Benchmarks', args.synthetic_query + '.json')
+    import_cmdline = None
+    benchmark_cmdline = synthetic_benchmark_cmdline
+else:
+    if args.import_file is None or args.table_schema_file is None or args.queries_dir is None:
+        print("For dataset type of benchmark the following parameters are mandatory: --import-file, --table-schema-file and --queries-dir and --fragment-size is optional.")
+        sys.exit(3)
+    datafiles_names = list(braceexpand(args.import_file))
+    datafiles_names = [x for f in datafiles_names for x in glob.glob(f)]
+    datafiles = len(datafiles_names)
+    print("NUMBER OF DATAFILES FOUND:", datafiles)
+    results_file_name = os.path.join(args.benchmarks_path, "benchmark.json")
+    import_cmdline = dataset_import_cmdline
+    benchmark_cmdline = dataset_benchmark_cmdline
 
 db_reporter = None
 if args.db_user is not "":
@@ -184,21 +227,6 @@ if args.db_user is not "":
         'CommitHash': args.commit
     })
 
-
-# Use bash to determine number of matching files because python
-# doesn't support curly brace expansion
-#cmdline="bash -c 'ls -1 " + args.import_file + " | wc -l '"
-#datafiles = int(subprocess.check_output(cmdline, shell=True).decode().strip())
-
-datafiles_names = list(braceexpand(args.import_file))
-datafiles_names = [x for f in datafiles_names for x in glob.glob(f)]
-datafiles = len(datafiles_names)
-print("NUMBER OF DATAFILES FOUND:", datafiles)
-
-if args.omnisci_cwd is not None:
-    server_cwd = args.omnisci_cwd
-else:
-    server_cwd = pathlib.Path(args.omnisci_executable).parent.parent
 try:
     server_process = subprocess.Popen(server_cmdline, cwd=server_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 except OSError as err:
@@ -216,11 +244,13 @@ try:
     with open(args.report, "w") as report:
         if args.fragment_size is not None:
             for fs in args.fragment_size:
-                print("RUNNING IMPORT WITH FRAGMENT SIZE", fs)
-                execute_benchmark(fs, report)
+                print("RUNNING WITH FRAGMENT SIZE", fs)
+                execute_benchmark(datafiles, import_cmdline, args.benchmarks_path,
+                                  benchmark_cmdline, fs, results_file_name, report)
         else:
-            print("RUNNING IMPORT WITH DEFAULT FRAGMENT SIZE")
-            execute_benchmark(None, report)
+            print("RUNNING WITH DEFAULT FRAGMENT SIZE")
+            execute_benchmark(datafiles, import_cmdline, args.benchmarks_path,
+                              benchmark_cmdline, None, results_file_name, report)
 finally:
     print("TERMINATING SERVER")
     server_process.send_signal(signal.SIGINT)
