@@ -102,10 +102,10 @@ required.add_argument("-p", "--passwd", dest="passwd", default="HyperInteractive
 required.add_argument("-n", "--name", dest="name", default="omnisci", required=True,
                       help="Database name to use on omniscidb server.")
 required.add_argument("-t", "--import-table-name", dest="import_table_name", required=True,
-                      help="Name of table to import data to. NOTE: This table will be dropped before and after the import test, unless --no-drop-table-[before/after] is specified.")
+                      help="Name of table to import data to. NOTE: This table will be dropped before and after the import test.")
 # Required by omnisci benchmark scripts
 required.add_argument("-l", "--label", dest="label", required=True,
-                      help="Benchmark run label")
+                      help="Benchmark run label.")
 required.add_argument("-i", "--iterations", dest="iterations", type=int, required=True,
                       help="Number of iterations per query. Must be > 1")
 required.add_argument("-m", "--mode", dest="mode", choices=['synthetic', 'dataset'], required=True,
@@ -117,27 +117,27 @@ optional.add_argument('-fs', '--fragment-size', dest="fragment_size", action='ap
 
 # Required for synthetic benchmarks
 optional.add_argument("-nf", "--num-fragments", dest="num_synthetic_fragments",
-                      help="Number of fragments to generate for synthetic benchmark. Data size is fragment_size * num_fragments")
+                      help="Number of fragments to generate for synthetic benchmark. Dataset size is fragment_size * num_fragments.")
 optional.add_argument("-sq", "--synthetic-query", choices=['BaselineHash', 'MultiStep', 'NonGroupedAgg', 'PerfectHashMultiCol', 'PerfectHashSingleCol', 'Sort'], dest="synthetic_query",
-                      help="Synthetic benchmark query group")
+                      help="Synthetic benchmark query group.")
 
 # Required for traditional data benchmarks
 optional.add_argument("-f", "--import-file", dest="import_file",
                       help="Absolute path to file or wildcard on omnisci_server machine with data for import test. If wildcard is used, all files are imported in one COPY statement. Limiting number of files is possible using curly braces wildcard, e.g. trips_xa{a,b,c}.csv.gz.")
 optional.add_argument("-c", "--table-schema-file", dest="table_schema_file",
-                      help="Path to local file with CREATE TABLE sql statement for the import table")
+                      help="Path to local file with CREATE TABLE sql statement for the import table.")
 optional.add_argument("-d", "--queries-dir", dest="queries_dir",
-                      help='Absolute path to dir with query files. [Default: "queries" dir in same location as script]')
+                      help='Absolute path to dir with query files.')
 
 # MySQL database parameters
-optional.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
-optional.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server")
+optional.add_argument("-db-server", default="localhost", help="Host name of MySQL server.")
+optional.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server.")
 optional.add_argument("-db-user", default="", help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.")
-optional.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database")
-optional.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results")
+optional.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database.")
+optional.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results.")
 optional.add_argument("-db-table", help="Table to use to store results for this benchmark.")
 
-optional.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
+optional.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results.")
 
 args = parser.parse_args()
 
