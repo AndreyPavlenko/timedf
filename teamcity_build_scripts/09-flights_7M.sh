@@ -1,0 +1,3 @@
+ROOT_DIR="${PWD}"
+cd omniscripts
+python3 run_omnisci_benchmark.py -m dataset -path="${ROOT_DIR}"/omniscidb/Benchmarks -u admin -p HyperInteractive -e "${ROOT_DIR}"/omniscidb/build/bin/omnisci_server --port 61274 -n omnisci -t flights_benchmark -l flights_test -f /localdisk/benchmark_datasets/flights/flights_2008_7M/flights_2008_7M.csv -c "${ROOT_DIR}"/omniscidb/Benchmarks/import_table_schemas/flights_56_columns.sql -d "${ROOT_DIR}"/omniscidb/Benchmarks/queries/flights -i 5 -fs 5000000 -db-server=ansatlin07.an.intel.com -db-user=gashiman -db-pass=omniscidb -db-name=omniscidb -db-table=flightsbench -commit ${BUILD_REVISION}
