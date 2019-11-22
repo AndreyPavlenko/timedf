@@ -100,10 +100,10 @@ def q4(df):
     return transformed.size().reset_index().sort_values(by=['pickup_datetime',0],ascending=[True,False])
 
 benchmarks = {
-    1: q1,
-    2: q2,
-    3: q3,
-    4: q4
+    "MQ01.pd": q1,
+    "MQ02.pd": q2,
+    "MQ03.pd": q3,
+    "MQ04.pd": q4
 }
 
 # Load database reporting functions
@@ -134,7 +134,7 @@ if args.df <= 0:
     print("Bad number of data files specified", args.df)
     sys.exit(1)
 
-if args.t < 1:
+if args.iterations < 1:
     print("Bad number of iterations specified", args.t)
 
 db_reporter = None
@@ -161,20 +161,20 @@ if len(dataFileNames) == 0:
     print("Could not find any data files matching", args.dp)
     sys.exit(2)
 
-print("Reading", args.df, "datafiles")
+print("READING", args.df, "DATAFILES")
 dataFilesNumber = len(dataFileNames[:args.df])
 def read_datafile(f):
-    print("Reading datafile", f)
+    print("READING DATAFILE", f)
     return pd.read_csv(f, compression='gzip', header=None, names=taxi_names)
 df_from_each_file = (read_datafile(f) for f in dataFileNames[:args.df])
 concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
 
 try:
     with open(args.r, "w") as report:
-        for benchNumber, query in benchmarks.items():
+        for benchName, query in benchmarks.items():
             bestExecTime = float("inf")
             for iii in range(1, args.iterations + 1):
-                print("Running benchmark number", benchNumber, "Iteration number", iii)
+                print("RUNNING BENCHMARK NUMBER", benchName, "ITERATION NUMBER", iii)
                 query_df = concatenated_df
                 t1 = time.time()
                 query(query_df)
@@ -182,10 +182,14 @@ try:
                 ttt = int(round((t2 - t1) * 1000))
                 if bestExecTime > ttt:
                     bestExecTime = ttt
-            print("BENCHMARK", benchNumber, "exec time", bestExecTime)
+            print("BENCHMARK", benchName, "EXEC TIME", bestExecTime)
             print(dataFilesNumber, ",",
                   0, ",",
-                  benchNumber, ",",
+                  benchName, ",",
+                  bestExecTime, ",",
+                  bestExecTime, ",",
+                  bestExecTime, ",",
+                  bestExecTime, ",",
                   bestExecTime, ",",
                   bestExecTime, ",",
                   "", '\n', file=report, sep='', end='', flush=True)
@@ -193,7 +197,7 @@ try:
                 db_reporter.submit({
                     'FilesNumber': dataFilesNumber,
                     'FragmentSize': 0,
-                    'BenchName': str(benchNumber),
+                    'BenchName': benchName,
                     'BestExecTimeMS': bestExecTime,
                     'BestTotalTimeMS': bestExecTime,
                     'WorstExecTimeMS': bestExecTime,
