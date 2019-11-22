@@ -60,3 +60,34 @@ Switch | Default value | Meaning
 Script automatically starts up omniscidb server, creates and
 initializes data directory if it doesn't exist or it is not
 initialized.
+
+Sample synthetic command line:
+```
+python3 run_omnisci_benchmark.py -m synthetic -path=/localdisk/username/omniscidb/Benchmarks -u admin -p HyperInteractive -e /localdisk/username/omniscidb/release/bin/omnisci_server -n omnisci -t baseline_hash_benchmark -l baseline_hash_test -nf 10 -sq BaselineHash -i 5 -fs 2000000 -fs 5000000
+```
+
+Sample dataset command line with report to MySQL database:
+```
+python3 run_omnisci_benchmark.py -m dataset -path=/localdisk/username/omniscidb/Benchmarks -u admin -p HyperInteractive -e /localdisk/username/omniscidb/release/bin/omnisci_server -n omnisci -t flights_benchmark -l flights_test -f /localdisk/benchmark_datasets/flights/flights_2008_7M/flights_2008_7M.csv -c /localdisk/username/omniscidb/Benchmarks/import_table_schemas/flights_56_columns.sql -d /localdisk/username/omniscidb/Benchmarks/queries/flights -i 5 -fs 2000000 -fs 5000000 -db-server=mysqlserver -db-user=mysqluser -db-pass=omniscidb -db-name=omniscidb -db-table=flightsbench
+```
+
+## Taxi pandas script
+
+Pandas script name is `taxi/taxibench_pandas.py`. Pandas is required
+to run this script.
+
+Following are switches that are required to run it:
+
+Switch | Default value | Meaning
+------ | ------------- | -------
+-r | report_pandas.csv | Report file name.
+-df | 1 | Number of datafiles to input into database for processing.
+-dp | | Wildcard pattern of datafiles that should be loaded.
+-i | 5 | Number of iterations to run every benchmark. Best result is selected.
+
+Database reporting switches are the same as for main benchmark script.
+
+Sample script command line:
+```
+python3 taxi/taxibench_pandas.py -df 2 -i 5 -dp '/datadir/taxi/trips_*.csv.gz'
+```

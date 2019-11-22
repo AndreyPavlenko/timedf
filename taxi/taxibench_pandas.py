@@ -112,20 +112,19 @@ print(pathToReportDir)
 sys.path.insert(1, pathToReportDir)
 import report
 
-taxiTripsDirectory = "/localdisk/work/trips_x*.csv"
-
 parser = argparse.ArgumentParser(description='Run NY Taxi benchmark using pandas')
 
-parser.add_argument('-df', default=1, type=int, help="Number of datafiles to input into database for processing")
-parser.add_argument('-dp', default=taxiTripsDirectory, help="Wildcard pattern of datafiles that should be loaded")
-parser.add_argument('-t', default=5, type=int, help="Number of times to run every benchmark. Best result is selected")
-parser.add_argument('-r', default="report_pandas.csv", help="Report file name")
+parser.add_argument('-r', default="report_pandas.csv", help="Report file name.")
+parser.add_argument('-df', default=1, type=int, help="Number of datafiles to input into database for processing.")
+parser.add_argument('-dp', help="Wildcard pattern of datafiles that should be loaded.")
+parser.add_argument('-i', dest="iterations", default=5, type=int, help="Number of iterations to run every benchmark. Best result is selected.")
 
 parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
 parser.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server")
 parser.add_argument("-db-user", default="", help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.")
 parser.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database")
 parser.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results")
+parser.add_argument("-db-table", help="Table to use to store results for this benchmark.")
 
 parser.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
 
@@ -142,12 +141,16 @@ db_reporter = None
 if args.db_user is not "":
     print("Connecting to database")
     db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
-    db_reporter = report.DbReport(db, "taxibench", {
+    db_reporter = report.DbReport(db, args.db_table, {
         'FilesNumber': 'INT UNSIGNED NOT NULL',
         'FragmentSize': 'BIGINT UNSIGNED NOT NULL',
         'BenchName': 'VARCHAR(500) NOT NULL',
         'BestExecTimeMS': 'BIGINT UNSIGNED',
-        'BestTotalTimeMS': 'BIGINT UNSIGNED'
+        'BestTotalTimeMS': 'BIGINT UNSIGNED',
+        'WorstExecTimeMS': 'BIGINT UNSIGNED',
+        'WorstTotalTimeMS': 'BIGINT UNSIGNED',
+        'AverageExecTimeMS': 'BIGINT UNSIGNED',
+        'AverageTotalTimeMS': 'BIGINT UNSIGNED'
     }, {
         'ScriptName': 'taxibench_pandas.py',
         'CommitHash': args.commit
@@ -170,7 +173,7 @@ try:
     with open(args.r, "w") as report:
         for benchNumber, query in benchmarks.items():
             bestExecTime = float("inf")
-            for iii in range(1, args.t + 1):
+            for iii in range(1, args.iterations + 1):
                 print("Running benchmark number", benchNumber, "Iteration number", iii)
                 query_df = concatenated_df
                 t1 = time.time()
@@ -192,7 +195,11 @@ try:
                     'FragmentSize': 0,
                     'BenchName': str(benchNumber),
                     'BestExecTimeMS': bestExecTime,
-                    'BestTotalTimeMS': bestTotalTime
+                    'BestTotalTimeMS': bestExecTime,
+                    'WorstExecTimeMS': bestExecTime,
+                    'WorstTotalTimeMS': bestExecTime,
+                    'AverageExecTimeMS': bestExecTime,
+                    'AverageTotalTimeMS': bestExecTime
                 })
 except IOError as err:
     print("Failed writing report file", args.r, err)
