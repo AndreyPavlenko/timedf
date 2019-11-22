@@ -9,7 +9,7 @@ from glob import glob
 import os
 import time
 
-data_directory = "/nfs/site/home/gashiman/nfs/mortgage-data"
+data_directory = "/localdisk/benchmark_datasets/mortgage"
 
 def run_pd_workflow(quarter=1, year=2000, perf_file="", **kwargs):
 #    con = connect(user="admin", password="HyperInteractive", host="localhost", dbname="omnisci")
