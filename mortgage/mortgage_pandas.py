@@ -8,41 +8,52 @@ from io import StringIO
 from glob import glob
 import os
 import time
-
-data_directory = "/localdisk/benchmark_datasets/mortgage"
+import pathlib
+import sys
+import argparse
 
 def run_pd_workflow(quarter=1, year=2000, perf_file="", **kwargs):
-#    con = connect(user="admin", password="HyperInteractive", host="localhost", dbname="omnisci")
-
     t1 = time.time()
     names = pd_load_names()
-    acq_pdf = pd_load_acquisition_csv(acquisition_path =
-            os.path.join(data_directory, "acq", "Acquisition_" + str(year) + "Q" + str(quarter) + ".txt"))
+    year_string = str(year) + "Q" + str(quarter) + ".txt"
+    acq_file = os.path.join(data_directory, "acq", "Acquisition_" + year_string)
+    print("READING DATAFILE", acq_file)
+    acq_pdf = pd_load_acquisition_csv(acq_file)
+
+    print("READING DATAFILE", perf_file)
     perf_df_tmp = pd_load_performance_csv(perf_file)
-    print("read time", time.time()-t1)
+    print("read time", time.time() - t1)
+
     t1 = time.time()
+
     acq_pdf = acq_pdf.merge(names, how='left', on=['seller_name'])
     acq_pdf.drop(columns=['seller_name'], inplace=True)
     acq_pdf['seller_name'] = acq_pdf['new']
     acq_pdf.drop(columns=['new'], inplace=True)
+
     pdf = perf_df_tmp
     everdf = create_ever_features(pdf)
     delinq_merge = create_delinq_features(pdf)
     everdf = join_ever_delinq_features(everdf, delinq_merge)
     del(delinq_merge)
+
     joined_df = create_joined_df(pdf, everdf)
     testdf = create_12_mon_features(joined_df)
     joined_df = combine_joined_12_mon(joined_df, testdf)
     del(testdf)
+
     perf_df = final_performance_delinquency(pdf, joined_df)
     del(pdf, joined_df)
+
     final_pdf = join_perf_acq_pdfs(perf_df, acq_pdf)
     del(perf_df)
     del(acq_pdf)
+
     print("compute time", time.time()-t1)
     final_pdf = last_mile_cleaning(final_pdf)
-    print("compute time with copy to host", time.time()-t1)
-    return final_pdf
+    exec_time = time.time()-t1
+    print("compute time with copy to host", exec_time)
+    return final_pdf, exec_time
 
 def pd_load_performance_csv(performance_path, **kwargs):
     """ Loads performance data
@@ -97,8 +108,6 @@ def pd_load_performance_csv(performance_path, **kwargs):
         "servicing_activity_indicator": CategoricalDtype(['N', 'Y']),
     }
 
-    print(performance_path)
-
     return pd.read_csv(performance_path, names=cols, delimiter='|', dtype=dtypes, parse_dates=[1,8,13,14,15,16])
 
 def pd_load_acquisition_csv(acquisition_path, **kwargs):
@@ -150,10 +159,7 @@ def pd_load_acquisition_csv(acquisition_path, **kwargs):
         'year_quarter': np.int64
     }
 
-    print(acquisition_path)
-
     a = pd.read_csv(acquisition_path, names=columns, delimiter='|', dtype=dtypes, parse_dates=[6,7], error_bad_lines=True, warn_bad_lines=True, na_filter=True)
-    print (a.info())
     return a
 
 def pd_load_names(**kwargs):
@@ -172,7 +178,6 @@ def pd_load_names(**kwargs):
 
     return pd.read_csv(os.path.join(data_directory, "names.csv"), names=cols, delimiter='|', dtype=dtypes)
 
-
 def create_ever_features(pdf, **kwargs):
     everdf = pdf[['loan_id', 'current_loan_delinquency_status']]
     everdf = everdf.groupby('loan_id').max()
@@ -182,7 +187,6 @@ def create_ever_features(pdf, **kwargs):
     everdf['ever_180'] = (everdf['current_loan_delinquency_status'] >= 6).astype('int8')
     everdf.drop(columns=['current_loan_delinquency_status'], inplace=True)
     return everdf
-
 
 def create_delinq_features(pdf, **kwargs):
     delinq_pdf = pdf[['loan_id', 'monthly_reporting_period', 'current_loan_delinquency_status']]
@@ -205,8 +209,6 @@ def create_delinq_features(pdf, **kwargs):
     del(delinq_90)
     del(delinq_180)
     return delinq_merge
-
-
 
 def join_ever_delinq_features(everdf_tmp, delinq_merge, **kwargs):
     everdf = everdf_tmp.merge(delinq_merge, on=['loan_id'], how='left')
@@ -247,8 +249,6 @@ def create_joined_df(pdf, everdf, **kwargs):
 
     return joined_df
 
-
-
 def create_12_mon_features(joined_df, **kwargs):
     testdfs = []
     n_months = 12
@@ -268,13 +268,11 @@ def create_12_mon_features(joined_df, **kwargs):
 
     return pd.concat(testdfs)
 
-
 def combine_joined_12_mon(joined_df, testdf, **kwargs):
     joined_df.drop(columns=['delinquency_12', 'upb_12'], inplace=True)
     joined_df['timestamp_year'] = joined_df['timestamp_year'].astype('int16')
     joined_df['timestamp_month'] = joined_df['timestamp_month'].astype('int8')
     return joined_df.merge(testdf, how='left', on=['loan_id', 'timestamp_year', 'timestamp_month'])
-
 
 def final_performance_delinquency(merged, joined_df, **kwargs):
     merged['timestamp_month'] = merged['monthly_reporting_period'].dt.month
@@ -286,12 +284,8 @@ def final_performance_delinquency(merged, joined_df, **kwargs):
     merged.drop(columns=['timestamp_month'], inplace=True)
     return merged
 
-
-
 def join_perf_acq_pdfs(perf, acq, **kwargs):
     return perf.merge(acq, how='left', on=['loan_id'])
-
-
 
 def last_mile_cleaning(df, **kwargs):
     #for col, dtype in df.dtypes.iteritems():
@@ -301,30 +295,111 @@ def last_mile_cleaning(df, **kwargs):
     df['delinquency_12'] = df['delinquency_12'].fillna(False).astype('int32')
     return df #.to_arrow(index=False)
 
+# Load database reporting functions
+pathToReportDir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
+print(pathToReportDir)
+sys.path.insert(1, pathToReportDir)
+import report
 
-year = 2000
-quarter = 1
-perf_file = os.path.join(data_directory, "perf", "Performance_" + str(year) + "Q" + str(quarter) + ".txt")
-#pdf = run_pd_workflow(year=year, quarter=quarter, perf_file=perf_file)
-#print(pdf)
-t1 = time.time()
-pdf = run_pd_workflow(year=year, quarter=quarter, perf_file=perf_file)
-t2 = time.time()
-print("Total exec time:", t2-t1)
+parser = argparse.ArgumentParser(description='Run Mortgage benchmark using pandas')
 
+parser.add_argument('-r', default="report_pandas.csv", help="Report file name.")
+parser.add_argument('-df', default=1, type=int, help="Number of datafiles (quarters) to input into database for processing.")
+parser.add_argument('-dp', required=True, help="Path to root of mortgage datafiles directory (contains names.csv).")
+parser.add_argument('-i', dest="iterations", default=5, type=int, help="Number of iterations to run every benchmark. Best result is selected.")
 
-# start_year = 2000
-# end_year = 2017
+parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
+parser.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server")
+parser.add_argument("-db-user", default="", help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.")
+parser.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database")
+parser.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results")
+parser.add_argument("-db-table", help="Table to use to store results for this benchmark.")
 
-# pd_dfs = []
-# pd_time = 0
-# quarter = 1
-# year = start_year
-# while year != end_year:
-#     for file in glob(os.path.join(data_directory, "Performance_" + str(year) + "Q" + str(quarter) + "*")):
-#         pd_dfs.append(process_quarter_pd(year=year, quarter=quarter, perf_file=file))
-#     quarter += 1
-#     if quarter == 5:
-#         year += 1
-#         quarter = 1
-# wait(pd_dfs)
+parser.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
+
+args = parser.parse_args()
+
+if args.df <= 0:
+    print("Bad number of data files specified", args.df)
+    sys.exit(1)
+
+if args.iterations < 1:
+    print("Bad number of iterations specified", args.t)
+
+db_reporter = None
+if args.db_user is not "":
+    print("Connecting to database")
+    db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
+    db_reporter = report.DbReport(db, args.db_table, {
+        'FilesNumber': 'INT UNSIGNED NOT NULL',
+        'FragmentSize': 'BIGINT UNSIGNED NOT NULL',
+        'BenchName': 'VARCHAR(500) NOT NULL',
+        'BestExecTimeMS': 'BIGINT UNSIGNED',
+        'BestTotalTimeMS': 'BIGINT UNSIGNED',
+        'WorstExecTimeMS': 'BIGINT UNSIGNED',
+        'WorstTotalTimeMS': 'BIGINT UNSIGNED',
+        'AverageExecTimeMS': 'BIGINT UNSIGNED',
+        'AverageTotalTimeMS': 'BIGINT UNSIGNED'
+    }, {
+        'ScriptName': 'mortgage_pandas.py',
+        'CommitHash': args.commit
+    })
+
+data_directory = args.dp
+benchName = "mortgage"
+
+perf_data_path = os.path.join(data_directory, "perf")
+perf_format_path = os.path.join(perf_data_path, "Performance_%sQ%s.txt")
+bestExecTime = float("inf")
+bestTotalTime = float("inf")
+
+for iii in range(1, args.iterations + 1):
+    dataFilesNumber = 0
+    time_ETL = time.time()
+    exec_time_total = 0
+    print("RUNNING BENCHMARK NUMBER", benchName, "ITERATION NUMBER", iii)
+    for quarter in range(0, args.df):
+        year = 2000 + quarter // 4
+        perf_file = perf_format_path % (str(year), str(quarter % 4 + 1))
+
+        files = [f for f in pathlib.Path(perf_data_path).iterdir() if f.match('Performance_%sQ%s.txt*' % (str(year), str(quarter % 4 + 1)))]
+        for f in files:
+            dataframe, exec_time = run_pd_workflow(year = year, quarter = (quarter % 4 + 1), perf_file = str(f))
+            exec_time_total += exec_time
+        dataFilesNumber += 1
+    time_ETL_end = time.time()
+    ttt = time_ETL_end - time_ETL
+    print("ITERATION", iii, "EXEC TIME: ", exec_time_total, "TOTAL TIME: ", ttt)
+
+    if bestExecTime > exec_time_total:
+        bestExecTime = exec_time_total
+    if bestTotalTime > ttt:
+        bestTotalTime = ttt
+
+try:
+    with open(args.r, "w") as report:
+        print("BENCHMARK", benchName, "EXEC TIME", bestExecTime, "TOTAL TIME", bestTotalTime)
+        print("datafiles,fragment_size,query,query_exec_min,query_total_min,query_exec_max,query_total_max,query_exec_avg,query_total_avg,query_error_info", file=report, flush=True)
+        print(dataFilesNumber, ",",
+              0, ",",
+              benchName, ",",
+              bestExecTime, ",",
+              bestTotalTime, ",",
+              bestExecTime, ",",
+              bestTotalTime, ",",
+              bestExecTime, ",",
+              bestTotalTime, ",",
+              "", '\n', file=report, sep='', end='', flush=True)
+        if db_reporter is not None:
+            db_reporter.submit({
+                'FilesNumber': dataFilesNumber,
+                'FragmentSize': 0,
+                'BenchName': benchName,
+                'BestExecTimeMS': bestExecTime,
+                'BestTotalTimeMS': bestTotalTime,
+                'WorstExecTimeMS': bestExecTime,
+                'WorstTotalTimeMS': bestTotalTime,
+                'AverageExecTimeMS': bestExecTime,
+                'AverageTotalTimeMS': bestTotalTime})
+except IOError as err:
+    print("Failed writing report file", args.r, err)
