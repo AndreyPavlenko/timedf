@@ -8,10 +8,9 @@ from io import StringIO
 from glob import glob
 import os
 import time
-#import cudf, io, requests
-data_directory= "/nfs/site/proj/scripting_tools/gashiman/mortgage-data"
-con = connect(user="admin", password="HyperInteractive", host="localhost", dbname="omnisci", port=62740)
-#mapd_con =mapd_jdbc.connect(user="admin", password="HyperInteractive", host="localhost", dbname="omnisci", port=62740)
+import pathlib
+import sys
+import argparse
 
 def run_pd_workflow(quarter=1, year=2000, perf_file="", **kwargs):
    # con = connect(user="admin", password="HyperInteractive", host="localhost", dbname="omnisci", port=62740)
@@ -29,7 +28,7 @@ def run_pd_workflow(quarter=1, year=2000, perf_file="", **kwargs):
     perf_df_tmp = pd_load_performance_csv(perf_file)
     con.execute('DROP TABLE IF EXISTS perf;')
     con.create_table('perf', perf_df_tmp)
-    print("read time", time.time()-t1)
+    print("read time", (time.time() - t1) * 1000)
 
     t1 = time.time()
     con.execute('DROP TABLE IF EXISTS acqtemp;');
@@ -57,10 +56,11 @@ def run_pd_workflow(quarter=1, year=2000, perf_file="", **kwargs):
     final_pdf = join_perf_acq_pdfs(perf_df, acq_pdf)
     del(perf_df)
     del(acq_pdf)
-    print("compute time", time.time()-t1)
+    print("compute time", (time.time() - t1) * 1000)
     final_pdf = last_mile_cleaning(final_pdf)
-    print("compute time with copy to host", time.time()-t1)
-    return final_pdf
+    exec_time = (time.time() - t1) * 1000
+    print("compute time with copy to host", exec_time)
+    return final_pdf, exec_time
 
 def pd_load_performance_csv(performance_path, **kwargs):
     """ Loads performance data
@@ -118,7 +118,6 @@ def pd_load_performance_csv(performance_path, **kwargs):
     print(performance_path)
 
     p = pd.read_csv(performance_path, names=cols, delimiter='|', dtype=dtypes, parse_dates=[1,8,13,14,15,16])
-    print(p.info())
     return p
 
 def pd_load_acquisition_csv(acquisition_path, **kwargs):
@@ -173,7 +172,6 @@ def pd_load_acquisition_csv(acquisition_path, **kwargs):
     print(acquisition_path)
 
     a = pd.read_csv(acquisition_path, names=columns, delimiter='|', dtype=dtypes, parse_dates=[6,7], error_bad_lines=True, warn_bad_lines=True, na_filter=True)
-    print (a.info())
     return a
 
 def pd_load_names(**kwargs):
@@ -191,7 +189,6 @@ def pd_load_names(**kwargs):
     dtypes = {'seller_name':str, 'new_seller_name':str}
 
     n = pd.read_csv(os.path.join(data_directory, "names.csv"), names=cols, delimiter='|', dtype=dtypes)
-    print (n.info())
     return n
 
 def create_ever_features(pdf, **kwargs):
@@ -298,7 +295,6 @@ def create_delinq_features(pdf, **kwargs):
     deling_merge = pd.DataFrame(deling_merge_temp);
     d =deling_merge.head();
     return deling_merge
-
 
 def join_ever_delinq_features(everdf_tmp, delinq_merge, **kwargs):
     #everdf = everdf_tmp.merge(delinq_merge, on=['loan_id'], how='left')
@@ -440,7 +436,6 @@ def create_12_mon_features(joined_df, **kwargs):
     #del(joined_df)
    #return pd.concat(testdfs)
 
-
 def combine_joined_12_mon(joined_df, testdf, **kwargs):
     #joined_df.drop(columns=['delinquency_12', 'upb_12'], inplace=True)
     #joined_df['timestamp_year'] = joined_df['timestamp_year'].astype('int16')
@@ -452,7 +447,6 @@ def combine_joined_12_mon(joined_df, testdf, **kwargs):
     con.execute('DROP TABLE IF EXISTS join_final ;')
 
     #return joined_df.merge(testdf, how='left', on=['loan_id', 'timestamp_year', 'timestamp_month'])
-
 
 def final_performance_delinquency(pdf, joined_df, **kwargs):
      merged = pdf[['loan_id', 'monthly_reporting_period']]
@@ -479,7 +473,6 @@ def join_perf_acq_pdfs(perf, acq, **kwargs):
     con.execute('DROP TABLE IF EXISTS tempperf ');
     con.execute('CREATE TABLE tempperf AS SELECT acq.loan_id AS loan_id,acq.seller_name FROM acq LEFT JOIN perf ON acq.loan_id = perf.loan_id;');
 
-
 def last_mile_cleaning(df, **kwargs):
     #for col, dtype in df.dtypes.iteritems():
     #    if str(dtype)=='category':
@@ -488,31 +481,128 @@ def last_mile_cleaning(df, **kwargs):
     #df['delinquency_12'] = df['delinquency_12'].fillna(False).astype('int32')
      return df #.to_arrow(index=False)
 
+# Load database reporting functions
+pathToReportDir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
+print(pathToReportDir)
+sys.path.insert(1, pathToReportDir)
+import report
 
-year = 2000
-quarter = 1
-perf_file = os.path.join(data_directory, "perf", "Performance_" + str(year) + "Q" + str(quarter) + ".txt")
-#pdf = run_pd_workflow(year=year, quarter=quarter, perf_file=perf_file)
-#print(pdf)
-t1 = time.time()
-pdf = run_pd_workflow(year=year, quarter=quarter, perf_file=perf_file)
-t2 = time.time()
-print("Total exec time:", t2-t1)
+parser = argparse.ArgumentParser(description='Run Mortgage benchmark using pandas')
 
+parser.add_argument('-fs', action='append', type=int, help="Fragment size to use for created table. Multiple values are allowed and encouraged.")
+parser.add_argument('-r', default="report_pandas.csv", help="Report file name.")
+parser.add_argument('-df', default=1, type=int, help="Number of datafiles (quarters) to input into database for processing.")
+parser.add_argument('-dp', required=True, help="Path to root of mortgage datafiles directory (contains names.csv).")
+parser.add_argument('-i', dest="iterations", default=5, type=int, help="Number of iterations to run every benchmark. Best result is selected.")
+parser.add_argument("-port", default=62074, type=int, help="TCP port that omnisql client should use to connect to server")
 
-# start_year = 2000
-# end_year = 2017
+parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
+parser.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server")
+parser.add_argument("-db-user", default="", help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.")
+parser.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database")
+parser.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results")
+parser.add_argument("-db-table", help="Table to use to store results for this benchmark.")
 
-# pd_dfs = []
-# pd_time = 0
-# quarter = 1
-# year = start_year
-# while year != end_year:
-#     for file in glob(os.path.join(data_directory, "Performance_" + str(year) + "Q" + str(quarter) + "*")):
-#         pd_dfs.append(process_quarter_pd(year=year, quarter=quarter, perf_file=file))
-#     quarter += 1
-#     if quarter == 5:
-#         year += 1
-#         quarter = 1
-# wait(pd_dfs)
-(base) avanipat@ansatlin12:/localdisk2/avanipat/omniscidb/build$
+parser.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
+
+args = parser.parse_args()
+
+if args.df <= 0:
+    print("Bad number of data files specified", args.df)
+    sys.exit(1)
+
+if args.iterations < 1:
+    print("Bad number of iterations specified", args.t)
+
+con = connect(user="admin", password="HyperInteractive", host="localhost", dbname="omnisci", port=args.port)
+
+db_reporter = None
+if args.db_user is not "":
+    print("Connecting to database")
+    db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
+    db_reporter = report.DbReport(db, args.db_table, {
+        'FilesNumber': 'INT UNSIGNED NOT NULL',
+        'FragmentSize': 'BIGINT UNSIGNED NOT NULL',
+        'BenchName': 'VARCHAR(500) NOT NULL',
+        'BestExecTimeMS': 'BIGINT UNSIGNED',
+        'BestTotalTimeMS': 'BIGINT UNSIGNED',
+        'WorstExecTimeMS': 'BIGINT UNSIGNED',
+        'WorstTotalTimeMS': 'BIGINT UNSIGNED',
+        'AverageExecTimeMS': 'BIGINT UNSIGNED',
+        'AverageTotalTimeMS': 'BIGINT UNSIGNED'
+    }, {
+        'ScriptName': 'mortgage_pandas.py',
+        'CommitHash': args.commit
+    })
+
+data_directory = args.dp
+benchName = "mortgage"
+
+perf_data_path = os.path.join(data_directory, "perf")
+perf_format_path = os.path.join(perf_data_path, "Performance_%sQ%s.txt")
+bestExecTime = float("inf")
+bestTotalTime = float("inf")
+worstExecTime = 0
+worstTotalTime = 0
+avgExecTime = 0
+avgTotalTime = 0
+
+for iii in range(1, args.iterations + 1):
+    dataFilesNumber = 0
+    time_ETL = time.time()
+    exec_time_total = 0
+    print("RUNNING BENCHMARK NUMBER", benchName, "ITERATION NUMBER", iii)
+    for quarter in range(0, args.df):
+        year = 2000 + quarter // 4
+        perf_file = perf_format_path % (str(year), str(quarter % 4 + 1))
+
+        files = [f for f in pathlib.Path(perf_data_path).iterdir() if f.match('Performance_%sQ%s.txt*' % (str(year), str(quarter % 4 + 1)))]
+        for f in files:
+            dataframe, exec_time = run_pd_workflow(year = year, quarter = (quarter % 4 + 1), perf_file = str(f))
+            exec_time_total += exec_time
+        dataFilesNumber += 1
+    time_ETL_end = time.time()
+    ttt = (time_ETL_end - time_ETL) * 1000
+    print("ITERATION", iii, "EXEC TIME: ", exec_time_total, "TOTAL TIME: ", ttt)
+
+    if bestExecTime > exec_time_total:
+        bestExecTime = exec_time_total
+    if worstExecTime < exec_time_total:
+        worstExecTime = exec_time_total
+    avgExecTime += exec_time_total
+    if bestTotalTime > ttt:
+        bestTotalTime = ttt
+    if worstTotalTime < ttt:
+        bestTotalTime = ttt
+    avgTotalTime += ttt
+
+avgExecTime /= args.iterations
+avgTotalTime /= args.iterations
+
+try:
+    with open(args.r, "w") as report:
+        print("BENCHMARK", benchName, "EXEC TIME", bestExecTime, "TOTAL TIME", bestTotalTime)
+        print("datafiles,fragment_size,query,query_exec_min,query_total_min,query_exec_max,query_total_max,query_exec_avg,query_total_avg,query_error_info", file=report, flush=True)
+        print(dataFilesNumber, ",",
+              0, ",",
+              benchName, ",",
+              bestExecTime, ",",
+              bestTotalTime, ",",
+              worstExecTime, ",",
+              worstTotalTime, ",",
+              avgExecTime, ",",
+              avgTotalTime, ",",
+              "", '\n', file=report, sep='', end='', flush=True)
+        if db_reporter is not None:
+            db_reporter.submit({
+                'FilesNumber': dataFilesNumber,
+                'FragmentSize': 0,
+                'BenchName': benchName,
+                'BestExecTimeMS': bestExecTime,
+                'BestTotalTimeMS': bestTotalTime,
+                'WorstExecTimeMS': worstExecTime,
+                'WorstTotalTimeMS': worstTotalTime,
+                'AverageExecTimeMS': avgExecTime,
+                'AverageTotalTimeMS': avgTotalTime})
+except IOError as err:
+    print("Failed writing report file", args.r, err)

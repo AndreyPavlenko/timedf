@@ -22,7 +22,7 @@ def run_pd_workflow(quarter=1, year=2000, perf_file="", **kwargs):
 
     print("READING DATAFILE", perf_file)
     perf_df_tmp = pd_load_performance_csv(perf_file)
-    print("read time", time.time() - t1)
+    print("read time", (time.time() - t1) * 1000)
 
     t1 = time.time()
 
@@ -49,9 +49,9 @@ def run_pd_workflow(quarter=1, year=2000, perf_file="", **kwargs):
     del(perf_df)
     del(acq_pdf)
 
-    print("compute time", time.time()-t1)
+    print("compute time", (time.time() - t1) * 1000)
     final_pdf = last_mile_cleaning(final_pdf)
-    exec_time = time.time()-t1
+    exec_time = (time.time() - t1) * 1000
     print("compute time with copy to host", exec_time)
     return final_pdf, exec_time
 
@@ -346,12 +346,16 @@ if args.db_user is not "":
     })
 
 data_directory = args.dp
-benchName = "mortgage"
+benchName = "mortgage_pandas"
 
 perf_data_path = os.path.join(data_directory, "perf")
 perf_format_path = os.path.join(perf_data_path, "Performance_%sQ%s.txt")
 bestExecTime = float("inf")
 bestTotalTime = float("inf")
+worstExecTime = 0
+worstTotalTime = 0
+avgExecTime = 0
+avgTotalTime = 0
 
 for iii in range(1, args.iterations + 1):
     dataFilesNumber = 0
@@ -368,13 +372,22 @@ for iii in range(1, args.iterations + 1):
             exec_time_total += exec_time
         dataFilesNumber += 1
     time_ETL_end = time.time()
-    ttt = time_ETL_end - time_ETL
+    ttt = (time_ETL_end - time_ETL) * 1000
     print("ITERATION", iii, "EXEC TIME: ", exec_time_total, "TOTAL TIME: ", ttt)
 
     if bestExecTime > exec_time_total:
         bestExecTime = exec_time_total
+    if worstExecTime < exec_time_total:
+        worstExecTime = exec_time_total
+    avgExecTime += exec_time_total
     if bestTotalTime > ttt:
         bestTotalTime = ttt
+    if worstTotalTime < ttt:
+        bestTotalTime = ttt
+    avgTotalTime += ttt
+
+avgExecTime /= args.iterations
+avgTotalTime /= args.iterations
 
 try:
     with open(args.r, "w") as report:
@@ -385,10 +398,10 @@ try:
               benchName, ",",
               bestExecTime, ",",
               bestTotalTime, ",",
-              bestExecTime, ",",
-              bestTotalTime, ",",
-              bestExecTime, ",",
-              bestTotalTime, ",",
+              worstExecTime, ",",
+              worstTotalTime, ",",
+              avgExecTime, ",",
+              avgTotalTime, ",",
               "", '\n', file=report, sep='', end='', flush=True)
         if db_reporter is not None:
             db_reporter.submit({
@@ -397,9 +410,9 @@ try:
                 'BenchName': benchName,
                 'BestExecTimeMS': bestExecTime,
                 'BestTotalTimeMS': bestTotalTime,
-                'WorstExecTimeMS': bestExecTime,
-                'WorstTotalTimeMS': bestTotalTime,
-                'AverageExecTimeMS': bestExecTime,
-                'AverageTotalTimeMS': bestTotalTime})
+                'WorstExecTimeMS': worstExecTime,
+                'WorstTotalTimeMS': worstTotalTime,
+                'AverageExecTimeMS': avgExecTime,
+                'AverageTotalTimeMS': avgTotalTime})
 except IOError as err:
     print("Failed writing report file", args.r, err)
