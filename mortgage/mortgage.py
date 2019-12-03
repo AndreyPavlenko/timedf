@@ -277,8 +277,8 @@ def create_ever_features():
     con.execute('DROP TABLE IF EXISTS everdf;');
     con.execute('DROP TABLE IF EXISTS everdftemp1;');
     #con.create_table('everdf', everdf);
-    con.execute("CREATE TABLE everdf AS SELECT loan_id, current_loan_delinquency_status FROM perf;")
-    con.execute('CREATE TABLE everdftemp1 AS select MAX(loan_id) AS loan_id,everdf.current_loan_delinquency_status AS current_loan_delinquency_status FROM everdf GROUP BY loan_id,current_loan_delinquency_status;');
+    con.execute("CREATE TABLE everdf AS (SELECT loan_id, current_loan_delinquency_status FROM perf);")
+    con.execute('CREATE TABLE everdftemp1 AS (SELECT loan_id, MAX(current_loan_delinquency_status) AS current_loan_delinquency_status FROM everdf GROUP BY loan_id);');
     #everdf = everdf.groupby('loan_id').max()
     con.execute('DROP TABLE IF EXISTS pdf;');
     #del(pdf)
@@ -329,12 +329,12 @@ def create_delinq_features():
     con.execute('DROP TABLE IF EXISTS delinq_180 ;');
 
     #con.create_table('delinq',pdf);
-    con.execute("CREATE TABLE delinq AS (SELECT 'loan_id', 'monthly_reporting_period', 'current_loan_delinquency_status' FROM perf);")
-     #delinq_30 = delinq_pdf.query('current_loan_delinquency_status >= 1')[['loan_id', 'monthly_reporting_period']].groupby('loan_id').min()
-    con.execute('CREATE TABLE  delinq_30 AS (SELECT MIN(loan_id) AS loan_id ,monthly_reporting_period AS delinquency_30 FROM delinq where current_loan_delinquency_status >= 1 GROUP BY loan_id,monthly_reporting_period);');
-   # delinq_30['delinquency_30'] = delinq_30['monthly_reporting_period']
-    con.execute('CREATE TABLE  delinq_90 AS SELECT MIN(loan_id) AS loan_id,monthly_reporting_period AS delinquency_90 FROM delinq where current_loan_delinquency_status >= 3 GROUP BY loan_id,monthly_reporting_period;');
-    con.execute('CREATE TABLE  delinq_180 AS SELECT MIN(loan_id) AS loan_id,monthly_reporting_period AS delinquency_180 FROM delinq where current_loan_delinquency_status >= 6 GROUP BY loan_id,monthly_reporting_period;');
+    con.execute("CREATE TABLE delinq AS (SELECT loan_id, monthly_reporting_period, current_loan_delinquency_status FROM perf);")
+    #delinq_30 = delinq_pdf.query('current_loan_delinquency_status >= 1')[['loan_id', 'monthly_reporting_period']].groupby('loan_id').min()
+    con.execute('CREATE TABLE delinq_30 AS (SELECT loan_id, MIN(monthly_reporting_period) AS monthly_reporting_period, monthly_reporting_period AS delinquency_30 FROM delinq WHERE current_loan_delinquency_status >= 1 GROUP BY loan_id,delinquency_30);');
+    #delinq_30['delinquency_30'] = delinq_30['monthly_reporting_period']
+    con.execute('CREATE TABLE delinq_90 AS (SELECT loan_id, MIN(monthly_reporting_period) AS monthly_reporting_period, monthly_reporting_period AS delinquency_90 FROM delinq WHERE current_loan_delinquency_status >= 3 GROUP BY loan_id,delinquency_90);');
+    con.execute('CREATE TABLE delinq_180 AS (SELECT loan_id, MIN(monthly_reporting_period) AS monthly_reporting_period, monthly_reporting_period AS delinquency_180 FROM delinq WHERE current_loan_delinquency_status >= 6 GROUP BY loan_id,delinquency_180);');
 
     # delinq_90 = delinq_pdf.query('current_loan_delinquency_status >= 3')[['loan_id', 'monthly_reporting_period']].groupby('loan_id').min()
    # delinq_90['delinquency_90'] = delinq_90['monthly_reporting_period']
@@ -343,14 +343,14 @@ def create_delinq_features():
     #delinq_180['delinquency_180'] = delinq_180['monthly_reporting_period']
     #delinq_180.drop(columns=['monthly_reporting_period'], inplace=True)
     con.execute('DROP TABLE IF EXISTS delinq_merge;')
-    con.execute('CREATE TABLE delinq_merge AS SELECT delinq_30.delinquency_30 AS delinquency_30 ,delinq_30.loan_id AS loan_id,delinq_90.delinquency_90 AS delinquency_90 FROM delinq_30  LEFT JOIN delinq_90 ON delinq_30.loan_id= delinq_90.loan_id;');
+    con.execute('CREATE TABLE delinq_merge AS (SELECT delinq_30.delinquency_30 AS delinquency_30, delinq_30.loan_id AS loan_id, delinq_90.delinquency_90 AS delinquency_90 FROM delinq_30 LEFT JOIN delinq_90 ON delinq_30.loan_id=delinq_90.loan_id);');
     # delinq_merge = delinq_30.merge(delinq_90, how='left', on=['loan_id'])
     #UPDATE UFOs SET shape='ovate' where shape='eggish'; 23:59:59.999
     #con.execute(' EXTRACT MONTH FROM 2018-08-01;');
-    con.execute('UPDATE delinq_merge SET  delinquency_90 = NULL where  delinquency_90 = NULL');
+    con.execute('UPDATE delinq_merge SET delinquency_90 = NULL WHERE delinquency_90 = NULL');
     # delinq_merge['delinquency_90'] = delinq_merge['delinquency_90'].fillna(np.dtype('datetime64[ms]').type('1970-01-01').astype('datetime64[ms]'))
     con.execute('DROP TABLE IF EXISTS delinq_mergetemp;');
-    con.execute('CREATE TABLE delinq_mergetemp AS SELECT delinq_merge.delinquency_30 AS delinquency_30 ,delinq_merge.loan_id AS loan_id ,delinq_merge.delinquency_90 AS delinquency_90,delinq_180.delinquency_180 AS delinquency_180  FROM delinq_merge  LEFT JOIN delinq_180 ON delinq_merge.loan_id= delinq_180.loan_id;');
+    con.execute('CREATE TABLE delinq_mergetemp AS (SELECT delinq_merge.delinquency_30 AS delinquency_30, delinq_merge.loan_id AS loan_id, delinq_merge.delinquency_90 AS delinquency_90, delinq_180.delinquency_180 AS delinquency_180 FROM delinq_merge LEFT JOIN delinq_180 ON delinq_merge.loan_id= delinq_180.loan_id);');
     # con.execute('UPDATE delinq_merge SET  delinquency_90 = NULL where  delinquency_90 = NULL');
     #delinq_merge = delinq_merge.merge(delinq_180, how='left', on=['loan_id'])
     con.execute('DROP TABLE IF EXISTS delinq_merge;');
@@ -371,10 +371,10 @@ def join_ever_delinq_features():
     #everdf = everdf_tmp.merge(delinq_merge, on=['loan_id'], how='left')
     con.execute('DROP TABLE IF EXISTS ever;')
     con.execute('DROP TABLE IF EXISTS everdf;')
-    con.create_table('ever', everdf_tmp)
+    con.execute("CREATE TABLE ever AS (SELECT * FROM delinq_merge);")
     #con.execute('DRPO TABLE IF EXISTS everdf;');
     #con.create_table('everdf',everdf);
-    con.execute('CREATE TABLE everdf AS SELECT delinq_merge.delinquency_30 AS delinquency_30 ,delinq_merge.loan_id as Loan_id,delinq_merge.delinquency_90 AS delinquency_90,delinq_merge.delinquency_180 AS delinquency_180  FROM delinq_merge  LEFT JOIN ever ON delinq_merge.loan_id= ever.loan_id;');
+    con.execute('CREATE TABLE everdf AS (SELECT delinq_merge.delinquency_30 AS delinquency_30, delinq_merge.loan_id as Loan_id, delinq_merge.delinquency_90 AS delinquency_90, delinq_merge.delinquency_180 AS delinquency_180 FROM delinq_merge LEFT JOIN ever ON delinq_merge.loan_id=ever.loan_id);');
     #con.execute('UPDATE everdf SET delinquency_90 =CAST (01/01/1970 AS TIMESTAMP(0)) where delinquency_90 = NULL;');
     #everdf['delinquency_30'] = everdf['delinquency_30'].fillna(np.dtype('datetime64[ms]').type('1970-01-01').astype('datetime64[ms]'))
     #everdf['delinquency_90'] = everdf['delinquency_90'].fillna(np.dtype('datetime64[ms]').type('1970-01-01').astype('datetime64[ms]'))
@@ -384,18 +384,18 @@ def create_joined_df():
     #test = pdf[['loan_id', 'monthly_reporting_period', 'current_loan_delinquency_status', 'current_actual_upb']]
     con.execute('DROP TABLE IF EXISTS test;')
     #con.create_table('test', test)
-    con.execute("CREATE TABLE test AS (SELECT 'loan_id', 'monthly_reporting_period', 'current_loan_delinquency_status', 'current_actual_upb' FROM perf);")
+    con.execute("CREATE TABLE test AS (SELECT loan_id, monthly_reporting_period, current_loan_delinquency_status, current_actual_upb FROM perf);")
     #con.execute('DROP TABLE IF EXISTS mtemp;')
     #con.execute('DROP TABLE IF EXISTS ytemp;')
     #con.execute('DROP TABLE IF EXISTS yeartemp;')
     #con.execute('DROP TABLE IF EXISTS monthtemp;')
-    con.execute('DROP TABLE IF EXISTS TEST2;')
+    con.execute('DROP TABLE IF EXISTS test2;')
     #del(pdf)
-    con.execute('CREATE TABLE TEST2 AS SELECT  EXTRACT (YEAR FROM monthly_reporting_period) timestamp_year,EXTRACT (MONTH FROM monthly_reporting_period) timestamp_month, loan_id,current_loan_delinquency_status AS delinquency_12,monthly_reporting_period AS timestamp_temp,current_actual_upb AS upb_12  FROM test');
+    con.execute('CREATE TABLE TEST2 AS SELECT EXTRACT (YEAR FROM monthly_reporting_period) timestamp_year, EXTRACT (MONTH FROM monthly_reporting_period) timestamp_month, loan_id, current_loan_delinquency_status AS delinquency_12,monthly_reporting_period AS timestamp_temp, current_actual_upb AS upb_12 FROM test');
     con.execute('DROP TABLE IF EXISTS test;')
     con.execute('ALTER TABLE TEST2  RENAME TO test;');
-    con.execute('UPDATE test SET upb_12 = 999999999 where upb_12 = NULL;');
-    con.execute('UPDATE test SET delinquency_12 = -1  where delinquency_12 = NULL;');
+    con.execute('UPDATE test SET upb_12 = 999999999 WHERE upb_12 = NULL;');
+    con.execute('UPDATE test SET delinquency_12 = -1 WHERE delinquency_12 = NULL;');
    # test['timestamp'] = test['monthly_reporting_period']
    # test.drop(columns=['monthly_reporting_period'], inplace=True)
     #test['timestamp_month'] = test['timestamp'].dt.month
@@ -410,7 +410,7 @@ def create_joined_df():
     con.execute('DROP TABLE IF EXISTS joined_df1;')
 
     con.execute('CREATE TABLE joined_df AS SELECT test.loan_id AS loan_id,test.timestamp_temp AS timestamp_temp,test.delinquency_12 AS delinquency_12, test.upb_12 AS upb_12,test.timestamp_year AS timestamp_year ,test.timestamp_month AS timestamp_month,everdf.delinquency_30 AS delinquency_30 ,everdf.delinquency_90 AS delinquency_90,everdf.delinquency_180 AS delinquency_180 FROM test LEFT JOIN everdf  ON test.loan_id= everdf.loan_id;');
-    con.execute('CREATE TABLE joined_df1 AS SELECT joined_df.loan_id AS loan_id,joined_df.timestamp_temp AS timestamp_temp,joined_df.delinquency_12 AS delinquency_12,joined_df.upb_12 AS upb_12,joined_df.timestamp_year AS timestamp_year ,joined_df.timestamp_month AS timestamp_month,joined_df.delinquency_30 AS delinquency_30 ,joined_df.delinquency_90 AS delinquency_90,joined_df.delinquency_180 AS delinquency_180,everdf1.ever_30 AS ever_30,everdf1.ever_90 AS ever_90,everdf1.ever_180 AS ever_180 FROM joined_df LEFT JOIN everdf1  ON joined_df.loan_id= everdf1.loan_id;');
+    con.execute('CREATE TABLE joined_df1 AS (SELECT joined_df.loan_id AS loan_id, joined_df.timestamp_temp AS timestamp_temp,joined_df.delinquency_12 AS delinquency_12, joined_df.upb_12 AS upb_12, joined_df.timestamp_year AS timestamp_year, joined_df.timestamp_month AS timestamp_month, joined_df.delinquency_30 AS delinquency_30, joined_df.delinquency_90 AS delinquency_90, joined_df.delinquency_180 AS delinquency_180, everdf1.ever_30 AS ever_30, everdf1.ever_90 AS ever_90, everdf1.ever_180 AS ever_180 FROM joined_df LEFT JOIN everdf1 ON joined_df.loan_id=everdf1.loan_id);');
 
     # con.execute('DROP TABLE IF EXISTS everdf;')
     con.execute('DROP TABLE IF EXISTS test;')
@@ -418,9 +418,9 @@ def create_joined_df():
     con.execute('ALTER TABLE joined_df1 RENAME TO joined_df;')
     #del(everdf)
     #del(test)
-    con.execute('UPDATE joined_df SET ever_30 = -1  where ever_30 = NULL;');
-    con.execute('UPDATE joined_df SET ever_90 = -1  where ever_90 = NULL;');
-    con.execute('UPDATE joined_df SET ever_180 = -1  where ever_180 = NULL;');
+    con.execute('UPDATE joined_df SET ever_30 = -1 WHERE ever_30 = NULL;');
+    con.execute('UPDATE joined_df SET ever_90 = -1 WHERE ever_90 = NULL;');
+    con.execute('UPDATE joined_df SET ever_180 = -1 WHERE ever_180 = NULL;');
     #con.execute('UPDATE joined_df SET delinquency_90 = -1  where delinquency_90 = NULL;');
     #con.execute('UPDATE joined_df SET delinquency_180 = -1  where delinquency_180 = NULL;');
    # joined_df['ever_30'] = joined_df['ever_30'].fillna(-1)
@@ -429,7 +429,7 @@ def create_joined_df():
    # joined_df['delinquency_30'] = joined_df['delinquency_30'].fillna(-1)
    # joined_df['delinquency_90'] = joined_df['delinquency_90'].fillna(-1)
    # joined_df['delinquency_180'] = joined_df['delinquency_180'].fillna(-1)
-    con.execute('UPDATE joined_df SET upb_12 = 999999999 where upb_12 = NULL;');
+    con.execute('UPDATE joined_df SET upb_12 = 999999999 WHERE upb_12 = NULL;');
     #Ijoined_df['timestamp_year'] = joined_df['timestamp_year'].astype('int32')
     #joined_df['timestamp_month'] = joined_df['timestamp_month'].astype('int32')
 
