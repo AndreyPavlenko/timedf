@@ -8,6 +8,7 @@ import signal
 import glob
 import time
 import json
+import copy
 import sys
 import os
 import io
@@ -24,14 +25,15 @@ def execute_process(cmdline, cwd=None):
 
 def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdline, fragment_size, results_file_name, report):
     if import_cmdline is not None:
+        ic = copy.copy(import_cmdline)
         # Import dataset mode
         if fragment_size is not None:
-            import_cmdline += ['--fragment-size', str(fragment_size)]
+            ic += ['--fragment-size', str(fragment_size)]
             fs = fragment_size
         else:
             fs = 0
-        print('IMPORT COMMAND LINE:', import_cmdline)
-        execute_process(import_cmdline)
+        print('IMPORT COMMAND LINE:', ic)
+        execute_process(ic)
     else:
         # Synthetic benchmark mode
         benchmark_cmdline += ['--fragment_size', str(fragment_size)]
