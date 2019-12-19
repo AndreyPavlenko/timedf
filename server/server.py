@@ -1,4 +1,5 @@
 import glob
+import ibis
 import os
 import pathlib
 import signal
@@ -25,6 +26,7 @@ class OmnisciServer:
             self._initdb_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "initdb")
             self._execute_process([self._initdb_executable, '-f', '--data', self._data_dir])
 
+        self._server_port = omnisci_port
         self._server_process = None
         self._server_cmdline = [omnisci_executable,
                         'data',
@@ -71,19 +73,10 @@ class OmnisciServer:
 
         print("SERVER IS TERMINATED")
 
-    def import_data(self, data_files, files_limit):
-        data_files_names = sorted(glob.glob(data_files))
+    def import_data(self, dataFileNames, files_limit):
+        "Import CSV files using COPY"
 
-        if len(data_files_names) == 0:
-            print("Could not find any data files matching", data_files)
-            sys.exit(3)
-        
-
-        if len(data_files_names) == 0:
-            print("Could not find any data files matching", data_files)
-            sys.exit(3)
-
-        for f in data_files_names[:files_limit]:
+        for f in dataFileNames[:files_limit]:
             print("Importing datafile", f)
             copyStr = self._command2ImportCSV % f
             try:
@@ -94,3 +87,6 @@ class OmnisciServer:
 
             print(str(output[0].strip().decode()))
             print("Command returned", process.returncode)
+
+    def connect_to_server(self):
+        return ibis.omniscidb.connect(host="localhost", port=self._server_port, user="admin", password="HyperInteractive")

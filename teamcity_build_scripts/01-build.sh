@@ -8,3 +8,6 @@ make -j 8
 cp /localdisk/benchmark_datasets/omnisci.conf .
 mkdir data
 ./bin/initdb --data data
+
+mkdir ibis
+git clone https://github.com/ibis-project/ibis.git ./ibis

@@ -5,29 +5,25 @@ import subprocess
 import argparse
 import pathlib
 import time
-import ibis
 import glob
 import sys
 import os
 
-benchmarks = {
-    "MQ01.pd": q1,
-    "MQ02.pd": q2,
-    "MQ03.pd": q3,
-    "MQ04.pd": q4
-}
-
 omnisciExecutable  = "build/bin/omnisql"
 taxiTripsDirectory = "/localdisk/work/trips_x*.csv"
+databaseName = "taxibenchdb"
 
-# Load database reporting functions
+# Load database reporting, server and Ibis packages
 pathToReportDir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
 print(pathToReportDir)
 pathToServerDir = os.path.join(pathlib.Path(__file__).parent, "..", "server")
+pathToIbisDir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis")
 sys.path.insert(1, pathToReportDir)
-sys.path.append(1, pathToServerDir)
+sys.path.insert(1, pathToServerDir)
+sys.path.insert(1, pathToIbisDir)
 import report
 import server
+import ibis
 
 def executeProcess(cmdline, cwd=None):
     try:
@@ -40,7 +36,7 @@ def executeProcess(cmdline, cwd=None):
 parser = argparse.ArgumentParser(description='Run NY Taxi benchmark using Ibis')
 
 parser.add_argument('-e', default=omnisciExecutable, help='Path to executable "omnisql"')
-parser.add_argument('-r', default="report_pandas.csv", help="Report file name.")
+parser.add_argument('-r', default="report_ibis.csv", help="Report file name.")
 parser.add_argument('-df', default=1, type=int, help="Number of datafiles to input into database for processing.")
 parser.add_argument('-dp', default=taxiTripsDirectory, help="Wildcard pattern of datafiles that should be loaded.")
 parser.add_argument('-i', default=5, type=int, help="Number of iterations to run every benchmark. Best result is selected.")
@@ -66,8 +62,11 @@ if args.df <= 0:
 if args.i < 1:
     print("Bad number of iterations specified", args.t)
 
+omnisciServer = server.OmnisciServer(omnisci_executable=args.e, omnisci_port=args.port)
+omnisciServer.launch()
+
 time.sleep(2)
-conn = ibis.omniscidb.connect(host="localhost", port = args.port, user="admin", password="HyperInteractive")
+conn = omnisciServer.connect_to_server()
 
 schema = ibis.Schema(
     names = ["trip_id","vendor_id","pickup_datetime","dropoff_datetime","store_and_fwd_flag","rate_code_id","pickup_longitude","pickup_latitude","dropoff_longitude","dropoff_latitude","passenger_count","trip_distance","fare_amount","extra","mta_tax","tip_amount","tolls_amount","ehail_fee","improvement_surcharge","total_amount","payment_type","trip_type","pickup","dropoff","cab_type","precipitation","snow_depth","snowfall","max_temperature","min_temperature","average_wind_speed","pickup_nyct2010_gid","pickup_ctlabel","pickup_borocode","pickup_boroname","pickup_ct2010","pickup_boroct2010","pickup_cdeligibil","pickup_ntacode","pickup_ntaname","pickup_puma","dropoff_nyct2010_gid","dropoff_ctlabel","dropoff_borocode","dropoff_boroname","dropoff_ct2010","dropoff_boroct2010","dropoff_cdeligibil","dropoff_ntacode","dropoff_ntaname", "dropoff_puma"],
@@ -77,44 +76,55 @@ schema = ibis.Schema(
 db_reporter = None
 if args.db_user is not "":
     print("Connecting to database")
-    db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name);
+    db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name)
     db_reporter = report.DbReport(db, args.db_table, {
         'FilesNumber': 'INT UNSIGNED NOT NULL',
-        'FragmentSize': 'BIGINT UNSIGNED NOT NULL',
         'BenchName': 'VARCHAR(500) NOT NULL',
-        'BestExecTimeMS': 'BIGINT UNSIGNED',
-        'BestTotalTimeMS': 'BIGINT UNSIGNED',
+        'FirstExecTimeMS': 'BIGINT UNSIGNED',
         'WorstExecTimeMS': 'BIGINT UNSIGNED',
-        'WorstTotalTimeMS': 'BIGINT UNSIGNED',
+        'BestExecTimeMS': 'BIGINT UNSIGNED',
         'AverageExecTimeMS': 'BIGINT UNSIGNED',
-        'AverageTotalTimeMS': 'BIGINT UNSIGNED'
+        'TotalTimeMS': 'BIGINT UNSIGNED'
     }, {
-        'ScriptName': 'taxibench_pandas.py',
+        'ScriptName': 'taxibench_ibis.py',
         'CommitHash': args.commit
     })
 
-dataFileNames = sorted(glob.glob(args.dp))
-if len(dataFileNames) == 0:
-    print("Could not find any data files matching", args.dp)
-    sys.exit(2)
+# Delete old table
+if not args.dnd:
+    print("Deleting", databaseName ,"old database")
+    try:
+        conn.drop_database(databaseName, force=True)
+    except Exception as err:
+        print("Failed to delete", databaseName, "old database: ", err)
 
+dataFilesNumber = 0
+# Create table and import data
+if not args.dni:
+    print("Creating new database")
+    try:
+        conn.create_database(databaseName) # Ibis list_databases method is not supported yet
+    except Exception as err:
+        print("Database creation is skipped, because of error:", err)
 
+    dataFileNames = sorted(glob.glob(args.dp))
+    if len(dataFileNames) == 0:
+        print("Could not find any data files matching", args.dp)
+        sys.exit(2)
 
+    # Create new table
+    print("Creating new table trips")
+    try:
+        conn.create_table(table_name = "trips", schema=schema, database=databaseName)
+    except Exception as err:
+        print("Failed to create table: ", err)
 
-
-
-print("READING", args.df, "DATAFILES")
-dataFilesNumber = len(dataFileNames[:args.df])
-def read_datafile(f):
-    print("READING DATAFILE", f)
-    return pd.read_csv(f, compression='gzip', header=None, names=taxi_names)
-df_from_each_file = (read_datafile(f) for f in dataFileNames[:args.df])
-concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
-
-
+    # Datafiles import
+    dataFilesNumber = len(dataFileNames[:args.df])
+    omnisciServer.import_data(dataFileNames, args.df)
 
 try:
-    db = conn.database("taxitestdb")
+    db = conn.database(databaseName)
 except Exception as err:
     print("Failed to connect to database: ", err)
 
@@ -128,55 +138,80 @@ if len(tablesNames) != 1 or tablesNames[0] != 'trips':
     print("Database table created with mistake")
     sys.exit(3)
 
-
 df = db.table('trips')
-def q1():
+def q1(df):
     df.groupby('cab_type')[['cab_type']].count().execute()
 
-def q2():
+def q2(df):
     df.groupby('passenger_count').aggregate(total_amount=df.total_amount.mean())[['passenger_count','total_amount']].execute()
 
-def q3():
+def q3(df):
     df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime')]).aggregate(count=df.passenger_count.count()).execute()
 
-def q4():
+def q4(df):
     df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime'), df.trip_distance]).size().sort_by([('pickup_datetime', True), ('count', False)]).execute()
 
+def timeq(q):
+    t = time.time()
+    q(df)
+    return time.time()-t
+
+def queriesExec(index):
+    if index == 1:
+        return timeq(q1)
+    elif index == 2:
+        return timeq(q2)
+    elif index == 3:
+        return timeq(q3)
+    elif index == 4:
+        return timeq(q4)
+    else:
+        print("Non-valid index value for queries function")
+        sys.exit(4)
+        return None
+
 try:
+    exec_times = []
     with open(args.r, "w") as report:
-        for benchName, query in benchmarks.items():
+        t_begin = time.time()
+        for benchNumber in range(1,5):
             bestExecTime = float("inf")
-            for iii in range(1, args.iterations + 1):
-                print("RUNNING BENCHMARK NUMBER", benchName, "ITERATION NUMBER", iii)
-                query_df = concatenated_df
-                t1 = time.time()
-                query(query_df)
-                t2 = time.time()
-                ttt = int(round((t2 - t1) * 1000))
-                if bestExecTime > ttt:
-                    bestExecTime = ttt
-            print("BENCHMARK", benchName, "EXEC TIME", bestExecTime)
-            print(dataFilesNumber, ",",
-                  0, ",",
-                  benchName, ",",
-                  bestExecTime, ",",
-                  bestExecTime, ",",
-                  bestExecTime, ",",
-                  bestExecTime, ",",
-                  bestExecTime, ",",
-                  bestExecTime, ",",
+            worstExecTime = 0.0
+            firstExecTime = float("inf")
+            times_sum = 0.0
+            for iteration in range(1, args.i + 1):
+                print("RUNNING BENCHMARK NUMBER", benchNumber, "ITERATION NUMBER", iteration)
+                exec_times[iteration - 1] = int(round(queriesExec(benchNumber) * 1000))
+                if iteration == 1:
+                    firstExecTime = exec_times[iteration - 1]
+                if bestExecTime > exec_times[iteration - 1]:
+                    bestExecTime = exec_times[iteration - 1]
+                if iteration != 1 and worstExecTime < exec_times[iteration - 1]:
+                    worstExecTime = exec_times[iteration - 1]
+                if iteration != 1:
+                    times_sum += exec_times[iteration - 1]
+            averageExecTime = times_sum/(args.i - 1)
+            totalExecTime = time.time() - t_begin
+            print("BENCHMARK", benchNumber, "EXEC TIME", bestExecTime, "TOTAL TIME", totalExecTime)
+            print("FilesNumber: ", dataFilesNumber,  ",",
+                  "BenchName: ",  'Benchmark' + benchNumber, ",",
+                  "FirstExecTimeMS: ", firstExecTime, ",",
+                  "WorstExecTimeMS: ", worstExecTime, ",",
+                  "BestExecTimeMS: ", bestExecTime, ",",
+                  "AverageExecTimeMS: ", averageExecTime, ",",
+                  "TotalTimeMS: ", totalExecTime, ",",
                   "", '\n', file=report, sep='', end='', flush=True)
             if db_reporter is not None:
                 db_reporter.submit({
                     'FilesNumber': dataFilesNumber,
-                    'FragmentSize': 0,
-                    'BenchName': benchName,
+                    'BenchName': 'Benchmark' + benchNumber,
+                    'FirstExecTimeMS': firstExecTime,
+                    'WorstExecTimeMS': worstExecTime,
                     'BestExecTimeMS': bestExecTime,
-                    'BestTotalTimeMS': bestExecTime,
-                    'WorstExecTimeMS': bestExecTime,
-                    'WorstTotalTimeMS': bestExecTime,
-                    'AverageExecTimeMS': bestExecTime,
-                    'AverageTotalTimeMS': bestExecTime
+                    'AverageExecTimeMS': averageExecTime,
+                    'TotalTimeMS': totalExecTime
                 })
 except IOError as err:
     print("Failed writing report file", args.r, err)
+finally:
+    omnisciServer.terminate()
