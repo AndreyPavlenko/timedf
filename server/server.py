@@ -1,11 +1,15 @@
 import glob
-import ibis
 import os
 import pathlib
 import signal
 import sys
 import subprocess
+import threading
 import time
+
+pathToIbisDir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
+sys.path.insert(1, pathToIbisDir)
+import ibis
 
 
 class OmnisciServer:
@@ -18,6 +22,7 @@ class OmnisciServer:
             self._server_cwd = pathlib.Path(omnisci_executable).parent.parent
 
         self._data_dir = os.path.join(self._server_cwd, "data")
+        self._conf_dir = os.path.join(self._server_cwd, "omnisci.conf")
         if not os.path.isdir(self._data_dir):
             print("CREATING DATA DIR", self._data_dir)
             os.makedirs(self._data_dir)
@@ -28,12 +33,13 @@ class OmnisciServer:
 
         self._server_port = omnisci_port
         self._server_process = None
-        self._server_cmdline = [omnisci_executable,
-                        'data',
+        self._omnisci_server_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "omnisci_server")
+        self._server_cmdline = [self._omnisci_server_executable,
+                        str(self._data_dir),
                         '--port', str(omnisci_port),
                         '--http-port', "62278",
                         '--calcite-port', "62279",
-                        '--config', 'omnisci.conf']
+                        '--config', "omnisci.conf"]
         
         self._command2ImportCSV = "COPY trips FROM '%s' WITH (header='false');"
         self._omnisciCmdLine = [omnisci_executable] + ["-q", "omnisci", "-u", "admin", "-p", "HyperInteractive"] + ["--port", str(omnisci_port)]
@@ -43,16 +49,17 @@ class OmnisciServer:
             process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             out = process.communicate()[0].strip().decode()
             print(out)
+            if process.returncode != 0:
+                raise Exception("Command returned {}".format(process.returncode))
         except OSError as err:
             print("Failed to start", cmdline, err)
-        if process.returncode != 0:
-            raise Exception("Command returned {}".format(process.returncode))
     
     def launch(self):
         print("LAUNCHING SERVER ...")
         try:
-            nonlocal _server_process
-            _server_process = subprocess.Popen(self._server_cmdline, cwd=self._server_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self._server_process = subprocess.Popen(self._server_cmdline, cwd=self._server_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            out =self._server_process.communicate()[0].strip().decode()
+            print(out)
         except Exception as err:
             print("Failed to launch server, error occured:", err)
             sys.exit(1)

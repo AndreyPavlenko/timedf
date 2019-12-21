@@ -17,7 +17,7 @@ databaseName = "taxibenchdb"
 pathToReportDir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
 print(pathToReportDir)
 pathToServerDir = os.path.join(pathlib.Path(__file__).parent, "..", "server")
-pathToIbisDir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis")
+pathToIbisDir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
 sys.path.insert(1, pathToReportDir)
 sys.path.insert(1, pathToServerDir)
 sys.path.insert(1, pathToIbisDir)
