@@ -41,6 +41,7 @@ parser.add_argument('-df', default=1, type=int, help="Number of datafiles to inp
 parser.add_argument('-dp', default=taxiTripsDirectory, help="Wildcard pattern of datafiles that should be loaded.")
 parser.add_argument('-i', default=5, type=int, help="Number of iterations to run every benchmark. Best result is selected.")
 parser.add_argument('-dnd', action='store_true', help="Do not delete old table")
+parser.add_argument('-s', action='store_true', help="Launch Omnisci server via service")
 parser.add_argument('-dni', action='store_true', help="Do not create new table and import any data from CSV files")
 parser.add_argument("-port", default=62074, type=int, help="TCP port that omnisql client should use to connect to server")
 
@@ -62,7 +63,7 @@ if args.df <= 0:
 if args.i < 1:
     print("Bad number of iterations specified", args.t)
 
-omnisciServer = server.OmnisciServer(omnisci_executable=args.e, omnisci_port=args.port)
+omnisciServer = server.OmnisciServer(omnisci_executable=args.e, omnisci_port=args.port, start_by_service=args.s)
 omnisciServer.launch()
 
 time.sleep(2)

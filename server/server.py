@@ -15,7 +15,7 @@ import ibis
 class OmnisciServer:
     "Manage data directory and launch/termination of the OmniSci server."
 
-    def __init__(self, omnisci_executable, omnisci_port, omnisci_cwd=None):
+    def __init__(self, omnisci_executable, omnisci_port, start_by_service=False, omnisci_cwd=None):
         if omnisci_cwd is not None:
             self._server_cwd = omnisci_cwd
         else:
@@ -31,10 +31,16 @@ class OmnisciServer:
             self._initdb_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "initdb")
             self._execute_process([self._initdb_executable, '-f', '--data', self._data_dir])
 
+        self._start_by_service = start_by_service
         self._server_port = omnisci_port
+        self._SERVICE_HTTP_PORT = 62278
+        self._SERVICE_CALCITE_PORT = 62279
+        self._install_omnisci_cmdline = ['sudo', '-E', 'bash', 'install_omnisci_systemd.sh', str(self._server_port), str(self._SERVICE_HTTP_PORT), str(self._SERVICE_CALCITE_PORT)]
+        self._server_service_start_cmdline = ['sudo', 'systemctl', 'start', 'omnisci_server']
+        self._server_service_stop_cmdline = ['sudo', 'systemctl', 'stop', 'omnisci_server']
         self._server_process = None
         self._omnisci_server_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "omnisci_server")
-        self._server_cmdline = [self._omnisci_server_executable,
+        self._server_start_cmdline = [self._omnisci_server_executable,
                         str(self._data_dir),
                         '--port', str(omnisci_port),
                         '--http-port', "62278",
@@ -56,18 +62,38 @@ class OmnisciServer:
     
     def launch(self):
         print("LAUNCHING SERVER ...")
-        try:
-            self._server_process = subprocess.Popen(self._server_cmdline, cwd=self._server_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            out =self._server_process.communicate()[0].strip().decode()
-            print(out)
-        except Exception as err:
-            print("Failed to launch server, error occured:", err)
-            sys.exit(1)
+
+        if self._start_by_service:
+            self._execute_process(self._install_omnisci_cmdline, os.path.join(pathlib.Path(__file__).parent, "systemd"))
+
+            try:
+                self._server_process = subprocess.Popen(self._server_service_start_cmdline, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                out = self._server_process.communicate()[0].strip().decode()
+                print(out)
+            except Exception as err:
+                print("Failed to start", self._server_service_start_cmdline, err)
+            if self._server_process.returncode != 0:
+                raise Exception("Command returned {}".format(self._server_process.returncode))
+
+            time.sleep(2)
+
+        else:
+            try:
+                self._server_process = subprocess.Popen(self._server_start_cmdline, cwd=self._server_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                out =self._server_process.communicate()[0].strip().decode()
+                print(out)
+            except Exception as err:
+                print("Failed to launch server, error occured:", err)
+                sys.exit(1)
         
         print("SERVER IS LAUNCHED")
 
     def terminate(self):
         print("TERMINATING SERVER ...")
+
+        if self._start_by_service:
+            self._execute_process(self._server_service_stop_cmdline)
+
         try:
             self._server_process.send_signal(signal.SIGINT)
             time.sleep(2)
