@@ -63,11 +63,12 @@ if args.df <= 0:
 if args.i < 1:
     print("Bad number of iterations specified", args.t)
 
-omnisciServer = server.OmnisciServer(omnisci_executable=args.e, omnisci_port=args.port, start_by_service=args.s)
+omnisciServer = server.OmnisciServer(omnisci_executable=args.e, omnisci_port=args.port,databaseID=databaseName, start_by_service=args.s)
 omnisciServer.launch()
 
 time.sleep(2)
 conn = omnisciServer.connect_to_server()
+#conn = ibis.omniscidb.connect(host="localhost", port=args.port, user="admin", password="HyperInteractive")
 
 schema = ibis.Schema(
     names = ["trip_id","vendor_id","pickup_datetime","dropoff_datetime","store_and_fwd_flag","rate_code_id","pickup_longitude","pickup_latitude","dropoff_longitude","dropoff_latitude","passenger_count","trip_distance","fare_amount","extra","mta_tax","tip_amount","tolls_amount","ehail_fee","improvement_surcharge","total_amount","payment_type","trip_type","pickup","dropoff","cab_type","precipitation","snow_depth","snowfall","max_temperature","min_temperature","average_wind_speed","pickup_nyct2010_gid","pickup_ctlabel","pickup_borocode","pickup_boroname","pickup_ct2010","pickup_boroct2010","pickup_cdeligibil","pickup_ntacode","pickup_ntaname","pickup_puma","dropoff_nyct2010_gid","dropoff_ctlabel","dropoff_borocode","dropoff_boroname","dropoff_ct2010","dropoff_boroct2010","dropoff_cdeligibil","dropoff_ntacode","dropoff_ntaname", "dropoff_puma"],
@@ -99,29 +100,29 @@ if not args.dnd:
     except Exception as err:
         print("Failed to delete", databaseName, "old database: ", err)
 
-dataFilesNumber = 0
+dataFileNames = sorted(glob.glob(args.dp))
+dataFilesNumber = len(dataFileNames[:args.df])
+
+print("Creating new database")
+try:
+	conn.create_database(databaseName) # Ibis list_databases method is not supported yet
+except Exception as err:
+	print("Database creation is skipped, because of error:", err)
+
+if len(dataFileNames) == 0:
+	print("Could not find any data files matching", args.dp)
+	sys.exit(2)
+
+# Create new table
+print("Creating new table trips")
+try:
+	conn.create_table(table_name = "trips", schema=schema, database=databaseName)
+except Exception as err:
+	print("Failed to create table: ", err)
+
 # Create table and import data
 if not args.dni:
-    print("Creating new database")
-    try:
-        conn.create_database(databaseName) # Ibis list_databases method is not supported yet
-    except Exception as err:
-        print("Database creation is skipped, because of error:", err)
-
-    dataFileNames = sorted(glob.glob(args.dp))
-    if len(dataFileNames) == 0:
-        print("Could not find any data files matching", args.dp)
-        sys.exit(2)
-
-    # Create new table
-    print("Creating new table trips")
-    try:
-        conn.create_table(table_name = "trips", schema=schema, database=databaseName)
-    except Exception as err:
-        print("Failed to create table: ", err)
-
     # Datafiles import
-    dataFilesNumber = len(dataFileNames[:args.df])
     omnisciServer.import_data(dataFileNames, args.df)
 
 try:
@@ -172,10 +173,10 @@ def queriesExec(index):
         return None
 
 try:
-    exec_times = []
     with open(args.r, "w") as report:
         t_begin = time.time()
         for benchNumber in range(1,5):
+            exec_times = [None]*5
             bestExecTime = float("inf")
             worstExecTime = 0.0
             firstExecTime = float("inf")
@@ -192,10 +193,10 @@ try:
                 if iteration != 1:
                     times_sum += exec_times[iteration - 1]
             averageExecTime = times_sum/(args.i - 1)
-            totalExecTime = time.time() - t_begin
-            print("BENCHMARK", benchNumber, "EXEC TIME", bestExecTime, "TOTAL TIME", totalExecTime)
+            totalExecTime = int(round((time.time() - t_begin)*1000))
+            print("BENCHMARK", benchNumber, "EXEC TIME MS", bestExecTime, "TOTAL TIME MS", totalExecTime)
             print("FilesNumber: ", dataFilesNumber,  ",",
-                  "BenchName: ",  'Benchmark' + benchNumber, ",",
+                  "BenchName: ",  'Benchmark' + str(benchNumber), ",",
                   "FirstExecTimeMS: ", firstExecTime, ",",
                   "WorstExecTimeMS: ", worstExecTime, ",",
                   "BestExecTimeMS: ", bestExecTime, ",",
@@ -205,7 +206,7 @@ try:
             if db_reporter is not None:
                 db_reporter.submit({
                     'FilesNumber': dataFilesNumber,
-                    'BenchName': 'Benchmark' + benchNumber,
+                    'BenchName': 'Benchmark' + str(benchNumber),
                     'FirstExecTimeMS': firstExecTime,
                     'WorstExecTimeMS': worstExecTime,
                     'BestExecTimeMS': bestExecTime,

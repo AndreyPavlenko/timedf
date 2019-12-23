@@ -15,7 +15,7 @@ import ibis
 class OmnisciServer:
     "Manage data directory and launch/termination of the OmniSci server."
 
-    def __init__(self, omnisci_executable, omnisci_port, start_by_service=False, omnisci_cwd=None):
+    def __init__(self, omnisci_executable, omnisci_port,databaseID, start_by_service=False, omnisci_cwd=None):
         if omnisci_cwd is not None:
             self._server_cwd = omnisci_cwd
         else:
@@ -35,20 +35,22 @@ class OmnisciServer:
         self._server_port = omnisci_port
         self._SERVICE_HTTP_PORT = 62278
         self._SERVICE_CALCITE_PORT = 62279
-        self._install_omnisci_cmdline = ['sudo', '-E', 'bash', 'install_omnisci_systemd.sh', str(self._server_port), str(self._SERVICE_HTTP_PORT), str(self._SERVICE_CALCITE_PORT)]
+        self._install_omnisci_cmdline = ['sudo', '-E', 'bash', 'install_omnisci_systemd2.sh', str(self._server_port), str(self._SERVICE_HTTP_PORT), str(self._SERVICE_CALCITE_PORT), str(self._server_cwd)]
+        self._copy_conf = ['sudo', 'cp', str(os.path.join(pathlib.Path(__file__).parent, 'systemd/omnisci.conf.in')), str(os.path.join(pathlib.Path(self._server_cwd).parent, 'systemd/omnisci2.conf.in'))]
+        self._copy_install_script = ['sudo', 'cp', str(os.path.join(pathlib.Path(__file__).parent, 'systemd/install_omnisci_systemd.sh')), str(os.path.join(pathlib.Path(self._server_cwd).parent, 'systemd/install_omnisci_systemd2.sh'))]
         self._server_service_start_cmdline = ['sudo', 'systemctl', 'start', 'omnisci_server']
         self._server_service_stop_cmdline = ['sudo', 'systemctl', 'stop', 'omnisci_server']
         self._server_process = None
         self._omnisci_server_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "omnisci_server")
-        self._server_start_cmdline = [self._omnisci_server_executable,
-                        str(self._data_dir),
+        self._server_start_cmdline = ["sudo", self._omnisci_server_executable,
+                        "data",
                         '--port', str(omnisci_port),
-                        '--http-port', "62278",
-                        '--calcite-port', "62279",
+                        '--http-port', str(self._SERVICE_HTTP_PORT),
+                        '--calcite-port', str(self._SERVICE_CALCITE_PORT),
                         '--config', "omnisci.conf"]
         
         self._command2ImportCSV = "COPY trips FROM '%s' WITH (header='false');"
-        self._omnisciCmdLine = [omnisci_executable] + ["-q", "omnisci", "-u", "admin", "-p", "HyperInteractive"] + ["--port", str(omnisci_port)]
+        self._omnisciCmdLine = [omnisci_executable] + [str(databaseID), "-u", "admin", "-p", "HyperInteractive"] + ["--port", str(omnisci_port)]
 
     def _execute_process(self, cmdline, cwd=None):
         try:
@@ -64,8 +66,10 @@ class OmnisciServer:
         print("LAUNCHING SERVER ...")
 
         if self._start_by_service:
-            self._execute_process(self._install_omnisci_cmdline, os.path.join(pathlib.Path(__file__).parent, "systemd"))
-
+            self._execute_process(self._copy_conf, os.path.join(pathlib.Path(__file__).parent))
+            self._execute_process(self._copy_install_script, os.path.join(pathlib.Path(__file__).parent))
+            self._execute_process(self._install_omnisci_cmdline, str(os.path.join(pathlib.Path(self._server_cwd).parent, 'systemd')))
+ 
             try:
                 self._server_process = subprocess.Popen(self._server_service_start_cmdline, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 out = self._server_process.communicate()[0].strip().decode()

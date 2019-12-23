@@ -1,13 +1,15 @@
 #!/bin/bash
 
+SYSTEMD_DIR="${PWD}"
+
 declare -A vars
 
 OMNISCI_TMP=$(mktemp -d)
 
-vars["OMNISCI_PATH"]=$OMNISCI_PATH
-vars["OMNISCI_STORAGE"]=$OMNISCI_STORAGE
-vars["OMNISCI_USER"]=$OMNISCI_USER
-vars["OMNISCI_GROUP"]=$OMNISCI_GROUP
+vars["OMNISCI_PATH"]=$4
+vars["OMNISCI_STORAGE"]=$4
+vars["OMNISCI_USER"]=omnisci
+vars["OMNISCI_GROUP"]=omnisci
 vars["OMNISCI_PORT"]=$1
 vars["OMNISCI_HTTP_PORT"]=$2
 vars["OMNISCI_CALCITE_PORT"]=$3
@@ -19,10 +21,6 @@ done
 vars["OMNISCI_DATA"]=${OMNISCI_DATA:="${vars['OMNISCI_STORAGE']}/data"}
 sudo mkdir -p "${vars['OMNISCI_DATA']}"
 sudo mkdir -p "${vars['OMNISCI_STORAGE']}"
-
-if [ ! -d "${vars['OMNISCI_DATA']}/mapd_catalogs" ]; then
-  sudo ${vars["OMNISCI_PATH"]}/bin/initdb ${vars['OMNISCI_DATA']}
-fi
 
 sudo chown -R ${vars['OMNISCI_USER']}:${vars['OMNISCI_GROUP']} "${vars['OMNISCI_DATA']}"
 sudo chown -R ${vars['OMNISCI_USER']}:${vars['OMNISCI_GROUP']} "${vars['OMNISCI_STORAGE']}"
@@ -47,7 +45,7 @@ sed -e "s#@OMNISCI_PATH@#${vars['OMNISCI_PATH']}#g" \
     -e "s#@OMNISCI_PORT@#${vars['OMNISCI_PORT']}#g" \
     -e "s#@OMNISCI_HTTP_PORT@#${vars['OMNISCI_HTTP_PORT']}#g" \
     -e "s#@OMNISCI_CALCITE_PORT@#${vars['OMNISCI_CALCITE_PORT']}#g" \
-    omnisci.conf.in > $OMNISCI_TMP/omnisci.conf
+    omnisci2.conf.in > $OMNISCI_TMP/omnisci.conf
 
 sudo cp $OMNISCI_TMP/omnisci.conf ${vars['OMNISCI_STORAGE']}
 sudo chown ${vars['OMNISCI_USER']}:${vars['OMNISCI_GROUP']} "${vars['OMNISCI_STORAGE']}/omnisci.conf"
