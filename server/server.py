@@ -7,96 +7,68 @@ import subprocess
 import threading
 import time
 
-pathToIbisDir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
-sys.path.insert(1, pathToIbisDir)
+path_to_ibis_dir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
+sys.path.insert(1, path_to_ibis_dir)
 import ibis
 
 
-class OmnisciServer:
-    "Manage data directory and launch/termination of the OmniSci server."
+class Omnisci_server:
+    "Manage data directory, launch/termination and connection establishing with OmniSci server."
 
-    def __init__(self, omnisci_executable, omnisci_port,databaseID, start_by_service=False, omnisci_cwd=None):
+    _http_port = 62278
+    _calcite_port = 62279
+    _server_process = None
+    _command_2_import_CSV = "COPY trips FROM '%s' WITH (header='false');"
+
+    def __init__(self, omnisci_executable, omnisci_port, database_name, omnisci_cwd=None):
         if omnisci_cwd is not None:
             self._server_cwd = omnisci_cwd
         else:
             self._server_cwd = pathlib.Path(omnisci_executable).parent.parent
 
         self._data_dir = os.path.join(self._server_cwd, "data")
-        self._conf_dir = os.path.join(self._server_cwd, "omnisci.conf")
         if not os.path.isdir(self._data_dir):
             print("CREATING DATA DIR", self._data_dir)
             os.makedirs(self._data_dir)
         if not os.path.isdir(os.path.join(self._data_dir, "mapd_data")):
             print("INITIALIZING DATA DIR", self._data_dir)
             self._initdb_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "initdb")
-            self._execute_process([self._initdb_executable, '-f', '--data', self._data_dir])
+            _ = self._execute_process([self._initdb_executable, '-f', '--data', self._data_dir])
 
-        self._start_by_service = start_by_service
         self._server_port = omnisci_port
-        self._SERVICE_HTTP_PORT = 62278
-        self._SERVICE_CALCITE_PORT = 62279
-        self._install_omnisci_cmdline = ['sudo', '-E', 'bash', 'install_omnisci_systemd2.sh', str(self._server_port), str(self._SERVICE_HTTP_PORT), str(self._SERVICE_CALCITE_PORT), str(self._server_cwd)]
-        self._copy_conf = ['sudo', 'cp', str(os.path.join(pathlib.Path(__file__).parent, 'systemd/omnisci.conf.in')), str(os.path.join(pathlib.Path(self._server_cwd).parent, 'systemd/omnisci2.conf.in'))]
-        self._copy_install_script = ['sudo', 'cp', str(os.path.join(pathlib.Path(__file__).parent, 'systemd/install_omnisci_systemd.sh')), str(os.path.join(pathlib.Path(self._server_cwd).parent, 'systemd/install_omnisci_systemd2.sh'))]
-        self._server_service_start_cmdline = ['sudo', 'systemctl', 'start', 'omnisci_server']
-        self._server_service_stop_cmdline = ['sudo', 'systemctl', 'stop', 'omnisci_server']
-        self._server_process = None
         self._omnisci_server_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "omnisci_server")
         self._server_start_cmdline = ["sudo", self._omnisci_server_executable,
-                        "data",
-                        '--port', str(omnisci_port),
-                        '--http-port', str(self._SERVICE_HTTP_PORT),
-                        '--calcite-port', str(self._SERVICE_CALCITE_PORT),
-                        '--config', "omnisci.conf"]
+                                    "data",
+                                    '--port', str(omnisci_port),
+                                    '--http-port', str(self._http_port),
+                                    '--calcite-port', str(self._calcite_port),
+                                    '--config', "omnisci.conf"]
         
-        self._command2ImportCSV = "COPY trips FROM '%s' WITH (header='false');"
-        self._omnisciCmdLine = [omnisci_executable] + [str(databaseID), "-u", "admin", "-p", "HyperInteractive"] + ["--port", str(omnisci_port)]
+        self._omnisci_cmd_line = [omnisci_executable] + [str(database_name), "-u", "admin", "-p", "HyperInteractive"] + ["--port", str(self._server_port)]
 
     def _execute_process(self, cmdline, cwd=None):
+        "Execute cmdline in user-defined directory by creating separated process"
+
         try:
             process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            out = process.communicate()[0].strip().decode()
-            print(out)
             if process.returncode != 0:
                 raise Exception("Command returned {}".format(process.returncode))
         except OSError as err:
             print("Failed to start", cmdline, err)
+
+        return process
     
     def launch(self):
+        "Launch OmniSci server"
+
         print("LAUNCHING SERVER ...")
-
-        if self._start_by_service:
-            self._execute_process(self._copy_conf, os.path.join(pathlib.Path(__file__).parent))
-            self._execute_process(self._copy_install_script, os.path.join(pathlib.Path(__file__).parent))
-            self._execute_process(self._install_omnisci_cmdline, str(os.path.join(pathlib.Path(self._server_cwd).parent, 'systemd')))
- 
-            try:
-                self._server_process = subprocess.Popen(self._server_service_start_cmdline, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                out = self._server_process.communicate()[0].strip().decode()
-                print(out)
-            except Exception as err:
-                print("Failed to start", self._server_service_start_cmdline, err)
-            if self._server_process.returncode != 0:
-                raise Exception("Command returned {}".format(self._server_process.returncode))
-
-            time.sleep(2)
-
-        else:
-            try:
-                self._server_process = subprocess.Popen(self._server_start_cmdline, cwd=self._server_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                out =self._server_process.communicate()[0].strip().decode()
-                print(out)
-            except Exception as err:
-                print("Failed to launch server, error occured:", err)
-                sys.exit(1)
-        
+        self._server_process = self._execute_process(self._server_start_cmdline, cwd=self._server_cwd)
         print("SERVER IS LAUNCHED")
 
     def terminate(self):
-        print("TERMINATING SERVER ...")
+        "Terminate OmniSci server"
 
-        if self._start_by_service:
-            self._execute_process(self._server_service_stop_cmdline)
+        print("TERMINATING SERVER ...")
 
         try:
             self._server_process.send_signal(signal.SIGINT)
@@ -110,20 +82,20 @@ class OmnisciServer:
 
         print("SERVER IS TERMINATED")
 
-    def import_data(self, dataFileNames, files_limit):
-        "Import CSV files using COPY"
+    def import_data(self, data_files_names, files_limit):
+        "Import CSV files using COPY SQL statement"
 
-        for f in dataFileNames[:files_limit]:
+        for f in data_files_names[:files_limit]:
             print("Importing datafile", f)
-            copyStr = self._command2ImportCSV % f
-            try:
-                process = subprocess.Popen(self._omnisciCmdLine, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-                output = process.communicate(copyStr.encode())
-            except OSError as err:
-                print("Failed to start", self._omnisciCmdLine, err)
+            copy_str = self._command_2_import_CSV % f
+
+            import_process = self._execute_process(self._omnisci_cmd_line)
+            output = import_process.communicate(copy_str.encode())
 
             print(str(output[0].strip().decode()))
-            print("Command returned", process.returncode)
+            print("Command returned", import_process.returncode)
 
     def connect_to_server(self):
+        "Connect to Omnisci server using Ibis framework"
+
         return ibis.omniscidb.connect(host="localhost", port=self._server_port, user="admin", password="HyperInteractive")

@@ -9,50 +9,41 @@ import glob
 import sys
 import os
 
-omnisciExecutable  = "build/bin/omnisql"
-taxiTripsDirectory = "/localdisk/work/trips_x*.csv"
-databaseName = "taxibenchdb"
+omnisci_executable  = "build/bin/omnisql"
+taxi_trips_directory = "/localdisk/work/trips_x*.csv"
+database_name = "taxibenchdb"
 
-# Load database reporting, server and Ibis packages
-pathToReportDir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
-print(pathToReportDir)
-pathToServerDir = os.path.join(pathlib.Path(__file__).parent, "..", "server")
-pathToIbisDir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
-sys.path.insert(1, pathToReportDir)
-sys.path.insert(1, pathToServerDir)
-sys.path.insert(1, pathToIbisDir)
+# Load database reporting, server and Ibis modules
+path_to_report_dir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
+print(path_to_report_dir)
+path_to_server_dir = os.path.join(pathlib.Path(__file__).parent, "..", "server")
+path_to_ibis_dir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
+sys.path.insert(1, path_to_report_dir)
+sys.path.insert(1, path_to_server_dir)
+sys.path.insert(1, path_to_ibis_dir)
 import report
 import server
 import ibis
 
-def executeProcess(cmdline, cwd=None):
-    try:
-        process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        out = process.communicate()[0].strip().decode()
-        print(out)
-    except OSError as err:
-        print("Failed to start", cmdline, err)
+parser = argparse.ArgumentParser(description='Run NY Taxi benchmark using Ibis.')
 
-parser = argparse.ArgumentParser(description='Run NY Taxi benchmark using Ibis')
-
-parser.add_argument('-e', default=omnisciExecutable, help='Path to executable "omnisql"')
+parser.add_argument('-e', default=omnisci_executable, help='Path to executable "omnisql".')
 parser.add_argument('-r', default="report_ibis.csv", help="Report file name.")
 parser.add_argument('-df', default=1, type=int, help="Number of datafiles to input into database for processing.")
-parser.add_argument('-dp', default=taxiTripsDirectory, help="Wildcard pattern of datafiles that should be loaded.")
-parser.add_argument('-i', default=5, type=int, help="Number of iterations to run every benchmark. Best result is selected.")
-parser.add_argument('-dnd', action='store_true', help="Do not delete old table")
-parser.add_argument('-s', action='store_true', help="Launch Omnisci server via service")
-parser.add_argument('-dni', action='store_true', help="Do not create new table and import any data from CSV files")
-parser.add_argument("-port", default=62074, type=int, help="TCP port that omnisql client should use to connect to server")
+parser.add_argument('-dp', default=taxi_trips_directory, help="Wildcard pattern of datafiles that should be loaded.")
+parser.add_argument('-i', default=5, type=int, help="Number of iterations to run every query. Best result is selected.")
+parser.add_argument('-dnd', action='store_true', help="Do not delete old table.")
+parser.add_argument('-dni', action='store_true', help="Do not create new table and import any data from CSV files.")
+parser.add_argument("-port", default=62074, type=int, help="TCP port that omnisql client should use to connect to server.")
 
-parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
-parser.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server")
+parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server.")
+parser.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server.")
 parser.add_argument("-db-user", default="", help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.")
-parser.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database")
-parser.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results")
+parser.add_argument("-db-pass", default="omniscidb", help="Password to use to connect to MySQL database.")
+parser.add_argument("-db-name", default="omniscidb", help="MySQL database to use to store benchmark results.")
 parser.add_argument("-db-table", help="Table to use to store results for this benchmark.")
 
-parser.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results")
+parser.add_argument("-commit", default="1234567890123456789012345678901234567890", help="Commit hash to use to record this benchmark results.")
 
 args = parser.parse_args()
 
@@ -63,12 +54,11 @@ if args.df <= 0:
 if args.i < 1:
     print("Bad number of iterations specified", args.t)
 
-omnisciServer = server.OmnisciServer(omnisci_executable=args.e, omnisci_port=args.port,databaseID=databaseName, start_by_service=args.s)
-omnisciServer.launch()
+omnisci_server = server.Omnisci_server(omnisci_executable=args.e, omnisci_port=args.port, database_name=database_name)
+omnisci_server.launch()
 
 time.sleep(2)
-conn = omnisciServer.connect_to_server()
-#conn = ibis.omniscidb.connect(host="localhost", port=args.port, user="admin", password="HyperInteractive")
+conn = omnisci_server.connect_to_server()
 
 schema = ibis.Schema(
     names = ["trip_id","vendor_id","pickup_datetime","dropoff_datetime","store_and_fwd_flag","rate_code_id","pickup_longitude","pickup_latitude","dropoff_longitude","dropoff_latitude","passenger_count","trip_distance","fare_amount","extra","mta_tax","tip_amount","tolls_amount","ehail_fee","improvement_surcharge","total_amount","payment_type","trip_type","pickup","dropoff","cab_type","precipitation","snow_depth","snowfall","max_temperature","min_temperature","average_wind_speed","pickup_nyct2010_gid","pickup_ctlabel","pickup_borocode","pickup_boroname","pickup_ct2010","pickup_boroct2010","pickup_cdeligibil","pickup_ntacode","pickup_ntaname","pickup_puma","dropoff_nyct2010_gid","dropoff_ctlabel","dropoff_borocode","dropoff_boroname","dropoff_ct2010","dropoff_boroct2010","dropoff_cdeligibil","dropoff_ntacode","dropoff_ntaname", "dropoff_puma"],
@@ -81,7 +71,7 @@ if args.db_user is not "":
     db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name)
     db_reporter = report.DbReport(db, args.db_table, {
         'FilesNumber': 'INT UNSIGNED NOT NULL',
-        'BenchName': 'VARCHAR(500) NOT NULL',
+        'QueryName': 'VARCHAR(500) NOT NULL',
         'FirstExecTimeMS': 'BIGINT UNSIGNED',
         'WorstExecTimeMS': 'BIGINT UNSIGNED',
         'BestExecTimeMS': 'BIGINT UNSIGNED',
@@ -94,53 +84,54 @@ if args.db_user is not "":
 
 # Delete old table
 if not args.dnd:
-    print("Deleting", databaseName ,"old database")
+    print("Deleting", database_name ,"old database")
     try:
-        conn.drop_database(databaseName, force=True)
+        conn.drop_database(database_name, force=True)
     except Exception as err:
-        print("Failed to delete", databaseName, "old database: ", err)
+        print("Failed to delete", database_name, "old database: ", err)
 
-dataFileNames = sorted(glob.glob(args.dp))
-dataFilesNumber = len(dataFileNames[:args.df])
+data_files_names = sorted(glob.glob(args.dp))
+data_files_number = len(data_files_names[:args.df])
 
 print("Creating new database")
 try:
-	conn.create_database(databaseName) # Ibis list_databases method is not supported yet
+	conn.create_database(database_name) # Ibis list_databases method is not supported yet
 except Exception as err:
 	print("Database creation is skipped, because of error:", err)
 
-if len(dataFileNames) == 0:
+if len(data_files_names) == 0:
 	print("Could not find any data files matching", args.dp)
 	sys.exit(2)
 
 # Create new table
 print("Creating new table trips")
 try:
-	conn.create_table(table_name = "trips", schema=schema, database=databaseName)
+	conn.create_table(table_name = "trips", schema=schema, database=database_name)
 except Exception as err:
-	print("Failed to create table: ", err)
+	print("Failed to create table:", err)
 
 # Create table and import data
 if not args.dni:
     # Datafiles import
-    omnisciServer.import_data(dataFileNames, args.df)
+    omnisci_server.import_data(data_files_names, args.df)
 
 try:
-    db = conn.database(databaseName)
+    db = conn.database(database_name)
 except Exception as err:
-    print("Failed to connect to database: ", err)
+    print("Failed to connect to database:", err)
 
 try:
-    tablesNames = db.list_tables()
-    print(tablesNames)
+    tables_names = db.list_tables()
+    print("Database tables:", tables_names)
 except Exception as err:
-    print("Failed to read database tables: ", err)
+    print("Failed to read database tables:", err)
 
-if len(tablesNames) != 1 or tablesNames[0] != 'trips':
-    print("Database table created with mistake")
-    sys.exit(3)
+try:
+    df = db.table('trips')
+except Exception as err:
+    print("Failed to access trips table:", err)
 
-df = db.table('trips')
+# Queries definitions
 def q1(df):
     df.groupby('cab_type')[['cab_type']].count().execute()
 
@@ -158,7 +149,7 @@ def timeq(q):
     q(df)
     return time.time()-t
 
-def queriesExec(index):
+def queries_exec(index):
     if index == 1:
         return timeq(q1)
     elif index == 2:
@@ -169,51 +160,51 @@ def queriesExec(index):
         return timeq(q4)
     else:
         print("Non-valid index value for queries function")
-        sys.exit(4)
+        sys.exit(3)
         return None
 
 try:
     with open(args.r, "w") as report:
         t_begin = time.time()
-        for benchNumber in range(1,5):
+        for bench_number in range(1,5):
             exec_times = [None]*5
-            bestExecTime = float("inf")
-            worstExecTime = 0.0
-            firstExecTime = float("inf")
+            best_exec_time = float("inf")
+            worst_exec_time = 0.0
+            first_exec_time = float("inf")
             times_sum = 0.0
             for iteration in range(1, args.i + 1):
-                print("RUNNING BENCHMARK NUMBER", benchNumber, "ITERATION NUMBER", iteration)
-                exec_times[iteration - 1] = int(round(queriesExec(benchNumber) * 1000))
+                print("RUNNING QUERY NUMBER", bench_number, "ITERATION NUMBER", iteration)
+                exec_times[iteration - 1] = int(round(queries_exec(bench_number) * 1000))
                 if iteration == 1:
-                    firstExecTime = exec_times[iteration - 1]
-                if bestExecTime > exec_times[iteration - 1]:
-                    bestExecTime = exec_times[iteration - 1]
-                if iteration != 1 and worstExecTime < exec_times[iteration - 1]:
-                    worstExecTime = exec_times[iteration - 1]
+                    first_exec_time = exec_times[iteration - 1]
+                if best_exec_time > exec_times[iteration - 1]:
+                    best_exec_time = exec_times[iteration - 1]
+                if iteration != 1 and worst_exec_time < exec_times[iteration - 1]:
+                    worst_exec_time = exec_times[iteration - 1]
                 if iteration != 1:
                     times_sum += exec_times[iteration - 1]
-            averageExecTime = times_sum/(args.i - 1)
-            totalExecTime = int(round((time.time() - t_begin)*1000))
-            print("BENCHMARK", benchNumber, "EXEC TIME MS", bestExecTime, "TOTAL TIME MS", totalExecTime)
-            print("FilesNumber: ", dataFilesNumber,  ",",
-                  "BenchName: ",  'Benchmark' + str(benchNumber), ",",
-                  "FirstExecTimeMS: ", firstExecTime, ",",
-                  "WorstExecTimeMS: ", worstExecTime, ",",
-                  "BestExecTimeMS: ", bestExecTime, ",",
-                  "AverageExecTimeMS: ", averageExecTime, ",",
-                  "TotalTimeMS: ", totalExecTime, ",",
+            average_exec_time = times_sum/(args.i - 1)
+            total_exec_time = int(round((time.time() - t_begin)*1000))
+            print("QUERY", bench_number, "EXEC TIME MS", best_exec_time, "TOTAL TIME MS", total_exec_time)
+            print("FilesNumber: ", data_files_number,  ",",
+                  "QueryName: ",  'Query' + str(bench_number), ",",
+                  "FirstExecTimeMS: ", first_exec_time, ",",
+                  "WorstExecTimeMS: ", worst_exec_time, ",",
+                  "BestExecTimeMS: ", best_exec_time, ",",
+                  "AverageExecTimeMS: ", average_exec_time, ",",
+                  "TotalTimeMS: ", total_exec_time, ",",
                   "", '\n', file=report, sep='', end='', flush=True)
             if db_reporter is not None:
                 db_reporter.submit({
-                    'FilesNumber': dataFilesNumber,
-                    'BenchName': 'Benchmark' + str(benchNumber),
-                    'FirstExecTimeMS': firstExecTime,
-                    'WorstExecTimeMS': worstExecTime,
-                    'BestExecTimeMS': bestExecTime,
-                    'AverageExecTimeMS': averageExecTime,
-                    'TotalTimeMS': totalExecTime
+                    'FilesNumber': data_files_number,
+                    'QueryName': 'Query' + str(bench_number),
+                    'FirstExecTimeMS': first_exec_time,
+                    'WorstExecTimeMS': worst_exec_time,
+                    'BestExecTimeMS': best_exec_time,
+                    'AverageExecTimeMS': average_exec_time,
+                    'TotalTimeMS': total_exec_time
                 })
 except IOError as err:
     print("Failed writing report file", args.r, err)
 finally:
-    omnisciServer.terminate()
+    omnisci_server.terminate()
