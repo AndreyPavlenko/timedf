@@ -52,7 +52,7 @@ if args.df <= 0:
     sys.exit(1)
 
 if args.i < 1:
-    print("Bad number of iterations specified", args.t)
+    print("Bad number of iterations specified", args.i)
 
 omnisci_server = server.Omnisci_server(omnisci_executable=args.e, omnisci_port=args.port, database_name=database_name)
 omnisci_server.launch()
@@ -87,6 +87,8 @@ if not args.dnd:
     print("Deleting", database_name ,"old database")
     try:
         conn.drop_database(database_name, force=True)
+        time.sleep(2)
+        conn = omnisci_server.connect_to_server()
     except Exception as err:
         print("Failed to delete", database_name, "old database: ", err)
 

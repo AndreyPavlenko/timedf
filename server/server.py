@@ -51,7 +51,7 @@ class Omnisci_server:
 
         try:
             process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            if process.returncode != 0:
+            if process.returncode != 0 and process.returncode != None:
                 raise Exception("Command returned {}".format(process.returncode))
         except OSError as err:
             print("Failed to start", cmdline, err)
@@ -89,8 +89,11 @@ class Omnisci_server:
             print("Importing datafile", f)
             copy_str = self._command_2_import_CSV % f
 
-            import_process = self._execute_process(self._omnisci_cmd_line)
-            output = import_process.communicate(copy_str.encode())
+            try:
+                import_process = subprocess.Popen(self._omnisci_cmd_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+                output = import_process.communicate(copy_str.encode())
+            except OSError as err:
+                print("Failed to start", self._omnisci_cmd_line, err)
 
             print(str(output[0].strip().decode()))
             print("Command returned", import_process.returncode)
