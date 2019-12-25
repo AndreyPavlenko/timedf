@@ -8,3 +8,10 @@ make -j 8
 cp /localdisk/benchmark_datasets/omnisci.conf .
 mkdir data
 ./bin/initdb --data data
+
+mkdir ibis
+cd ibis
+git clone https://github.com/ibis-project/ibis.git .
+pip install -r requirements.txt
+python3 setup.py build
+cd ..
