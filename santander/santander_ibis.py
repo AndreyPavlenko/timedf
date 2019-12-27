@@ -60,8 +60,8 @@ datafile_columns_names = ["ID_code", "target"] + ["var_" + str(index) for index 
 datafile_columns_types = ["string", "Boolean"] + ["float32" for _ in range(200)]
 
 schema_train = ibis.Schema(
-    names_train = datafile_columns_names,
-    types_train = datafile_columns_types
+    names = datafile_columns_names,
+    types = datafile_columns_types
 )
 
 '''

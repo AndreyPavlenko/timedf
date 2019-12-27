@@ -81,6 +81,7 @@ class Omnisci_server:
         print("TERMINATING SERVER ...")
 
         try:
+            self._conn.close()
             self._server_process.send_signal(signal.SIGINT)
             time.sleep(2)
             self._server_process.kill()
@@ -120,8 +121,12 @@ class Omnisci_server:
         "Import CSV files using Ibis load_data from the Pandas.DataFrame"
 
         t0 = time.time()
-        pandas_df_from_each_file = (self._read_csv_datafile(file_name, columns_names, header) for file_name in data_files_names[:files_limit])
-        pandas_concatenated_df = pd.concat(pandas_df_from_each_file, ignore_index=True)
+        if files_limit > 1:
+            pandas_df_from_each_file = (self._read_csv_datafile(file_name, columns_names, header) for file_name in data_files_names[:files_limit])
+            pandas_concatenated_df = pd.concat(pandas_df_from_each_file, ignore_index=True)
+        else:
+            pandas_concatenated_df = self._read_csv_datafile(data_files_names, columns_names, header)
+        
         t_import_pandas = time.time() - t0
 
         t0 = time.time()
