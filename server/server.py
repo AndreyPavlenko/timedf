@@ -37,7 +37,7 @@ class Omnisci_server:
 
         self._server_port = omnisci_port
         self._omnisci_server_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "omnisci_server")
-        self._server_start_cmdline = ["sudo", self._omnisci_server_executable,
+        self._server_start_cmdline = [self._omnisci_server_executable,
                                     "data",
                                     '--port', str(omnisci_port),
                                     '--http-port', str(self._http_port),
