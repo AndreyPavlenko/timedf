@@ -243,7 +243,7 @@ def q3():
 def q4():
     t_split = 0
     t0 = time.time()
-    train,valid = train_pd_ibis[0:190000],train_pd_ibis[190000:200000]
+    train,valid = train_pd_ibis[0:190000].execute(),train_pd_ibis[190000:200000].execute()
     t_split = time.time() - t0
     
     return t_split

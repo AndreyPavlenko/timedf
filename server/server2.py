@@ -140,17 +140,16 @@ class Omnisci_server:
         t0 = time.time()
         if files_limit > 1:
             pandas_df_from_each_file = (self._read_csv_datafile(file_name, columns_names, header) for file_name in data_files_names[:files_limit])
-            pandas_concatenated_df = pd.concat(pandas_df_from_each_file, ignore_index=True)
+            self._imported_pd_df[table_name] = pd.concat(pandas_df_from_each_file, ignore_index=True)
         else:
-            pandas_concatenated_df = self._read_csv_datafile(data_files_names, columns_names, header)
+            self._imported_pd_df[table_name] = self._read_csv_datafile(data_files_names, columns_names, header)
         
         t_import_pandas = time.time() - t0
-
-        if table_name not in self._imported_pd_df:
-            self._imported_pd_df[table_name] = pandas_concatenated_df.astype(dtype=cast_dict, copy=False)
+            
+        pandas_concatenated_df_casted = self._imported_pd_df[table_name].astype(dtype=cast_dict, copy=True)
 
         t0 = time.time()
-        self._conn.load_data(table_name=table_name, obj=self._imported_pd_df[table_name], database=self._database_name)
+        self._conn.load_data(table_name=table_name, obj=pandas_concatenated_df_casted, database=self._database_name)
         t_import_ibis = time.time() - t0
 
         return t_import_pandas, t_import_ibis
