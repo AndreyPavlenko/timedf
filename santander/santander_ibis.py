@@ -1,7 +1,9 @@
+
 import mysql.connector
 import pandas as pd
 import numpy as np
 import subprocess
+import threading
 import argparse
 import pathlib
 import time
@@ -12,11 +14,10 @@ import os
 omnisci_executable  = "build/bin/omnisql"
 datafile_directory = "/localdisk/work/train.csv"
 database_name = "santanderdb"
-table_name = "train_table"
+train_table_name = "train_table"
 
 # Load database reporting, server and Ibis modules
 path_to_report_dir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
-print(path_to_report_dir)
 path_to_server_dir = os.path.join(pathlib.Path(__file__).parent, "..", "server")
 path_to_ibis_dir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
 sys.path.insert(1, path_to_report_dir)
@@ -25,6 +26,8 @@ sys.path.insert(1, path_to_ibis_dir)
 import report
 import server2
 import ibis
+
+ibis.options.interactive = True
 
 parser = argparse.ArgumentParser(description='Run Santander benchmark using Ibis.')
 
@@ -49,28 +52,30 @@ args = parser.parse_args()
 
 if args.i < 1:
     print("Bad number of iterations specified", args.i)
-
-omnisci_server = server2.Omnisci_server(omnisci_executable=args.e, omnisci_port=args.port, database_name=database_name, table_name=table_name)
-omnisci_server.launch()
-
-time.sleep(2)
-conn = omnisci_server.connect_to_server()
-
+    
+def print_omnisci_output(stdout):
+    for line in iter(stdout.readline, b''):
+        print("OMNISCI>>", line.decode().strip())
+    
 datafile_columns_names = ["ID_code", "target"] + ["var_" + str(index) for index in range(200)]
-datafile_columns_types = ["string", "Boolean"] + ["float32" for _ in range(200)]
+datafile_columns_types = ["string", "int16"] + ["float32" for _ in range(200)]
 
 schema_train = ibis.Schema(
     names = datafile_columns_names,
     types = datafile_columns_types
 )
 
-'''
+omnisci_server = server2.Omnisci_server(omnisci_executable=args.e, omnisci_port=args.port, database_name=database_name)
+omnisci_server.launch()
+
+time.sleep(2)
+conn = omnisci_server.connect_to_server()
+
 db_reporter = None
 if args.db_user is not "":
     print("Connecting to database")
     db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user, passwd=args.db_pass, db=args.db_name)
     db_reporter = report.DbReport(db, args.db_table, {
-        'FilesNumber': 'INT UNSIGNED NOT NULL',
         'QueryName': 'VARCHAR(500) NOT NULL',
         'FirstExecTimeMS': 'BIGINT UNSIGNED',
         'WorstExecTimeMS': 'BIGINT UNSIGNED',
@@ -81,7 +86,6 @@ if args.db_user is not "":
         'ScriptName': 'santander_ibis.py',
         'CommitHash': args.commit
     })
-'''
 
 # Delete old table
 if not args.dnd:
@@ -96,23 +100,17 @@ if not args.dnd:
 
 print("Creating new database")
 try:
-	conn.create_database(database_name) # Ibis list_databases method is not supported yet
+    conn.create_database(database_name) # Ibis list_databases method is not supported yet
 except Exception as err:
-	print("Database creation is skipped, because of error:", err)
+    print("Database creation is skipped, because of error:", err)
 
+    
+cast_dict_train = {('var_%s'%str(i)):'float32' for i in range(200)}
+cast_dict_train['target'] = 'int16'
 
-if conn.exists_table == False:
-    # Create new table
-    print("Creating new table", table_name)
-    try:
-        conn.create_table(table_name = table_name, schema=schema_train, database=database_name)
-    except Exception as err:
-        print("Failed to create table:", err)
-
-# Create table and import data
 if not args.dni:
     # Datafiles import
-    t_import_pandas, t_import_ibis = omnisci_server.import_data_by_ibis(data_files_names=args.dp, files_limit=1, columns_names=datafile_columns_names, header=1)
+    t_import_pandas, t_import_ibis = omnisci_server.import_data_by_ibis(table_name = train_table_name, data_files_names=args.dp, files_limit=1, columns_names=datafile_columns_names, columns_types=datafile_columns_types, cast_dict=cast_dict_train, header=0)
     print("Pandas import time:", t_import_pandas)
     print("Ibis import time:", t_import_ibis)
 
@@ -128,60 +126,151 @@ except Exception as err:
     print("Failed to read database tables:", err)
 
 try:
-    df = db.table(table_name)
+    df = db.table(train_table_name)
 except Exception as err:
-    print("Failed to access", table_name, "table:", err)
+    print("Failed to access", train_table_name, "table:", err)
 
-omnisci_server.terminate()
 
-'''
+# Table creation for filter and split queries. This steps are done in order to
+# reproduce Pandas merge and loc operations results for proper queies results
+# measurements
+
+train_pd = omnisci_server.get_pd_df(table_name=train_table_name)
+
+for i in range(200):
+    col = 'var_%d'%i
+    var_count = train_pd.groupby(col).agg({col:'count'})
+    var_count.columns = ['%s_count'%col]
+    var_count = var_count.reset_index()
+    train_pd = train_pd.merge(var_count,on=col,how='left')
+
+for i in range(200):
+    col = 'var_%d'%i
+    mask = train_pd['%s_count'%col]>1
+    train_pd.loc[mask,'%s_gt1'%col] = train_pd.loc[mask,col]
+
+
+datafile_columns_names_train_pd = datafile_columns_names + ["var_" + str(index) + "_count" for index in range(200)] + ["var_" + str(index) + "_gt1" for index in range(200)]
+datafile_columns_types_train_pd = datafile_columns_types + ["float32" for _ in range(200)] + ["float32" for _ in range(200)]
+
+schema_train_pd = ibis.Schema(
+    names = datafile_columns_names_train_pd,
+    types = datafile_columns_types_train_pd
+)
+
+cast_dict = {}
+cast_dict['target'] = 'int16'
+for i in range(200):
+    cast_dict['var_%s'%str(i)] = 'float32'
+    cast_dict['var_%s'%str(i)+'_count'] = 'float32'
+    cast_dict['var_%s'%str(i)+'_gt1'] = 'float32'
+
+train_pd = train_pd.astype(dtype=cast_dict, copy=False)
+
+conn.create_table(table_name = 'train_pd_table', schema=schema_train_pd, database=database_name)
+conn.load_data('train_pd_table', train_pd)
+train_pd_ibis = db.table('train_pd_table')
+
+
+table_name_where = 'train_where_table'
+datafile_columns_names_train_where = datafile_columns_names + ["var_" + str(index) + "_count" for index in range(200)]
+datafile_columns_types_train_where = datafile_columns_types + ["float32" for _ in range(200)]
+
+schema_train_where = ibis.Schema(
+    names = datafile_columns_names_train_where,
+    types = datafile_columns_types_train_where
+)
+
+train = train_pd.copy()
+train_selected = train[datafile_columns_names_train_where]
+conn.create_table(table_name = table_name_where, schema=schema_train_where, database=database_name)
+conn.load_data(table_name_where, train_selected)
+train_where_ibis = db.table(table_name_where)
+
+
+    
 # Queries definitions
-def q1(df):
-    df.groupby('target')[['target']].count().execute()
+tmp_table_name = 'tmp_table'
+def q1():
+    t_import = 0
+    t0 = time.time()
+    _, _ = omnisci_server.import_data_by_ibis(table_name = tmp_table_name, data_files_names=args.dp, files_limit=1, columns_names=datafile_columns_names, columns_types=datafile_columns_types, cast_dict=cast_dict_train, header=0)
+    t_import = time.time() - t0
+    omnisci_server.drop_table(tmp_table_name)
+    
+    return t_import
 
-def q2(df):
-    df.groupby('passenger_count').aggregate(total_amount=df.total_amount.mean())[['passenger_count','total_amount']].execute()
+def q2():
+    for i in range(200):
+        t_groupby = 0
+        col = 'var_%d'%i
+        t0 = time.time()
+        metric = df[col].count().name('%s_count'%col)
+        group_by_expr = df.group_by(col).aggregate(metric)
+        _ = group_by_expr.execute()
+        t_groupby += time.time() - t0
 
-def q3(df):
-    df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime')]).aggregate(count=df.passenger_count.count()).execute()
+        
+    return t_groupby
 
-def q4(df):
-    df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime'), df.trip_distance]).size().sort_by([('pickup_datetime', True), ('count', False)]).execute()
+def q3():
+    t_where = 0
+    global train_where_ibis
 
-def timeq(q):
-    t = time.time()
-    q(df)
-    return time.time()-t
+    for c,col in enumerate(['var_0','var_1','var_2']):
+        for i in range(1,4):
+            t0 = time.time()
+            train_where_ibis_filtered = train_where_ibis[train_where_ibis['%s_count'%col]==i].execute()
+            t_where += time.time() - t0
 
-queries_description = {1: "query 1"}
+    t0 = time.time()
+    train_where_ibis_filtered = train_where_ibis[train_where_ibis['%s_count'%col]>i].execute()
+    t_where += time.time() - t0
 
-def queries_exec(index):
-    if index == 1:
-        return timeq(q1), queries_description[index]
-    elif index == 2:
-        return timeq(q2)
-    elif index == 3:
-        return timeq(q3)
-    elif index == 4:
-        return timeq(q4)
-    else:
-        print("Non-valid index value for queries function")
-        sys.exit(3)
-        return None
+    col_to_sel = datafile_columns_names + ["var_" + str(index) + "_count" for index in range(200)]
+    train_where_ibis2 = train_pd_ibis[col_to_sel]
+    for i in range(200):
+        col = 'var_%d'%i
+        t0 = time.time()
+        mask = train_where_ibis2['%s_count'%col]>1
+        t_where += time.time() - t0
 
+        col_to_sel += ['%s_gt1'%col]
+        train_where_ibis2 = train_pd_ibis[col_to_sel]
+        
+    return t_where
+
+def q4():
+    t_split = 0
+    t0 = time.time()
+    train,valid = train_pd_ibis[0:190000],train_pd_ibis[190000:200000]
+    t_split = time.time() - t0
+    
+    return t_split
+
+queries_list = [q1, q2, q3, q4]
+queries_description = {}
+queries_description[1] = 'Santander data file import query'
+queries_description[2] = 'Ibis group_gy and count query'
+queries_description[3] = 'Rows filtration query'
+queries_description[4] = 'Rows split query'
 
 try:
+    pt = threading.Thread(target=print_omnisci_output, args=(omnisci_server.server_process.stdout,), daemon=True)
+    pt.start()
+    
     with open(args.r, "w") as report:
         t_begin = time.time()
-        for bench_number in range(1,5):
+        for query_number in range(0,4):
             exec_times = [None]*5
             best_exec_time = float("inf")
             worst_exec_time = 0.0
             first_exec_time = float("inf")
             times_sum = 0.0
             for iteration in range(1, args.i + 1):
-                print("RUNNING QUERY NUMBER", bench_number, "ITERATION NUMBER", iteration)
-                exec_times[iteration - 1] = int(round(queries_exec(bench_number) * 1000))
+                print("Running query number:", query_number + 1, "Iteration number:", iteration)
+                time_tmp = int(round(queries_list[query_number]() * 1000))
+                exec_times[iteration - 1] = time_tmp
                 if iteration == 1:
                     first_exec_time = exec_times[iteration - 1]
                 if best_exec_time > exec_times[iteration - 1]:
@@ -191,28 +280,25 @@ try:
                 if iteration != 1:
                     times_sum += exec_times[iteration - 1]
             average_exec_time = times_sum/(args.i - 1)
-            total_exec_time = int(round((time.time() - t_begin)*1000))
-            print("QUERY", bench_number, "EXEC TIME MS", best_exec_time, "TOTAL TIME MS", total_exec_time)
-            print("FilesNumber: ", data_files_number,  ",",
-                  "QueryName: ",  'Query' + str(bench_number), ",",
+            total_exec_time = int(round(time.time() - t_begin))
+            print("Query", query_number + 1, "Exec time (ms):", best_exec_time, "Total time (s):", total_exec_time)
+            print("QueryName: ",  queries_description[query_number + 1], ",",
                   "FirstExecTimeMS: ", first_exec_time, ",",
                   "WorstExecTimeMS: ", worst_exec_time, ",",
                   "BestExecTimeMS: ", best_exec_time, ",",
                   "AverageExecTimeMS: ", average_exec_time, ",",
-                  "TotalTimeMS: ", total_exec_time, ",",
+                  "TotalTimeS: ", total_exec_time, ",",
                   "", '\n', file=report, sep='', end='', flush=True)
             if db_reporter is not None:
                 db_reporter.submit({
-                    'FilesNumber': data_files_number,
-                    'QueryName': 'Query' + str(bench_number),
+                    'QueryName': queries_description[query_number + 1],
                     'FirstExecTimeMS': first_exec_time,
                     'WorstExecTimeMS': worst_exec_time,
                     'BestExecTimeMS': best_exec_time,
                     'AverageExecTimeMS': average_exec_time,
-                    'TotalTimeMS': total_exec_time
+                    'TotalTimeS': total_exec_time
                 })
 except IOError as err:
     print("Failed writing report file", args.r, err)
 finally:
     omnisci_server.terminate()
-'''

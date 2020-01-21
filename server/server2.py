@@ -12,17 +12,16 @@ path_to_ibis_dir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibi
 sys.path.insert(1, path_to_ibis_dir)
 import ibis
 
-
 class Omnisci_server:
-    "Manage data directory, launch/termination and connection establishing with OmniSci server."
+    "Manage interactions with OmniSciDB server (launch/termination, connection establishing, etc.)"
 
     _http_port = 62278
     _calcite_port = 62279
-    _server_process = None
-    _columns_names_santander_train = ["ID_code", "target"] + ["var_" + str(index) for index in range(200)]
+    server_process = None
     _header_santander_train = False
+    _imported_pd_df = {}
 
-    def __init__(self, omnisci_executable, omnisci_port, database_name, table_name, omnisci_cwd=None):
+    def __init__(self, omnisci_executable, omnisci_port, database_name, omnisci_cwd=None):
         if omnisci_cwd is not None:
             self._server_cwd = omnisci_cwd
         else:
@@ -39,7 +38,6 @@ class Omnisci_server:
 
         self._server_port = omnisci_port
         self._database_name = database_name
-        self._table_name = table_name
         self._omnisci_server_executable = os.path.join(pathlib.Path(omnisci_executable).parent, "omnisci_server")
         self._server_start_cmdline = [self._omnisci_server_executable,
                                     "data",
@@ -49,7 +47,7 @@ class Omnisci_server:
                                     '--config', "omnisci.conf"]
         
         self._omnisci_cmd_line = [omnisci_executable] + [str(self._database_name), "-u", "admin", "-p", "HyperInteractive"] + ["--port", str(self._server_port)]
-        self._command_2_import_CSV = "COPY " + self._table_name + " FROM '%s' WITH (header='%s');"
+        self._command_2_import_CSV = "COPY %s FROM '%s' WITH (header='%s');"
         self._conn = None
 
     def _execute_process(self, cmdline, cwd=None):
@@ -64,36 +62,44 @@ class Omnisci_server:
 
         return process
 
-    def _read_csv_datafile(self, file_name, columns_names, header=None, compression_type='gzip'):
-        print("READING DATAFILE", file_name)
-        return pd.read_csv(file_name, compression=compression_type, header=header, names=columns_names)
+    def _read_csv_datafile(self, file_name, columns_names, header=None, compression_type='gzip', nrows=200000):
+        "Read csv by Pandas. Function returns Pandas DataFrame, which can be used by ibis load_data function"
+        
+        print("Reading datafile", file_name)
+        return pd.read_csv(file_name, compression=compression_type, header=header, names=columns_names, nrows=nrows)
     
-    def launch(self):
-        "Launch OmniSci server"
+    def connect_to_server(self):
+        "Connect to Omnisci server using Ibis framework"
+        
+        self._conn = ibis.omniscidb.connect(host="localhost", port=self._server_port, user="admin", password="HyperInteractive")
+        return self._conn
 
-        print("LAUNCHING SERVER ...")
-        self._server_process = self._execute_process(self._server_start_cmdline, cwd=self._server_cwd)
-        print("SERVER IS LAUNCHED")
+    def launch(self):
+        "Launch OmniSciDB server"
+
+        print("Launching server ...")
+        self.server_process = self._execute_process(self._server_start_cmdline, cwd=self._server_cwd)
+        print("Server is launched")
 
     def terminate(self):
         "Terminate OmniSci server"
 
-        print("TERMINATING SERVER ...")
+        print("Terminating server ...")
 
         try:
-            self._conn.close()
-            self._server_process.send_signal(signal.SIGINT)
+            #self._conn.close()
+            self.server_process.send_signal(signal.SIGINT)
             time.sleep(2)
-            self._server_process.kill()
+            self.server_process.kill()
             time.sleep(1)
-            self._server_process.terminate()
+            self.server_process.terminate()
         except Exception as err:
             print("Failed to terminate server, error occured:", err)
-            sys.exit(2)
+            sys.exit(1)
 
-        print("SERVER IS TERMINATED")
+        print("Server is terminated")
 
-    def import_data(self, data_files_names, files_limit, header=False):
+    def import_data(self, table_name, data_files_names, files_limit, header=False):
         "Import CSV files using COPY SQL statement"
 
         if header == True:
@@ -102,11 +108,11 @@ class Omnisci_server:
             header_value = 'false'
         else:
             print("Wrong value of header argument!")
-            sys.exit(3)
+            sys.exit(2)
 
         for f in data_files_names[:files_limit]:
             print("Importing datafile", f)
-            copy_str = self._command_2_import_CSV % (f, header_value)
+            copy_str = self._command_2_import_CSV % (table_name, f, header_value)
 
             try:
                 import_process = subprocess.Popen(self._omnisci_cmd_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
@@ -116,9 +122,20 @@ class Omnisci_server:
 
             print(str(output[0].strip().decode()))
             print("Command returned", import_process.returncode)
-
-    def import_data_by_ibis(self, data_files_names, files_limit, columns_names, header=None):
+    
+    def import_data_by_ibis(self, table_name, data_files_names, files_limit, columns_names, columns_types, cast_dict, header=None):
         "Import CSV files using Ibis load_data from the Pandas.DataFrame"
+        
+        schema_table = ibis.Schema(
+            names = columns_names,
+            types = columns_types
+        )
+        
+        if not self._conn.exists_table(name=table_name, database=self._database_name):
+            try:
+                self._conn.create_table(table_name = table_name, schema=schema_table, database=self._database_name)
+            except Exception as err:
+                print("Failed to create table:", err)
 
         t0 = time.time()
         if files_limit > 1:
@@ -129,13 +146,33 @@ class Omnisci_server:
         
         t_import_pandas = time.time() - t0
 
+        if table_name not in self._imported_pd_df:
+            self._imported_pd_df[table_name] = pandas_concatenated_df.astype(dtype=cast_dict, copy=False)
+
         t0 = time.time()
-        self._conn.load_data(table_name=self._table_name, obj=pandas_concatenated_df, database=self._database_name)
+        self._conn.load_data(table_name=table_name, obj=self._imported_pd_df[table_name], database=self._database_name)
         t_import_ibis = time.time() - t0
 
         return t_import_pandas, t_import_ibis
-
-    def connect_to_server(self):
-        "Connect to Omnisci server using Ibis framework"
-        self._conn = ibis.omniscidb.connect(host="localhost", port=self._server_port, user="admin", password="HyperInteractive")
-        return self._conn
+    
+    def drop_table(self, table_name):
+        "Drop table by table_name using Ibis framework"
+        
+        if self._conn.exists_table(name=table_name, database=self._database_name):
+            db = self._conn.database(self._database_name)
+            df = db.table(table_name)
+            df.drop()
+            if table_name in self._imported_pd_df:
+                del self._imported_pd_df[table_name]
+        else:
+            print("Table", table_name, "doesn't exist!")
+            sys.exit(3)
+    
+    def get_pd_df(self, table_name):
+        "Get already imported Pandas DataFrame"
+        
+        if self._conn.exists_table(name=table_name, database=self._database_name):
+            return self._imported_pd_df[table_name]
+        else:
+            print("Table", table_name, "doesn't exist!")
+            sys.exit(4)
