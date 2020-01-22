@@ -1,4 +1,3 @@
-
 import mysql.connector
 import pandas as pd
 import numpy as np
@@ -24,10 +23,8 @@ sys.path.insert(1, path_to_report_dir)
 sys.path.insert(1, path_to_server_dir)
 sys.path.insert(1, path_to_ibis_dir)
 import report
-import server2
+import server
 import ibis
-
-ibis.options.interactive = True
 
 parser = argparse.ArgumentParser(description='Run Santander benchmark using Ibis.')
 
@@ -65,7 +62,7 @@ schema_train = ibis.Schema(
     types = datafile_columns_types
 )
 
-omnisci_server = server2.Omnisci_server(omnisci_executable=args.e, omnisci_port=args.port, database_name=database_name)
+omnisci_server = server.Omnisci_server(omnisci_executable=args.e, omnisci_port=args.port, database_name=database_name)
 omnisci_server.launch()
 
 time.sleep(2)
@@ -131,9 +128,10 @@ except Exception as err:
     print("Failed to access", train_table_name, "table:", err)
 
 
-# Table creation for filter and split queries. This steps are done in order to
-# reproduce Pandas merge and loc operations results for proper queies results
-# measurements
+    
+# Since OmniSciDB doesn't support JOIN operation for tables with non-integer
+# values, tables for filter and split queries were reproduced by Pandas (as it
+# it was done in the similar Pandas benchmark https://gitlab.devtools.intel.com/jianminl/rapids-response-e2e-workloads/blob/master/e2e/santander/santander_cpu.py)
 
 train_pd = omnisci_server.get_pd_df(table_name=train_table_name)
 

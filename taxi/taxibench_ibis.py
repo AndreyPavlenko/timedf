@@ -3,6 +3,7 @@ import mysql.connector
 import pandas as pd
 import numpy as np
 import subprocess
+import threading
 import argparse
 import pathlib
 import time
@@ -13,10 +14,10 @@ import os
 omnisci_executable  = "build/bin/omnisql"
 taxi_trips_directory = "/localdisk/work/trips_x*.csv"
 database_name = "taxibenchdb"
+taxibench_table_name = "trips"
 
 # Load database reporting, server and Ibis modules
 path_to_report_dir = os.path.join(pathlib.Path(__file__).parent, "..", "report")
-print(path_to_report_dir)
 path_to_server_dir = os.path.join(pathlib.Path(__file__).parent, "..", "server")
 path_to_ibis_dir = os.path.join(pathlib.Path(__file__).parent.parent, "..", "ibis/build/lib")
 sys.path.insert(1, path_to_report_dir)
@@ -29,7 +30,7 @@ import ibis
 parser = argparse.ArgumentParser(description='Run NY Taxi benchmark using Ibis.')
 
 parser.add_argument('-e', default=omnisci_executable, help='Path to executable "omnisql".')
-parser.add_argument('-r', default="report_ibis.csv", help="Report file name.")
+parser.add_argument('-r', default="report_taxibench_ibis.csv", help="Report file name.")
 parser.add_argument('-df', default=1, type=int, help="Number of datafiles to input into database for processing.")
 parser.add_argument('-dp', default=taxi_trips_directory, help="Wildcard pattern of datafiles that should be loaded.")
 parser.add_argument('-i', default=5, type=int, help="Number of iterations to run every query. Best result is selected.")
@@ -54,6 +55,10 @@ if args.df <= 0:
 
 if args.i < 1:
     print("Bad number of iterations specified", args.i)
+    
+def print_omnisci_output(stdout):
+    for line in iter(stdout.readline, b''):
+        print("OMNISCI>>", line.decode().strip())
 
 omnisci_server = server.Omnisci_server(omnisci_executable=args.e, omnisci_port=args.port, database_name=database_name)
 omnisci_server.launch()
@@ -61,10 +66,8 @@ omnisci_server.launch()
 time.sleep(2)
 conn = omnisci_server.connect_to_server()
 
-schema = ibis.Schema(
-    names = ["trip_id","vendor_id","pickup_datetime","dropoff_datetime","store_and_fwd_flag","rate_code_id","pickup_longitude","pickup_latitude","dropoff_longitude","dropoff_latitude","passenger_count","trip_distance","fare_amount","extra","mta_tax","tip_amount","tolls_amount","ehail_fee","improvement_surcharge","total_amount","payment_type","trip_type","pickup","dropoff","cab_type","precipitation","snow_depth","snowfall","max_temperature","min_temperature","average_wind_speed","pickup_nyct2010_gid","pickup_ctlabel","pickup_borocode","pickup_boroname","pickup_ct2010","pickup_boroct2010","pickup_cdeligibil","pickup_ntacode","pickup_ntaname","pickup_puma","dropoff_nyct2010_gid","dropoff_ctlabel","dropoff_borocode","dropoff_boroname","dropoff_ct2010","dropoff_boroct2010","dropoff_cdeligibil","dropoff_ntacode","dropoff_ntaname", "dropoff_puma"],
-    types = ['int32','string','timestamp','timestamp','string','int16','decimal','decimal','decimal','decimal','int16','decimal','decimal','decimal','decimal','decimal','decimal','decimal','decimal','decimal','string','int16','string','string','string','int16','int16','int16','int16','int16','int16','int16','string','int16','string','string','string','string','string','string','string','int16','string','int16','string','string','string','string','string','string','string']
- )
+taxibench_columns_names = ["trip_id","vendor_id","pickup_datetime","dropoff_datetime","store_and_fwd_flag","rate_code_id","pickup_longitude","pickup_latitude","dropoff_longitude","dropoff_latitude","passenger_count","trip_distance","fare_amount","extra","mta_tax","tip_amount","tolls_amount","ehail_fee","improvement_surcharge","total_amount","payment_type","trip_type","pickup","dropoff","cab_type","precipitation","snow_depth","snowfall","max_temperature","min_temperature","average_wind_speed","pickup_nyct2010_gid","pickup_ctlabel","pickup_borocode","pickup_boroname","pickup_ct2010","pickup_boroct2010","pickup_cdeligibil","pickup_ntacode","pickup_ntaname","pickup_puma","dropoff_nyct2010_gid","dropoff_ctlabel","dropoff_borocode","dropoff_boroname","dropoff_ct2010","dropoff_boroct2010","dropoff_cdeligibil","dropoff_ntacode","dropoff_ntaname", "dropoff_puma"]
+taxibench_columns_types = ['int32','string','timestamp','timestamp','string','int16','decimal','decimal','decimal','decimal','int16','decimal','decimal','decimal','decimal','decimal','decimal','decimal','decimal','decimal','string','int16','string','string','string','int16','int16','int16','int16','int16','int16','int16','string','int16','string','string','string','string','string','string','string','int16','string','int16','string','string','string','string','string','string','string']
 
 db_reporter = None
 if args.db_user is not "":
@@ -98,27 +101,20 @@ data_files_names = list(braceexpand(args.dp))
 data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
 data_files_number = len(data_files_names[:args.df])
 
-print("Creating new database")
 try:
-	conn.create_database(database_name) # Ibis list_databases method is not supported yet
+    print("Creating", database_name ,"new database")
+    conn.create_database(database_name) # Ibis list_databases method is not supported yet
 except Exception as err:
-	print("Database creation is skipped, because of error:", err)
+    print("Database creation is skipped, because of error:", err)
 
 if len(data_files_names) == 0:
-	print("Could not find any data files matching", args.dp)
-	sys.exit(2)
-
-# Create new table
-print("Creating new table trips")
-try:
-	conn.create_table(table_name = "trips", schema=schema, database=database_name)
-except Exception as err:
-	print("Failed to create table:", err)
+    print("Could not find any data files matching", args.dp)
+    sys.exit(2)
 
 # Create table and import data
 if not args.dni:
     # Datafiles import
-    omnisci_server.import_data(data_files_names, args.df)
+    omnisci_server.import_data(table_name=taxibench_table_name, data_files_names=data_files_names, files_limit=args.df, columns_names=taxibench_columns_names, columns_types=taxibench_columns_types, header=False)
 
 try:
     db = conn.database(database_name)
@@ -132,9 +128,9 @@ except Exception as err:
     print("Failed to read database tables:", err)
 
 try:
-    df = db.table('trips')
+    df = db.table(taxibench_table_name)
 except Exception as err:
-    print("Failed to access trips table:", err)
+    print("Failed to access", taxibench_table_name,"table:", err)
 
 # Queries definitions
 def q1(df):
@@ -169,6 +165,8 @@ def queries_exec(index):
         return None
 
 try:
+    pt = threading.Thread(target=print_omnisci_output, args=(omnisci_server.server_process.stdout,), daemon=True)
+    pt.start()
     with open(args.r, "w") as report:
         t_begin = time.time()
         for bench_number in range(1,5):
