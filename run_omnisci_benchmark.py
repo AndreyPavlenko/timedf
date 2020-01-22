@@ -225,7 +225,7 @@ else:
         print("For dataset type of benchmark the following parameters are mandatory: --import-file, --table-schema-file and --queries-dir and --fragment-size is optional.")
         sys.exit(3)
     datafiles_names = list(braceexpand(args.import_file))
-    datafiles_names = [x for f in datafiles_names for x in glob.glob(f)]
+    datafiles_names = sorted([x for f in datafiles_names for x in glob.glob(f)])
     datafiles = len(datafiles_names)
     print("NUMBER OF DATAFILES FOUND:", datafiles)
     results_file_name = os.path.join(args.benchmarks_path, "benchmark.json")

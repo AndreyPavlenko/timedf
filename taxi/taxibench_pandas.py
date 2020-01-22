@@ -1,3 +1,4 @@
+from braceexpand import braceexpand
 import mysql.connector
 import pandas as pd
 import numpy as np
@@ -156,7 +157,8 @@ if args.db_user is not "":
         'CommitHash': args.commit
     })
 
-dataFileNames = sorted(glob.glob(args.dp))
+dataFileNames = list(braceexpand(args.dp))
+dataFileNames = sorted([x for f in dataFileNames for x in glob.glob(f)])
 if len(dataFileNames) == 0:
     print("Could not find any data files matching", args.dp)
     sys.exit(2)

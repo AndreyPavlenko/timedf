@@ -1,3 +1,4 @@
+from braceexpand import braceexpand
 import mysql.connector
 import pandas as pd
 import numpy as np
@@ -92,7 +93,9 @@ if not args.dnd:
     except Exception as err:
         print("Failed to delete", database_name, "old database: ", err)
 
-data_files_names = sorted(glob.glob(args.dp))
+
+data_files_names = list(braceexpand(args.dp))
+data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
 data_files_number = len(data_files_names[:args.df])
 
 print("Creating new database")
