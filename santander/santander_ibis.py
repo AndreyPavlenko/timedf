@@ -285,7 +285,7 @@ try:
                   "WorstExecTimeMS: ", worst_exec_time, ",",
                   "BestExecTimeMS: ", best_exec_time, ",",
                   "AverageExecTimeMS: ", average_exec_time, ",",
-                  "TotalTimeS: ", total_exec_time, ",",
+                  "TotalTimeMS: ", total_exec_time, ",",
                   "", '\n', file=report, sep='', end='', flush=True)
             if db_reporter is not None:
                 db_reporter.submit({
@@ -294,7 +294,7 @@ try:
                     'WorstExecTimeMS': worst_exec_time,
                     'BestExecTimeMS': best_exec_time,
                     'AverageExecTimeMS': average_exec_time,
-                    'TotalTimeS': total_exec_time
+                    'TotalTimeMS': total_exec_time
                 })
 except IOError as err:
     print("Failed writing report file", args.r, err)
