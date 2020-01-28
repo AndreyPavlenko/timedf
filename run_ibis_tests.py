@@ -74,14 +74,14 @@ optional.add_argument("-w", "--workdir", dest="omnisci_cwd",
                       help="Path to omnisci working directory. "
                            "By default parent directory of executable location is used. "
                            "Data directory is used in this location.")
-optional.add_argument("-o", "--l", dest="omnisci_port", default=6274, type=int,
+optional.add_argument("-o", "--omnisci_port", dest="omnisci_port", default=6274, type=int,
                       help="TCP port number to run omnisci_server on.")
 optional.add_argument("-u", "--user", dest="user", default="admin",
                       help="User name to use on omniscidb server.")
 optional.add_argument("-p", "--password", dest="password", default="HyperInteractive",
                       help="User password to use on omniscidb server.")
 optional.add_argument("-n", "--name", dest="name", default="agent_test_ibis", required=True,
-                      help="Database name to use on omniscidb server.")
+                      help="Database name to use in omniscidb server.")
 
 optional.add_argument("-commit_omnisci", dest="commit_omnisci",
                       default="1234567890123456789012345678901234567890",
@@ -123,9 +123,9 @@ if not os.path.isdir(args.report_path):
 report_file_path = os.path.join(args.report_path, report_file_name)
 
 install_ibis_cmdline = ['python3',
-                os.path.join('setup.py'),
-                'install',
-                '--user']
+                        os.path.join('setup.py'),
+                        'install',
+                        '--user']
 
 check_env_cmdline = ['conda',
                      'env',
@@ -204,7 +204,7 @@ try:
     if tasks['test']:
         print("STARTING OMNISCI SERVER")
         omnisci_server = OmnisciServer(omnisci_executable=args.omnisci_executable,
-                                       omnisci_port=args.omnisci_port,database_name=args.name,
+                                       omnisci_port=args.omnisci_port, database_name=args.name,
                                        omnisci_cwd=args.omnisci_cwd, user=args.user,
                                        password=args.password)
         omnisci_server.launch()

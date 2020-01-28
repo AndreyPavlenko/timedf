@@ -12,7 +12,8 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
     try:
         print("CMD: ", " ".join(cmdline))
         output = ""
-        process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell)
+        process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, shell=shell)
         if not daemon:
             output = process.communicate()[0].strip().decode()
             if print_output:
@@ -53,27 +54,31 @@ class OmnisciServer:
             os.makedirs(self._data_dir)
         if not os.path.isdir(os.path.join(self._data_dir, "mapd_data")):
             print("INITIALIZING DATA DIR", self._data_dir)
-            self._initdb_executable = os.path.join(pathlib.Path(self.omnisci_executable).parent, "initdb")
+            self._initdb_executable = os.path.join(pathlib.Path(self.omnisci_executable).parent,
+                                                   "initdb")
             execute_process([self._initdb_executable, '-f', '--data', self._data_dir])
 
-        self.omnisci_sql_executable = os.path.join(pathlib.Path(self.omnisci_executable).parent, "omnisql")
+        self.omnisci_sql_executable = os.path.join(pathlib.Path(self.omnisci_executable).parent,
+                                                   "omnisql")
         self._server_start_cmdline = [self.omnisci_executable,
-                                    "data",
-                                    '--port', str(omnisci_port),
-                                    '--http-port', str(self._http_port),
-                                    '--calcite-port', str(self._calcite_port),
-                                    '--config', "omnisci.conf",
-                                    '--enable-watchdog=false',
-                                    '--allow-cpu-retry']
+                                      "data",
+                                      '--port', str(omnisci_port),
+                                      '--http-port', str(self._http_port),
+                                      '--calcite-port', str(self._calcite_port),
+                                      '--config', "omnisci.conf",
+                                      '--enable-watchdog=false',
+                                      '--allow-cpu-retry']
 
     def launch(self):
         "Launch OmniSciDB server"
 
         print("Launching server ...")
-        self.server_process, _ = execute_process(self._server_start_cmdline, cwd=self._server_cwd, daemon=True)
+        self.server_process, _ = execute_process(self._server_start_cmdline, cwd=self._server_cwd,
+                                                 daemon=True)
         print("Server is launched")
         try:
-            pt = threading.Thread(target=self._print_omnisci_output, args=(self.server_process.stdout,), daemon=True)
+            pt = threading.Thread(target=self._print_omnisci_output,
+                                  args=(self.server_process.stdout,), daemon=True)
             pt.start()
 
             # Allow server to start up. It has to open TCP port and start
