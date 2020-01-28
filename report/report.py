@@ -4,6 +4,7 @@ import socket
 import platform
 import subprocess
 
+
 class DbReport:
     "Initialize and submit reports to MySQL database"
 
@@ -123,4 +124,3 @@ class DbReport:
         print("Executing statement", sql_statement)
         self.__database.cursor().execute(sql_statement)
         self.__database.commit()
-
