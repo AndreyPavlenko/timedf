@@ -1,3 +1,1 @@
-ROOT_DIR="${PWD}"
-cd omniscripts/santander
-python3 santander_ibis.py -e="${ROOT_DIR}"/omniscidb/build/bin/omnisql -port 61274 -dp '/localdisk/benchmark_datasets/santander/train.csv.gz' -i 5 -db-server=ansatlin07.an.intel.com -db-user=gashiman -db-pass=omniscidb -db-name=omniscidb -db-table=santander_ibis -commit ${BUILD_REVISION}
+python3 run_ibis_tests.py --env_name ibis-test --env_check True --python_version 3.7 --task benchmark --ci_requirements "${PWD}"/ci_requirements.yml --save_env True --report "${PWD}"/.. --ibis_path "${PWD}"/../ibis/ --executable "${PWD}"/../omniscidb/build/bin/omnisci_server -u admin -p HyperInteractive -n agent_test_ibis --bench_name santander -commit_omnisci ${BUILD_REVISION} -commit_ibis ${BUILD_IBIS_REVISION}
