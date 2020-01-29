@@ -270,13 +270,15 @@ def q4():
 
     return t_split
 
-queries_list = [q1, q2, q3, q4e, q4e2, q4e3 q4]
+queries_list = [q1, q2, q3, q4e, q4e2, q4e3, q4]
 queries_description = {}
 queries_description[1] = 'Santander data file import query'
 queries_description[2] = 'Ibis group_gy and count query'
 queries_description[3] = 'Rows filtration query'
 queries_description[4] = 'Rows split query (compile only)'
-queries_description[5] = 'Rows split query'
+queries_description[5] = 'Rows split query (execute limit = 1)'
+queries_description[6] = 'Rows split query (execute limit = 0)'
+queries_description[7] = 'Rows split query'
 
 try:
     pt = threading.Thread(target=print_omnisci_output, args=(omnisci_server.server_process.stdout,), daemon=True)
