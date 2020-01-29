@@ -42,7 +42,8 @@ required = parser.add_argument_group("required arguments")
 parser._action_groups.append(optional)
 
 possible_tasks = ['build', 'test', 'benchmark']
-benchmarks = {'ny_taxi': os.path.join(omniscript_path, "taxi", "taxibench_ibis.py")}
+benchmarks = {'ny_taxi': os.path.join(omniscript_path, "taxi", "taxibench_ibis.py"),
+              'santander': os.path.join(omniscript_path, "santander", "santander_ibis.py")}
 # Task
 required.add_argument("-t", "--task", dest="task", required=True,
                       help=f"Task for execute {possible_tasks}. Use , separator for multiple tasks")
@@ -159,30 +160,53 @@ ibis_tests_cmdline = ['pytest',
 
 if tasks['benchmark']:
     if not args.bench_name or args.bench_name not in benchmarks.keys():
-        print(f"Benchmark {args.bench_name} is not supported, /only {list(benchmarks.keys())} are supported")
+        print(f"Benchmark {args.bench_name} is not supported, only {list(benchmarks.keys())} are supported")
         sys.exit(1)
 
-    datafiles = "'/localdisk/benchmark_datasets/taxi/trips_xa{a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t}.csv.gz'"
-    ny_taxi_bench_cmdline = ['python3',
-                    benchmarks[args.bench_name],
-                    '-e', args.omnisci_executable,
-                    '-port', str(args.omnisci_port),
-                    '-db-port', '3306',
-                    '-df', '20',
-                    '-dp', datafiles,
-                    '-i', '5',
-                    '-u', args.user,
-                    '-p', args.password,
-                    '-db-server=ansatlin07.an.intel.com',
-                    '-n', args.name,
-                    f'-db-user=gashiman',
-                    f'-db-pass=omniscidb',
-                    f'-db-name=omniscidb',
-                    '-db-table=taxibench_ibis',
-                    '-commit_omnisci', args.commit_omnisci,
-                    '-commit_ibis', args.commit_ibis]
+    benchmarks_cmd = {}
 
-    benchmarks_cmd = {'ny_taxi': ny_taxi_bench_cmdline}
+    ny_taxi_files = "'/localdisk/benchmark_datasets/taxi/trips_xa{a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t}.csv.gz'"
+    ny_taxi_bench_cmdline = ['python3',
+                             benchmarks[args.bench_name],
+                             '-e', args.omnisci_executable,
+                             '-port', str(args.omnisci_port),
+                             '-db-port', '3306',
+                             '-df', '20',
+                             '-dp', ny_taxi_files,
+                             '-i', '5',
+                             '-u', args.user,
+                             '-p', args.password,
+                             '-db-server=ansatlin07.an.intel.com',
+                             '-n', args.name,
+                             f'-db-user=gashiman',
+                             f'-db-pass=omniscidb',
+                             f'-db-name=omniscidb',
+                             '-db-table=taxibench_ibis',
+                             '-commit_omnisci', args.commit_omnisci,
+                             '-commit_ibis', args.commit_ibis]
+
+    benchmarks_cmd['ny_taxi'] = ny_taxi_bench_cmdline
+
+    santander_file = "'/localdisk/benchmark_datasets/santander/train.csv.gz'"
+    santander_bench_cmdline = ['python3',
+                               benchmarks[args.bench_name],
+                               '-e', args.omnisci_executable,
+                               '-port', str(args.omnisci_port),
+                               '-db-port', '3306',
+                               '-dp', santander_file,
+                               '-i', '5',
+                               '-u', args.user,
+                               '-p', args.password,
+                               '-db-server=ansatlin07.an.intel.com',
+                               '-n', args.name,
+                               f'-db-user=gashiman',
+                               f'-db-pass=omniscidb',
+                               f'-db-name=omniscidb',
+                               '-db-table=santander_ibis',
+                               '-commit_omnisci', args.commit_omnisci,
+                               '-commit_ibis', args.commit_ibis]
+
+    benchmarks_cmd['santander'] = santander_bench_cmdline
 
 try:
     omnisci_server = None
