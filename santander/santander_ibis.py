@@ -248,6 +248,20 @@ def q4e():
 
     return t_split_compile
 
+def q4e2():
+    t_split = 0
+    t0 = time.time()
+    train,valid = train_pd_ibis[0:190000].execute(1),train_pd_ibis[190000:200000].execute(1)
+    t_split = time.time() - t0
+
+def q4e3():
+    t_split = 0
+    t0 = time.time()
+    train,valid = train_pd_ibis[0:190000].execute(0),train_pd_ibis[190000:200000].execute(0)
+    t_split = time.time() - t0
+
+    return t_split
+
 def q4():
     t_split = 0
     t0 = time.time()
@@ -256,13 +270,13 @@ def q4():
 
     return t_split
 
-queries_list = [q1, q2, q3, q4e, q4]
+queries_list = [q1, q2, q3, q4e, q4e2, q4e3 q4]
 queries_description = {}
 queries_description[1] = 'Santander data file import query'
 queries_description[2] = 'Ibis group_gy and count query'
 queries_description[3] = 'Rows filtration query'
 queries_description[4] = 'Rows split query (compile only)'
-queries_description[4] = 'Rows split query'
+queries_description[5] = 'Rows split query'
 
 try:
     pt = threading.Thread(target=print_omnisci_output, args=(omnisci_server.server_process.stdout,), daemon=True)
@@ -270,7 +284,7 @@ try:
 
     with open(args.r, "w") as report:
         t_begin = time.time()
-        for query_number in range(0,4):
+        for query_number in range(0, 7):
             exec_times = [None]*5
             best_exec_time = float("inf")
             worst_exec_time = 0.0
