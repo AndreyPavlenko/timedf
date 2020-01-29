@@ -323,4 +323,5 @@ try:
 except Exception as exc:
     print("Failed: ", exc)
 finally:
-    omnisci_server.terminate()
+    if omnisci_server:
+        omnisci_server.terminate()

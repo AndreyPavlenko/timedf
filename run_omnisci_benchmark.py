@@ -61,11 +61,7 @@ def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdlin
                 'AverageTotalTimeMS': result['results']['query_total_avg']
             })
 
-
-# Load database reporting functions
-pathToReportDir = os.path.join(pathlib.Path(__file__).parent, "report")
-sys.path.insert(1, pathToReportDir)
-import report
+omnisci_server = None
 
 parser = argparse.ArgumentParser(description='Run arbitrary omnisci benchmark and submit report '
                                              'values to MySQL database')
@@ -287,4 +283,5 @@ try:
                               benchmark_cmdline, None, results_file_name, report)
 finally:
     print("TERMINATING SERVER")
-    omnisci_server.terminate()
+    if omnisci_server:
+        omnisci_server.terminate()

@@ -98,10 +98,11 @@ class OmnisciServer:
         print("Terminating server ...")
 
         try:
-            self.server_process.send_signal(signal.SIGINT)
-            time.sleep(2)
-            self.server_process.kill()
-            time.sleep(1)
+            if self.server_process:
+                self.server_process.send_signal(signal.SIGINT)
+                time.sleep(2)
+                self.server_process.kill()
+                time.sleep(1)
         except Exception as err:
             print("Failed to terminate server, error occured:", err)
             sys.exit(1)
