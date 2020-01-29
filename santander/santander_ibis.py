@@ -49,11 +49,11 @@ args = parser.parse_args()
 
 if args.i < 1:
     print("Bad number of iterations specified", args.i)
-    
+
 def print_omnisci_output(stdout):
     for line in iter(stdout.readline, b''):
         print("OMNISCI>>", line.decode().strip())
-    
+
 datafile_columns_names = ["ID_code", "target"] + ["var_" + str(index) for index in range(200)]
 datafile_columns_types = ["string", "int16"] + ["float32" for _ in range(200)]
 
@@ -101,7 +101,7 @@ try:
 except Exception as err:
     print("Database creation is skipped, because of error:", err)
 
-    
+
 cast_dict_train = {('var_%s'%str(i)):'float32' for i in range(200)}
 cast_dict_train['target'] = 'int16'
 
@@ -128,7 +128,7 @@ except Exception as err:
     print("Failed to access", train_table_name, "table:", err)
 
 
-    
+
 # Since OmniSciDB doesn't support JOIN operation for tables with non-integer
 # values, tables for filter and split queries were reproduced by Pandas (as it
 # it was done in the similar Pandas benchmark https://gitlab.devtools.intel.com/jianminl/rapids-response-e2e-workloads/blob/master/e2e/santander/santander_cpu.py)
@@ -186,7 +186,7 @@ conn.load_data(table_name_where, train_selected)
 train_where_ibis = db.table(table_name_where)
 
 
-    
+
 # Queries definitions
 tmp_table_name = 'tmp_table'
 def q1():
@@ -195,7 +195,7 @@ def q1():
     _, _ = omnisci_server.import_data_by_ibis(table_name = tmp_table_name, data_files_names=args.dp, files_limit=1, columns_names=datafile_columns_names, columns_types=datafile_columns_types, cast_dict=cast_dict_train, header=0)
     t_import = time.time() - t0
     omnisci_server.drop_table(tmp_table_name)
-    
+
     return t_import
 
 def q2():
@@ -208,7 +208,7 @@ def q2():
         _ = group_by_expr.execute()
         t_groupby += time.time() - t0
 
-        
+
     return t_groupby
 
 def q3():
@@ -235,28 +235,39 @@ def q3():
 
         col_to_sel += ['%s_gt1'%col]
         train_where_ibis2 = train_pd_ibis[col_to_sel]
-        
+
     return t_where
+
+def q4e():
+    t_split_compile = 0
+    t0 = time.time()
+    train_pd_ibis[0:190000].compile()
+    train_pd_ibis[190000:200000].compile()
+    # train,valid = train_pd_ibis[0:190000].execute(),train_pd_ibis[190000:200000].execute()
+    t_split_compile = time.time() - t0
+
+    return t_split_compile
 
 def q4():
     t_split = 0
     t0 = time.time()
     train,valid = train_pd_ibis[0:190000].execute(),train_pd_ibis[190000:200000].execute()
     t_split = time.time() - t0
-    
+
     return t_split
 
-queries_list = [q1, q2, q3, q4]
+queries_list = [q1, q2, q3, q4e, q4]
 queries_description = {}
 queries_description[1] = 'Santander data file import query'
 queries_description[2] = 'Ibis group_gy and count query'
 queries_description[3] = 'Rows filtration query'
+queries_description[4] = 'Rows split query (compile only)'
 queries_description[4] = 'Rows split query'
 
 try:
     pt = threading.Thread(target=print_omnisci_output, args=(omnisci_server.server_process.stdout,), daemon=True)
     pt.start()
-    
+
     with open(args.r, "w") as report:
         t_begin = time.time()
         for query_number in range(0,4):
