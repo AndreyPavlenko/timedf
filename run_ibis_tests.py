@@ -45,7 +45,7 @@ possible_tasks = ['build', 'test', 'benchmark']
 benchmarks = {'ny_taxi': os.path.join(omniscript_path, "taxi", "taxibench_ibis.py"),
               'santander': os.path.join(omniscript_path, "santander", "santander_ibis.py")}
 # Task
-required.add_argument("-t", "--task", dest="task", required=True, choices=possible_tasks,
+required.add_argument("-t", "--task", dest="task", required=True,
                       help=f"Task for execute {possible_tasks}. Use , separator for multiple tasks")
 
 # Environment
@@ -68,6 +68,27 @@ required.add_argument('-i', '--ibis_path', dest="ibis_path", required=True,
 # Benchmarks
 optional.add_argument('-bn', '--bench_name', dest="bench_name", choices=list(benchmarks.keys()),
                       help=f"Benchmark name.")
+optional.add_argument('-df', '--dfiles_num', dest="dfiles_num", default=1, type=int,
+                      help="Number of datafiles to input into database for processing.")
+optional.add_argument('-dp', '--dpattern', dest="dpattern",
+                      help="Wildcard pattern of datafiles that should be loaded.")
+optional.add_argument('-it', '--iters',  default=5, type=int, dest="iters",
+                      help="Number of iterations to run every query. Best result is selected.")
+# MySQL database parameters
+optional.add_argument('-db-server', dest="db_server", default="localhost",
+                      help="Host name of MySQL server.")
+optional.add_argument('-db-port', dest="db_port", default=3306, type=int,
+                      help="Port number of MySQL server.")
+optional.add_argument('-db-user', dest="db_user", default="",
+                      help="Username to use to connect to MySQL database. "
+                           "If user name is specified, script attempts to store results in MySQL "
+                           "database using other -db-* parameters.")
+optional.add_argument('-db-pass', dest="db_password", default="omniscidb",
+                      help="Password to use to connect to MySQL database.")
+optional.add_argument('-db-name', dest="db_name", default="omniscidb",
+                      help="MySQL database to use to store benchmark results.")
+optional.add_argument('-db-table', dest="db_table",
+                      help="Table to use to store results for this benchmark.")
 # Omnisci server parameters
 optional.add_argument("-e", "--executable", dest="omnisci_executable", required=True,
                       help="Path to omnisci_server executable.")
@@ -163,46 +184,50 @@ try:
             print(f"Benchmark {args.bench_name} is not supported, only {list(benchmarks.keys())} are supported")
             sys.exit(1)
 
+        if not args.dpattern:
+            print(f"Parameter --dpattern was received empty, but it is required for benchmarks")
+            sys.exit(1)
+
         benchmarks_cmd = {}
 
-        ny_taxi_files = "'/localdisk/benchmark_datasets/taxi/trips_xa{a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t}.csv.gz'"
         ny_taxi_bench_cmdline = ['python3',
                                  benchmarks[args.bench_name],
                                  '-e', args.omnisci_executable,
                                  '-port', str(args.omnisci_port),
-                                 '-db-port', '3306',
-                                 '-df', '20',
-                                 '-dp', ny_taxi_files,
-                                 '-i', '5',
+                                 '-db-port', str(args.db_port),
+                                 '-df', str(args.dfiles_num),
+                                 '-dp', f"'{args.dpattern}'",
+                                 '-i', str(args.iters),
                                  '-u', args.user,
                                  '-p', args.password,
-                                 '-db-server=ansatlin07.an.intel.com',
+                                 '-db-server', args.db_server,
                                  '-n', args.name,
-                                 f'-db-user=gashiman',
-                                 f'-db-pass=omniscidb',
-                                 f'-db-name=omniscidb',
-                                 '-db-table=taxibench_ibis',
+                                 f'-db-user={args.db_user}',
+                                 '-db-pass', args.db_password,
+                                 '-db-name', args.db_name,
+                                 '-db-table',
+                                 args.db_table if args.db_table else 'taxibench_ibis',
                                  '-commit_omnisci', args.commit_omnisci,
                                  '-commit_ibis', args.commit_ibis]
 
         benchmarks_cmd['ny_taxi'] = ny_taxi_bench_cmdline
 
-        santander_file = "'/localdisk/benchmark_datasets/santander/train.csv.gz'"
         santander_bench_cmdline = ['python3',
                                    benchmarks[args.bench_name],
                                    '-e', args.omnisci_executable,
                                    '-port', str(args.omnisci_port),
-                                   '-db-port', '3306',
-                                   '-dp', santander_file,
-                                   '-i', '5',
+                                   '-db-port', str(args.db_port),
+                                   '-dp', f"'{args.dpattern}'",
+                                   '-i', str(args.iters),
                                    '-u', args.user,
                                    '-p', args.password,
-                                   '-db-server=ansatlin07.an.intel.com',
+                                   '-db-server', args.db_server,
                                    '-n', args.name,
-                                   f'-db-user=gashiman',
-                                   f'-db-pass=omniscidb',
-                                   f'-db-name=omniscidb',
-                                   '-db-table=santander_ibis',
+                                   f'-db-user={args.db_user}',
+                                   '-db-pass', args.db_password,
+                                   '-db-name', args.db_name,
+                                   '-db-table',
+                                   args.db_table if args.db_table else 'santander_ibis',
                                    '-commit_omnisci', args.commit_omnisci,
                                    '-commit_ibis', args.commit_ibis]
 
@@ -250,5 +275,5 @@ except Exception as err:
 finally:
     if omnisci_server:
         omnisci_server.terminate()
-    if args.save_env is False:
+    if args and args.save_env is False:
         execute_process(remove_env_cmdline)
