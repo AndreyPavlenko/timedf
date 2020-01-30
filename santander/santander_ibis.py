@@ -286,7 +286,7 @@ try:
 
     with open(args.r, "w") as report:
         t_begin = time.time()
-        for query_number in range(0, 7):
+        for query_number in range(0, 6):
             exec_times = [None]*5
             best_exec_time = float("inf")
             worst_exec_time = 0.0
