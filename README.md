@@ -1,8 +1,11 @@
 # Benchmarking scripts that are used to run OmniSciDB benchmarks in automated way in TeamCity and for performance analyzes in development cycle.
 
 ## Requirements
-Scripts require the following python3 packages to be installed:
-pymapd, braceexpand, mysql-connector-python. OmnisciDB server often
+Scripts require to be installed:
+* the following python3 packages: pymapd, braceexpand, mysql-connector-python;
+* conda or miniconda for ibis tests and benchmarks.
+
+OmnisciDB server often
 requires a lot of open files, so it is a good idea to run it with
 `ulimit -n 10000`.
 
@@ -90,4 +93,73 @@ Database reporting switches are the same as for main benchmark script.
 Sample script command line:
 ```
 python3 taxi/taxibench_pandas.py -df 2 -i 5 -dp '/datadir/taxi/trips_*.csv.gz'
+```
+
+## Ibis script
+
+Ibis build, tests and benchmarks run through `run_ibis_test.py`. It has three distinct
+modes of operation: 
+* build and install ibis;
+* run ibis tests using pytest;
+* run benchmarks using Omnisci.
+
+Parameters which can be used:
+
+Switch | Default value | Meaning
+------ | ------------- | -------
+-t, --task | | Task for execute from supported list [build, test, benchmark]. Use "," separator for multiple tasks. 
+-en, --env_name | ibis-tests | Conda env name.
+-ec, --env_check | False | Check if env exists. If it exists don't recreate.
+-s, --save_env | False | Save conda env after executing.
+-r, --report_path | parent dir of omnscripts | Path to report file.
+-ci, --ci_requirements | ci_requirements.yml | File with ci requirements for conda env.
+-py, --python_version | 3.7 | File with ci requirements for conda env.
+-i, --ibis_path | | Path to ibis directory.
+-e, --executable | | Path to omnisci_server executable.
+-w, --workdir | | Path to omnisci working directory. By default parent directory of executable location is used. Data directory is used in this location.
+-o, --omnisci_port | 6274 | TCP port number to run omnisci_server on.
+-u, --user | admin | User name to use on omniscidb server.
+-p, --password | HyperInteractive | User password to use on omniscidb server.
+-n, --name | agent_test_ibis | Database name to use in omniscidb server.
+-commit_omnisci | 123456... | Omnisci commit hash to use for tests.
+-commit_ibis | 123456... | Ibis commit hash to use for tests.
+
+For benchmark task and recording its results in a MySQL database:
+
+Switch | Default value | Meaning
+------ | ------------- | -------
+-bn, --bench_name | | Benchmark name from supported list [ny_taxi, santander]
+-db-server | localhost | Host name of MySQL server.
+-db-port | 3306 | Port number of MySQL server.
+-db-user | | Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.
+-db-pass | omniscidb | Password to use to connect to MySQL database.
+-db-name | omniscidb | MySQL database to use to store benchmark results.
+-db-table | | Table to use to store results for this benchmark.
+-df, --dfiles_num | 1 | Number of datafiles to input into database for processing.
+-dp, --dpattern |  | Wildcard pattern of datafiles that should be loaded.
+-it, --iters | 5 | Number of iterations to run every query. Best result is selected.
+
+Script automatically creates conda environment if it doesn't exist or you want to recreate it,
+starts up omniscidb server, creates and initializes data directory if it doesn't exist or it is not
+initialized. All subsequent work is being done in created conda environment. Environment can be
+removed or saved after executing.
+
+Sample build ibis command line:
+```
+python3 run_ibis_tests.py --env_name ibis-test --env_check False --save_env True --python_version 3.7 --task build --name agent_test_ibis --ci_requirements /localdisk/username/omniscripts/ci_requirements.yml --ibis_path /localdisk/username/ibis/ --executable /localdisk/username/omniscidb/release/bin/omnisci_server
+```
+
+Sample run ibis tests command line:
+```
+python3 run_ibis_tests.py --env_name ibis-test --env_check True --save_env True --python_version 3.7 --task test --name agent_test_ibis --report /localdisk/username/ --ibis_path /localdisk/username/ibis/ --executable /localdisk/username/omniscidb/build/bin/omnisci_server --user admin --password HyperInteractive
+```
+
+Sample run taxi benchmark command line:
+```
+python3 run_ibis_tests.py --env_name ibis-test --env_check True --python_version 3.7 --task benchmark --ci_requirements /localdisk/username/omniscripts/ci_requirements.yml --save_env True --report /localdisk/username/ --ibis_path /localdisk/username/ibis/ --executable /localdisk/username/omniscidb/build/bin/omnisci_server -u admin -p HyperInteractive -n agent_test_ibis --bench_name ny_taxi --dfiles_num 20 --dpattern '/localdisk/username/benchmark_datasets/taxi/trips_xa{a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t}.csv.gz' --iters 5 -db-server localhost -db-port 3306 -db-user user -db-pass omniscidb -db-name omniscidb -db-table taxibench_ibis
+```
+
+Sample run santander benchmark command line:
+```
+python3 run_ibis_tests.py --env_name ibis-test --env_check True --python_version 3.7 --task benchmark --ci_requirements /localdisk/username/omniscripts/ci_requirements.yml --save_env True --report /localdisk/username/ --ibis_path /localdisk/username/ibis/ --executable /localdisk/username/omniscidb/build/bin/omnisci_server -u admin -p HyperInteractive -n agent_test_ibis --bench_name santander --dpattern '/localdisk/benchmark_datasets/santander/train.csv.gz' --iters 5 -db-server localhost -db-port 3306 -db-user user -db-pass omniscidb -db-name omniscidb -db-table santander_ibis
 ```
