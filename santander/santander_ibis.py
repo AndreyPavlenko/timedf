@@ -254,6 +254,8 @@ def q4e2():
     train,valid = train_pd_ibis[0:190000].execute(1),train_pd_ibis[190000:200000].execute(1)
     t_split = time.time() - t0
 
+    return t_split
+
 def q4e3():
     t_split = 0
     t0 = time.time()
