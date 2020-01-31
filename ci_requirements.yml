@@ -1,0 +1,5 @@
+  - pytest-html
+  - braceexpand
+  - mysql
+  - mysql-connector-python
+  
