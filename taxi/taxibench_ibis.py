@@ -152,10 +152,11 @@ try:
             'WorstExecTimeMS': 'BIGINT UNSIGNED',
             'BestExecTimeMS': 'BIGINT UNSIGNED',
             'AverageExecTimeMS': 'BIGINT UNSIGNED',
-            'TotalTimeMS': 'BIGINT UNSIGNED'
+            'TotalTimeMS': 'BIGINT UNSIGNED',
+            'IbisCommitHash': 'VARCHAR(500) NOT NULL'
         }, {
             'ScriptName': 'taxibench_ibis.py',
-            'CommitHash': f"{args.commit_omnisci}-{args.commit_ibis}"
+            'CommitHash': args.commit_omnisci,
         })
 
     # Delete old table
@@ -232,6 +233,7 @@ try:
                 print("QUERY", bench_number, "EXEC TIME MS", best_exec_time,
                       "TOTAL TIME MS", total_exec_time)
                 print("FilesNumber: ", data_files_number,  ",",
+                      "IbisCommitHash", args.commit_ibis, ",",
                       "QueryName: ",  'Query' + str(bench_number), ",",
                       "FirstExecTimeMS: ", first_exec_time, ",",
                       "WorstExecTimeMS: ", worst_exec_time, ",",
@@ -242,6 +244,7 @@ try:
                 if db_reporter is not None:
                     db_reporter.submit({
                         'FilesNumber': data_files_number,
+                        'IbisCommitHash': args.commit_ibis,
                         'QueryName': 'Query' + str(bench_number),
                         'FirstExecTimeMS': first_exec_time,
                         'WorstExecTimeMS': worst_exec_time,
