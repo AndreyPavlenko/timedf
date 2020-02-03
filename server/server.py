@@ -19,7 +19,7 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
             if print_output:
                 print(output)
         if process.returncode != 0 and process.returncode is not None:
-            raise Exception("Command returned {}".format(process.returncode))
+            raise Exception(f"Command returned {process.returncode}. \n{output}")
     except OSError as err:
         print("Failed to start", cmdline, err)
 
