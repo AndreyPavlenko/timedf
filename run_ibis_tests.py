@@ -65,6 +65,11 @@ optional.add_argument('-py', '--python_version', dest="python_version", default=
 # Ibis
 required.add_argument('-i', '--ibis_path', dest="ibis_path", required=True,
                       help="Path to ibis directory.")
+# Ibis tests
+optional.add_argument('--expression', dest="expression", default=" ",
+                      help="Run tests which match the given substring test names and their parent "
+                           "classes. Example: 'test_other', while 'not test_method' matches those "
+                           "that don't contain 'test_method' in their names.")
 # Benchmarks
 optional.add_argument('-bn', '--bench_name', dest="bench_name", choices=list(benchmarks.keys()),
                       help=f"Benchmark name.")
@@ -177,6 +182,7 @@ try:
     ibis_tests_cmdline = ['pytest',
                           '-m', 'omniscidb',
                           '--disable-pytest-warnings',
+                          '-k', args.expression,
                           f'--html={report_file_path}']
 
     if tasks['benchmark']:

@@ -124,6 +124,11 @@ Switch | Default value | Meaning
 -commit_omnisci | 123456... | Omnisci commit hash to use for tests.
 -commit_ibis | 123456... | Ibis commit hash to use for tests.
 
+For ibis tests:
+
+Switch | Default value | Meaning
+------ | ------------- | -------
+--expression | " " | Run tests which match the given substring test names and their parent classes. Example: 'test_other', while 'not test_method' matches those that don't contain 'test_method' in their names.
 For benchmark task and recording its results in a MySQL database:
 
 Switch | Default value | Meaning
