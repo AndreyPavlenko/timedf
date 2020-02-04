@@ -4,10 +4,8 @@ import time
 import sys
 import os
 import ibis
-import pathlib
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-#sys.path.append(os.path.join(os.path.dirname(__file__), "..", "report")) # for some reasons the server module is not visible from omniscripts folder
 from server import OmnisciServer
 from report import DbReport
 from server_worker import OmnisciServerWorker
