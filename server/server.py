@@ -5,6 +5,7 @@ import sys
 import subprocess
 import threading
 import time
+import re
 
 
 def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=True):
@@ -16,7 +17,7 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
                                    stderr=subprocess.STDOUT, shell=shell)
         if not daemon:
             output = process.communicate()[0].strip().decode()
-            if 'failed' in output:
+            if re.findall(r"\d fail", output) or 'Exception' in output:
                 process.returncode = 1
             elif print_output:
                 print(output)
