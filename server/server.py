@@ -16,7 +16,9 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
                                    stderr=subprocess.STDOUT, shell=shell)
         if not daemon:
             output = process.communicate()[0].strip().decode()
-            if print_output:
+            if 'failed' in output:
+                process.returncode = 1
+            elif print_output:
                 print(output)
         if process.returncode != 0 and process.returncode is not None:
             raise Exception(f"Command returned {process.returncode}. \n{output}")

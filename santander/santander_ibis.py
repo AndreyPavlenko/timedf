@@ -162,10 +162,11 @@ try:
             'WorstExecTimeMS': 'BIGINT UNSIGNED',
             'BestExecTimeMS': 'BIGINT UNSIGNED',
             'AverageExecTimeMS': 'BIGINT UNSIGNED',
-            'TotalTimeMS': 'BIGINT UNSIGNED'
+            'TotalTimeMS': 'BIGINT UNSIGNED',
+            'IbisCommitHash': 'VARCHAR(500) NOT NULL'
         }, {
             'ScriptName': 'santander_ibis.py',
-            'CommitHash': args.commit
+            'CommitHash': args.commit_omnisci
         })
 
     # Delete old table
@@ -303,6 +304,7 @@ try:
                 print("Query", query_number + 1, "Exec time (ms):", best_exec_time,
                       "Total time (s):", total_exec_time)
                 print("QueryName: ", queries_description[query_number + 1], ",",
+                      "IbisCommitHash", args.commit_ibis, ",",
                       "FirstExecTimeMS: ", first_exec_time, ",",
                       "WorstExecTimeMS: ", worst_exec_time, ",",
                       "BestExecTimeMS: ", best_exec_time, ",",
@@ -312,6 +314,7 @@ try:
                 if db_reporter is not None:
                     db_reporter.submit({
                         'QueryName': queries_description[query_number + 1],
+                        'IbisCommitHash': args.commit_ibis,
                         'FirstExecTimeMS': first_exec_time,
                         'WorstExecTimeMS': worst_exec_time,
                         'BestExecTimeMS': best_exec_time,
