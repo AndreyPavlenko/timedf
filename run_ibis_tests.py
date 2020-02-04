@@ -151,8 +151,7 @@ try:
 
     install_ibis_cmdline = ['python3',
                             os.path.join('setup.py'),
-                            'install',
-                            '--user']
+                            'install']
 
     check_env_cmdline = ['conda',
                          'env',
