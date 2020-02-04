@@ -149,7 +149,8 @@ optional.add_argument("-commit", default="12345678901234567890123456789012345678
 
 args = parser.parse_args()
 
-args.import_file=args.import_file.replace("'","")
+if args.import_file:
+    args.import_file = args.import_file.replace("'", "")
 
 if args.omnisci_cwd is not None:
     server_cwd = args.omnisci_cwd
