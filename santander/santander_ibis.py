@@ -4,8 +4,10 @@ import time
 import sys
 import os
 import ibis
+import pathlib
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+#sys.path.append(os.path.join(os.path.dirname(__file__), "..", "report")) # for some reasons the server module is not visible from omniscripts folder
 from server import OmnisciServer
 from report import DbReport
 from server_worker import OmnisciServerWorker
@@ -25,8 +27,8 @@ def q1():
 
 
 def q2():
+    t_groupby = 0
     for i in range(200):
-        t_groupby = 0
         col = 'var_%d' % i
         t0 = time.time()
         metric = df[col].count().name('%s_count' % col)
@@ -59,7 +61,7 @@ def q3():
     for i in range(200):
         col = 'var_%d' % i
         t0 = time.time()
-        mask = train_where_ibis2['%s_count' % col] > 1
+        (train_where_ibis2['%s_count' % col] > 1).execute()
         t_where += time.time() - t0
 
         col_to_sel += ['%s_gt1' % col]
@@ -70,8 +72,9 @@ def q3():
 
 def q4():
     t0 = time.time()
-    train_pd_ibis[0:190000].execute()
-    train_pd_ibis[190000:200000].execute()
+    # Split operation syntax: OmniSciDBTable[number of rows to split: the last row index of splitted table (last element is not included)]
+    train_pd_ibis[190000:190000].execute()
+    train_pd_ibis[10000:200000].execute()
     t_split = time.time() - t0
 
     return t_split
