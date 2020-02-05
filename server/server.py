@@ -2,32 +2,10 @@ import os
 import pathlib
 import signal
 import sys
-import subprocess
 import threading
 import time
-import re
-
-
-def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=True):
-    "Execute cmdline in user-defined directory by creating separated process"
-    try:
-        print("CMD: ", " ".join(cmdline))
-        output = ""
-        process = subprocess.Popen(cmdline, cwd=cwd, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, shell=shell)
-        if not daemon:
-            output = process.communicate()[0].strip().decode()
-            if re.findall(r"\d fail", output) or 'Exception' in output:
-                process.returncode = 1
-            elif print_output:
-                print(output)
-        if process.returncode != 0 and process.returncode is not None:
-            raise Exception(f"Command returned {process.returncode}. \n{output}")
-    except OSError as err:
-        print("Failed to start", cmdline, err)
-
-    return process, output
-
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from utils import execute_process
 
 class OmnisciServer:
     "Manage interactions with OmniSciDB server (launch/termination, connection establishing, etc.)"

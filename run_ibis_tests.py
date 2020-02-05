@@ -2,30 +2,10 @@ import os
 import sys
 import argparse
 from server import OmnisciServer
-from server import execute_process
 from environment import CondaEnvironment
-
-
-def str_arg_to_bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Cannot recognize boolean value.')
-
-
-def combinate_requirements(ibis, ci, res):
-    with open(res, "w") as f_res:
-        with open(ibis) as f_ibis:
-            for line in f_ibis:
-                f_res.write(line)
-        with open(ci) as f_ci:
-            for line in f_ci:
-                f_res.write(line) 
-
+from utils import str_arg_to_bool
+from utils import combinate_requirements
+from utils import execute_process
 
 omniscript_path = os.path.dirname(__file__)
 omnisci_server = None

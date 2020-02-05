@@ -8,7 +8,7 @@ import copy
 import sys
 import os
 from server import OmnisciServer
-from server import execute_process
+from utils import execute_process
 from report import DbReport
 
 
