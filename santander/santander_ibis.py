@@ -4,6 +4,7 @@ import time
 import sys
 import os
 import ibis
+import xgboost
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from server import OmnisciServer
@@ -70,19 +71,103 @@ def q3():
 
 def q4():
     t0 = time.time()
-    train_pd_ibis[0:190000].execute()
-    train_pd_ibis[190000:200000].execute()
+    global training_part
+    global validation_part
+
+    training_part = train_pd_ibis[0:190000].execute()
+    validation_part = train_pd_ibis[190000:200000].execute()
     t_split = time.time() - t0
 
     return t_split
 
 
-queries_list = [q1, q2, q3, q4]
+def q5():
+    t0 = time.time()
+    global training_part
+    global validation_part
+    global training_dmat_part
+    global testing_dmat_part
+    global y_valid
+
+    x_train = training_part.drop(['target','ID_code'],axis=1)
+    y_train = training_part['target']
+    x_valid = validation_part.drop(['target','ID_code'],axis=1)
+    y_valid = validation_part['target']
+
+    training_dmat_part = xgboost.DMatrix(data=x_train, label=y_train)
+    testing_dmat_part = xgboost.DMatrix(data=x_valid, label=y_valid)
+
+    t_conv_to_dmat = time.time() - t0
+
+    return t_conv_to_dmat
+
+
+def q6():
+    t0 = time.time()
+    global training_dmat_part
+    global testing_dmat_part
+    global model
+
+    watchlist = [(training_dmat_part, 'eval'), (testing_dmat_part, 'train')]
+    xgb_params = {
+            'objective': 'binary:logistic',
+            'tree_method': 'hist',
+            'max_depth': 1,
+            'nthread':56,
+            'eta':0.1,
+            'silent':1,
+            'subsample':0.5,
+            'colsample_bytree': 0.05,
+            'eval_metric':'auc',
+    }
+
+    model = xgboost.train(xgb_params, dtrain=training_dmat_part,
+                num_boost_round=10000, evals=watchlist,
+                early_stopping_rounds=30, maximize=True,
+                verbose_eval=1000)
+
+    t_train = time.time() - t0
+
+    return t_train
+
+
+def mse(y_test, y_pred):
+    return ((y_test - y_pred) ** 2).mean()
+
+def cod(y_test, y_pred):
+    y_bar = y_test.mean()
+    total = ((y_test - y_bar) ** 2).sum()
+    residuals = ( (y_test - y_pred) ** 2).sum()
+    return 1 - (residuals / total)
+
+def q7():
+    t0 = time.time()
+    global testing_dmat_part
+    global model
+    global y_valid
+
+    yp = model.predict(testing_dmat_part)
+
+    t_inference = time.time() - t0
+
+    score_mse = mse(y_valid, yp)
+    score_cod = cod(y_valid, yp)
+    print('Scores: ')
+    print('  mse = ', score_mse)
+    print('  cod = ', score_cod)
+
+    return t_inference
+
+
+queries_list = [q1, q2, q3, q4, q5, q6, q7]
 queries_description = {}
 queries_description[1] = 'Santander data file import query'
 queries_description[2] = 'Ibis group_gy and count query'
 queries_description[3] = 'Rows filtration query'
 queries_description[4] = 'Rows split query'
+queries_description[5] = 'Conversion to DMatrix'
+queries_description[6] = 'ML training'
+queries_description[7] = 'ML inference'
 
 omnisci_executable = "../omnisci/build/bin/omnisci_server"
 datafile_directory = "/localdisk/work/train.csv"
@@ -281,7 +366,7 @@ try:
     try:
         with open(args.r, "w") as report:
             t_begin = time.time()
-            for query_number in range(0, 4):
+            for query_number in range(0, 7):
                 exec_times = [None] * 5
                 best_exec_time = float("inf")
                 worst_exec_time = 0.0
