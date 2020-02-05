@@ -3,6 +3,7 @@ import sys
 import argparse
 from server import OmnisciServer
 from server import execute_process
+from environment import CondaEnvironment
 
 
 def str_arg_to_bool(v):
@@ -14,12 +15,6 @@ def str_arg_to_bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Cannot recognize boolean value.')
-
-
-def add_conda_execution(cmdline):
-    cmd_res = ['conda', 'run', '-n', args.env_name]
-    cmd_res.extend(cmdline)
-    return cmd_res
 
 
 def combinate_requirements(ibis, ci, res):
@@ -153,21 +148,6 @@ try:
                             os.path.join('setup.py'),
                             'install']
 
-    check_env_cmdline = ['conda',
-                         'env',
-                         'list']
-
-    create_env_cmdline = ['conda',
-                          'env',
-                          'create',
-                          '--name', args.env_name,
-                          '--file', requirements_file]
-
-    remove_env_cmdline = ['conda',
-                          'env',
-                          'remove',
-                          '--name', args.env_name]
-
     dataset_download_cmdline = ['python3',
                                 ibis_data_script,
                                 'download']
@@ -238,19 +218,15 @@ try:
 
         benchmarks_cmd['santander'] = santander_bench_cmdline
 
+    conda_env = CondaEnvironment(args.env_name)
+
     print("PREPARING ENVIRONMENT")
     combinate_requirements(ibis_requirements, args.ci_requirements, requirements_file)
-    _, envs = execute_process(check_env_cmdline)
-    if args.env_name in envs:
-        if args.env_check is False:
-            execute_process(remove_env_cmdline)
-            execute_process(create_env_cmdline, print_output=False)
-    else:
-        execute_process(create_env_cmdline, print_output=False)
+    conda_env.create(args.env_check, requirements_file=requirements_file)
 
     if tasks['build']:
         print("IBIS INSTALLATION")
-        execute_process(add_conda_execution(install_ibis_cmdline), cwd=args.ibis_path,
+        execute_process(conda_env.add_conda_execution(install_ibis_cmdline), cwd=args.ibis_path,
                         print_output=False)
 
     if tasks['test']:
@@ -263,15 +239,15 @@ try:
 
     if tasks['test']:
         print("PREPARING DATA")
-        execute_process(add_conda_execution(dataset_download_cmdline))
-        execute_process(add_conda_execution(dataset_import_cmdline))
+        execute_process(conda_env.add_conda_execution(dataset_download_cmdline))
+        execute_process(conda_env.add_conda_execution(dataset_import_cmdline))
 
         print("RUNNING TESTS")
-        execute_process(add_conda_execution(ibis_tests_cmdline), cwd=args.ibis_path)
+        execute_process(conda_env.add_conda_execution(ibis_tests_cmdline), cwd=args.ibis_path)
     
     if tasks['benchmark']:
         print(f"RUNNING BENCHMARK {args.bench_name}")
-        execute_process(add_conda_execution(benchmarks_cmd[args.bench_name]))
+        execute_process(conda_env.add_conda_execution(benchmarks_cmd[args.bench_name]))
     
 except Exception as err:
     print("Failed", err)
@@ -281,4 +257,4 @@ finally:
     if omnisci_server:
         omnisci_server.terminate()
     if args and args.save_env is False:
-        execute_process(remove_env_cmdline)
+        conda_env.remove()
