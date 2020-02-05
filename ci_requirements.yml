@@ -1,5 +1,11 @@
+channels:
+  - conda-forge
+dependencies:
   - pytest-html
   - braceexpand
   - mysql
   - mysql-connector-python
+  - numpy>=1.11
+  - pandas>=1.0.0
+  - pymapd>=0.12.0
   
