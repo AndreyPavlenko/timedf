@@ -15,13 +15,15 @@ def str_arg_to_bool(v):
 
 
 def combinate_requirements(ibis, ci, res):
+    with open(ibis) as f_ibis:
+        ibis_data = f_ibis.read()
+    with open(ci) as f_ci:
+        ci_data = f_ci.read()
     with open(res, "w") as f_res:
-        with open(ibis) as f_ibis:
-            for line in f_ibis:
-                f_res.write(line)
-        with open(ci) as f_ci:
-            for line in f_ci:
-                f_res.write(line)
+        for line in ci_data.split('\n'):
+            if line not in ibis_data:
+                ibis_data += line + '\n'
+        f_res.write(ibis_data)
 
 
 def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=True):
