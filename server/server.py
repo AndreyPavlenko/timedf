@@ -37,7 +37,7 @@ class OmnisciServer:
 
     def __init__(self, omnisci_executable, omnisci_port, database_name,
                  omnisci_cwd=None, user="admin", password="HyperInteractive", http_port=62278,
-                 calcite_port=62279):
+                 calcite_port=62279, max_session_duration=86400, idle_session_duration=120): # default values of max_session_duration=43200 idle_session_duration=60
         self.omnisci_executable = omnisci_executable
         self.server_port = omnisci_port
         self.user = user
@@ -45,6 +45,8 @@ class OmnisciServer:
         self.database_name = database_name
         self._http_port = http_port
         self._calcite_port = calcite_port
+        self._max_session_duration = max_session_duration
+        self._idle_session_duration = idle_session_duration
 
         if omnisci_cwd is not None:
             self._server_cwd = omnisci_cwd
@@ -70,7 +72,9 @@ class OmnisciServer:
                                       '--calcite-port', str(self._calcite_port),
                                       '--config', "omnisci.conf",
                                       '--enable-watchdog=false',
-                                      '--allow-cpu-retry']
+                                      '--allow-cpu-retry',
+                                      '--max-session-duration', str(self._max_session_duration),
+                                      '--idle-session-duration', str(self._idle_session_duration)]
 
     def launch(self):
         "Launch OmniSciDB server"
