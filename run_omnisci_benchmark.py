@@ -8,12 +8,18 @@ import copy
 import sys
 import os
 from server import OmnisciServer
-from utils import execute_process
 from report import DbReport
+from environment import CondaEnvironment
+from utils import str_arg_to_bool
+from utils import execute_process
+
+omniscript_path = os.path.dirname(__file__)
+omnisci_server = None
+args = None
 
 
 def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdline,
-                      fragment_size, results_file_name, report):
+                      fragment_size, results_file_name, report, conda_env):
     if import_cmdline is not None:
         ic = copy.copy(import_cmdline)
         # Import dataset mode
@@ -23,7 +29,7 @@ def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdlin
         else:
             fs = 0
         print('IMPORT COMMAND LINE:', ic)
-        execute_process(ic)
+        execute_process(conda_env.add_conda_execution(ic))
     else:
         # Synthetic benchmark mode
         benchmark_cmdline += ['--fragment_size', str(fragment_size)]
@@ -31,7 +37,7 @@ def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdlin
 
     # Execute benchmark
     print('BENCHMARK COMMAND LINE', benchmark_cmdline)
-    execute_process(benchmark_cmdline, cwd=benchmark_cwd)
+    execute_process(conda_env.add_conda_execution(benchmark_cmdline), cwd=benchmark_cwd)
 
     # Parse report
     with open(results_file_name, "r") as results_file:
@@ -61,13 +67,23 @@ def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdlin
                 'AverageTotalTimeMS': result['results']['query_total_avg']
             })
 
-omnisci_server = None
 
 parser = argparse.ArgumentParser(description='Run arbitrary omnisci benchmark and submit report '
                                              'values to MySQL database')
 optional = parser._action_groups.pop()
 required = parser.add_argument_group("required arguments")
 parser._action_groups.append(optional)
+
+# Environment
+required.add_argument('-en', '--env_name', dest="env_name", default="ibis-tests",
+                      help="Conda env name.")
+optional.add_argument('-ec', '--env_check', dest="env_check", default=False, type=str_arg_to_bool,
+                      help="Check if env exists. If it exists don't recreate.")
+optional.add_argument('-s', '--save_env', dest="save_env", default=False, type=str_arg_to_bool,
+                      help="Save conda env after executing.")
+optional.add_argument('-ci', '--ci_requirements', dest="ci_requirements",
+                      default=None,
+                      help="File with ci requirements for conda env.")
 
 # Benchmark scripts location
 required.add_argument('-r', '--report', dest="report", default="report.csv",
@@ -157,14 +173,9 @@ if args.omnisci_cwd is not None:
 else:
     server_cwd = pathlib.Path(args.omnisci_executable).parent.parent
 
-data_dir = os.path.join(server_cwd, "data")
-if not os.path.isdir(data_dir):
-    print("CREATING DATA DIR", data_dir)
-    os.makedirs(data_dir)
-if not os.path.isdir(os.path.join(data_dir, "mapd_data")):
-    print("INITIALIZING DATA DIR", data_dir)
-    initdb_executable = os.path.join(pathlib.Path(args.omnisci_executable).parent, "initdb")
-    execute_process([initdb_executable, '-f', '--data', data_dir])
+conda_env = CondaEnvironment(args.env_name)
+print("PREPARING ENVIRONMENT")
+conda_env.create(args.env_check, requirements_file=args.ci_requirements)
 
 dataset_import_cmdline = ['python3',
                           os.path.join(args.benchmarks_path, 'run_benchmark_import.py'),
@@ -277,12 +288,14 @@ try:
             for fs in args.fragment_size:
                 print("RUNNING WITH FRAGMENT SIZE", fs)
                 execute_benchmark(datafiles, import_cmdline, args.benchmarks_path,
-                                  benchmark_cmdline, fs, results_file_name, report)
+                                  benchmark_cmdline, fs, results_file_name, report, conda_env)
         else:
             print("RUNNING WITH DEFAULT FRAGMENT SIZE")
             execute_benchmark(datafiles, import_cmdline, args.benchmarks_path,
-                              benchmark_cmdline, None, results_file_name, report)
+                              benchmark_cmdline, None, results_file_name, report, conda_env)
 finally:
     print("TERMINATING SERVER")
     if omnisci_server:
         omnisci_server.terminate()
+    if args and args.save_env is False:
+        conda_env.remove()
