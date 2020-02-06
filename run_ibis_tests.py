@@ -5,7 +5,6 @@ from server import OmnisciServer
 from environment import CondaEnvironment
 from utils import str_arg_to_bool
 from utils import combinate_requirements
-from utils import execute_process
 
 omniscript_path = os.path.dirname(__file__)
 omnisci_server = None
@@ -206,8 +205,7 @@ try:
 
     if tasks['build']:
         print("IBIS INSTALLATION")
-        execute_process(conda_env.add_conda_execution(install_ibis_cmdline), cwd=args.ibis_path,
-                        print_output=False)
+        conda_env.run(install_ibis_cmdline, cwd=args.ibis_path, print_output=False)
 
     if tasks['test']:
         print("STARTING OMNISCI SERVER")
@@ -219,15 +217,15 @@ try:
 
     if tasks['test']:
         print("PREPARING DATA")
-        execute_process(conda_env.add_conda_execution(dataset_download_cmdline))
-        execute_process(conda_env.add_conda_execution(dataset_import_cmdline))
+        conda_env.run(dataset_download_cmdline)
+        conda_env.run(dataset_import_cmdline)
 
         print("RUNNING TESTS")
-        execute_process(conda_env.add_conda_execution(ibis_tests_cmdline), cwd=args.ibis_path)
+        conda_env.run(ibis_tests_cmdline, cwd=args.ibis_path)
     
     if tasks['benchmark']:
         print(f"RUNNING BENCHMARK {args.bench_name}")
-        execute_process(conda_env.add_conda_execution(benchmarks_cmd[args.bench_name]))
+        conda_env.run(benchmarks_cmd[args.bench_name])
     
 except Exception as err:
     print("Failed", err)

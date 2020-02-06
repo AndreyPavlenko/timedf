@@ -1,5 +1,7 @@
 import os
 import re
+import subprocess
+from conda.cli.python_api import run_command, Commands
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import execute_process
@@ -24,11 +26,16 @@ class CondaEnvironment:
 
     def remove(self, name=None):
         env_name = name if name else self.name
+        print("REMOVING CONDA ENVIRONMENT")
         remove_env_cmdline = ['conda',
                               'env',
                               'remove',
                               '--name', env_name]
         execute_process(remove_env_cmdline)
+        # TODO: replace with run_command
+        # run_command(Commands.REMOVE, self._add_conda_execution([], env_name),
+        #             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        #             use_exception_handler=True)
 
     def create(self, existence_check=False, name=None, requirements_file=None):
         env_name = name if name else self.name
@@ -37,16 +44,40 @@ class CondaEnvironment:
                 return
             else:
                 self.remove(env_name)
-        create_env_cmdline = ['conda',
-                              'env',
-                              'create',
-                              '--name', env_name,
-                              f'--file={requirements_file}' if requirements_file else '']
-        execute_process(create_env_cmdline, print_output=False)
+        cmdline = ['conda',
+                   'env',
+                   'create',
+                   '--name', env_name,
+                   f'--file={requirements_file}' if requirements_file else '']
+        print("CREATING CONDA ENVIRONMENT")
+        execute_process(cmdline, print_output=False)
+        # TODO: replace with run_command
+        # run_command(Commands.CREATE, self._add_conda_execution(cmdline, env_name),
+        #             stdout = subprocess.PIPE, stderr = subprocess.STDOUT,
+        #             use_exception_handler=True)
 
-    def add_conda_execution(self, cmdline, name=None):
+    def _add_full_conda_execution(self, cmdline, name=None):
         env_name = name if name else self.name
         cmd_res = ['conda', 'run', '-n', env_name]
         cmd_res.extend(cmdline)
         return cmd_res
 
+    def _add_conda_execution(self, cmdline, name=None):
+        env_name = name if name else self.name
+        cmd_res = ['-n', env_name]
+        cmd_res.extend(cmdline)
+        return cmd_res
+
+    def run(self, cmdline, name=None, cwd=None, print_output=True):
+        env_name = name if name else self.name
+        if cwd:
+            # run_command doesn't have cwd
+            execute_process(self._add_full_conda_execution(cmdline, env_name), cwd=cwd,
+                            print_output=print_output)
+        else:
+            _, _, return_code = run_command(Commands.RUN,
+                                            self._add_conda_execution(cmdline, env_name),
+                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                            use_exception_handler=True)
+            if return_code != 0:
+                raise Exception(f"Conda run returned {process.returncode}.")
