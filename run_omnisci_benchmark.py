@@ -11,7 +11,6 @@ from server import OmnisciServer
 from report import DbReport
 from environment import CondaEnvironment
 from utils import str_arg_to_bool
-from utils import execute_process
 
 omniscript_path = os.path.dirname(__file__)
 omnisci_server = None
@@ -29,7 +28,7 @@ def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdlin
         else:
             fs = 0
         print('IMPORT COMMAND LINE:', ic)
-        execute_process(conda_env.add_conda_execution(ic))
+        conda_env.run(ic)
     else:
         # Synthetic benchmark mode
         benchmark_cmdline += ['--fragment_size', str(fragment_size)]
@@ -37,7 +36,7 @@ def execute_benchmark(datafiles, import_cmdline, benchmark_cwd, benchmark_cmdlin
 
     # Execute benchmark
     print('BENCHMARK COMMAND LINE', benchmark_cmdline)
-    execute_process(conda_env.add_conda_execution(benchmark_cmdline), cwd=benchmark_cwd)
+    conda_env.run(benchmark_cmdline, cwd=benchmark_cwd)
 
     # Parse report
     with open(results_file_name, "r") as results_file:
@@ -183,7 +182,7 @@ dataset_import_cmdline = ['python3',
                           '-n', args.name,
                           '-t', args.import_table_name,
                           '-l', args.label,
-                          '-f', args.import_file,
+                          f'-f=args.import_file',
                           '-c', args.table_schema_file,
                           '-e', 'output',
                           '-v',
