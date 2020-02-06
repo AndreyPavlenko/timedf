@@ -165,9 +165,6 @@ optional.add_argument("-commit", default="12345678901234567890123456789012345678
 
 args = parser.parse_args()
 
-if args.import_file:
-    args.import_file = args.import_file.replace("'", "")
-
 if args.omnisci_cwd is not None:
     server_cwd = args.omnisci_cwd
 else:
@@ -186,7 +183,7 @@ dataset_import_cmdline = ['python3',
                           '-n', args.name,
                           '-t', args.import_table_name,
                           '-l', args.label,
-                          '-f', f"'{args.import_file}'",
+                          '-f', args.import_file,
                           '-c', args.table_schema_file,
                           '-e', 'output',
                           '-v',
