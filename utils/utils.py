@@ -35,7 +35,7 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
                                    stderr=subprocess.STDOUT, shell=shell)
         if not daemon:
             output = process.communicate()[0].strip().decode()
-            if re.findall(r"\d fail", output):
+            if re.findall(r"\d fail", output) or re.findall(r"[e,E]rror", output):
                 process.returncode = 1
             elif print_output:
                 print(output)
