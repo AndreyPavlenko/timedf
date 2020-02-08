@@ -77,22 +77,10 @@ class OmnisciServerWorker:
 
             print(str(output[0].strip().decode()))
             print("Command returned", import_process.returncode)
-
+    
     def import_data_by_ibis(self, table_name, data_files_names, files_limit, columns_names,
-                            columns_types, cast_dict, header=None):
+                            columns_types, cast_dict = None, header=None):
         "Import CSV files using Ibis load_data from the Pandas.DataFrame"
-
-        schema_table = ibis.Schema(
-            names=columns_names,
-            types=columns_types
-        )
-
-        if not self._conn.exists_table(name=table_name, database=self.omnisci_server.database_name):
-            try:
-                self._conn.create_table(table_name=table_name, schema=schema_table,
-                                        database=self.omnisci_server.database_name)
-            except Exception as err:
-                print("Failed to create table:", err)
 
         t0 = time.time()
         if files_limit > 1:
@@ -103,16 +91,20 @@ class OmnisciServerWorker:
         else:
             self._imported_pd_df[table_name] = self._read_csv_datafile(data_files_names,
                                                                        columns_names, header)
-
         t_import_pandas = time.time() - t0
 
-        pandas_concatenated_df_casted = self._imported_pd_df[table_name].astype(dtype=cast_dict,
+        if cast_dict is not None:
+            pandas_concatenated_df_casted = self._imported_pd_df[table_name].astype(dtype=cast_dict,
                                                                                 copy=True)
-
-        t0 = time.time()
-        self._conn.load_data(table_name=table_name, obj=pandas_concatenated_df_casted,
-                             database=self.omnisci_server.database_name)
-        t_import_ibis = time.time() - t0
+            t0 = time.time()
+            self.import_data_from_pd_df(table_name=table_name, pd_obj=pandas_concatenated_df_casted,
+                                        columns_names=columns_names, columns_types=columns_types)
+            t_import_ibis = time.time() - t0
+        else:
+            t0 = time.time()
+            self.import_data_from_pd_df(table_name=table_name, pd_obj=self._imported_pd_df[table_name],
+                                        columns_names=columns_names, columns_types=columns_types)
+            t_import_ibis = time.time() - t0
 
         return t_import_pandas, t_import_ibis
 
@@ -137,3 +129,30 @@ class OmnisciServerWorker:
         else:
             print("Table", table_name, "doesn't exist!")
             sys.exit(4)
+            
+    def execute_sql_query(self, query):
+        "Execute SQL query directly in the OmniSciDB"
+        
+        try:
+            connection_process = subprocess.Popen(self._omnisci_cmd_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+            output = connection_process.communicate(query.encode())
+        except OSError as err:
+            print("Failed to start", self._omnisci_cmd_line, err)
+
+    def import_data_from_pd_df(self, table_name, pd_obj, columns_names, columns_types):
+        "Import table data using Ibis load_data from the Pandas.DataFrame"
+
+        schema_table = ibis.Schema(
+            names = columns_names,
+            types = columns_types
+        )
+
+        if not self._conn.exists_table(name=table_name, database=self.omnisci_server.database_name):
+            try:
+                self._conn.create_table(table_name = table_name, schema=schema_table, database=self.omnisci_server.database_name)
+            except Exception as err:
+                print("Failed to create table:", err)
+
+        self._conn.load_data(table_name=table_name, obj=pd_obj, database=self.omnisci_server.database_name, method='columnar')
+
+        return self._conn.database(self.omnisci_server.database_name).table(table_name)
