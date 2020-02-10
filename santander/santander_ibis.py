@@ -66,7 +66,7 @@ def q2():
         
         if args.val and not queries_validation_flags['q2']:
             
-            if i == 0 or i == 100:
+            if i % 10 == 0:
                 var_count_pd = train_pd_group_by.groupby(col).agg({col:'count'})
                 var_count_pd.columns = ['%s_count'%col]
                 var_count_pd = var_count_pd.reset_index()
@@ -150,8 +150,6 @@ def q4():
     # Split operation syntax: OmniSciDBTable[number of rows to split: the last row index of splitted table (last element is not included)]
     training_part = train_pd_ibis[190000:190000].execute()
     validation_part = train_pd_ibis[10000:200000].execute()
-    #training_part = train_pd_ibis[899:899].execute()
-    #validation_part = train_pd_ibis[100:999].execute()
     t_split = time.time() - t0
     
     if args.val and not queries_validation_flags['q4']:
@@ -159,8 +157,6 @@ def q4():
         
         queries_validation_flags['q4'] = True
         train,valid = train_pd[:-10000],train_pd[-10000:]
-        #train,valid = train_pd[:-100],train_pd[-100:]
-        #valid = valid.reset_index().drop(['index'],axis=1)
 
         validation_result1 = compare_tables(train, training_part)
         validation_result2 = compare_tables(valid, validation_part)
