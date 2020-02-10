@@ -11,15 +11,38 @@ from server import OmnisciServer
 from report import DbReport
 from server_worker import OmnisciServerWorker
 
+def compare_tables(table1, table2):
+    
+    if table1.equals(table2):
+        return True
+    else:
+        print("\ntables are not equal, table1:")
+        print(table1.info())
+        print("\ntable2:")
+        print(table2.info())
+        return False
 
+# Queries definitions
 def q1():
     t0 = time.time()
-    _, _ = omnisci_server_worker.import_data_by_ibis(table_name=tmp_table_name,
+    omnisci_server_worker.import_data_by_ibis(table_name=tmp_table_name,
                                                      data_files_names=args.dp, files_limit=1,
                                                      columns_names=datafile_columns_names,
                                                      columns_types=datafile_columns_types,
-                                                     cast_dict=cast_dict_train, header=0)
+                                                     cast_dict=None, header=0)
     t_import = time.time() - t0
+    
+    if args.val and not queries_validation_flags['q1']:
+        print("Validating query 1 (import query) results ...")
+        
+        queries_validation_flags['q1'] = True
+        pd_df = omnisci_server_worker.get_pd_df(tmp_table_name)
+        ibis_df = conn.database(database_name).table(tmp_table_name)
+        queries_validation_results['q1'] = compare_tables(pd_df, ibis_df.execute())
+        if queries_validation_results['q1']:
+            print("q1 results are validated!")
+            
+        
     omnisci_server_worker.drop_table(tmp_table_name)
 
     return t_import
@@ -27,45 +50,95 @@ def q1():
 
 def q2():
     t_groupby = 0
+    if args.val and not queries_validation_flags['q2']:
+        print("Validating query 2 (group_by query) results ...")
+        compare_results_full = True
+        train_pd_group_by = omnisci_server_worker.get_pd_df(train_table_name)
+    
     for i in range(200):
         col = 'var_%d' % i
         t0 = time.time()
         metric = df[col].count().name('%s_count' % col)
-        group_by_expr = df.group_by(col).aggregate(metric)
-        _ = group_by_expr.execute()
+        #group_by_expr = df.group_by(col).order_by(df[col]).aggregate(metric) # - doesn't give correct result
+        group_by_expr = df.sort_by(col).group_by(col).aggregate(metric)
+        var_count_ibis = group_by_expr.execute()
         t_groupby += time.time() - t0
+        
+        if args.val and not queries_validation_flags['q2']:
+            
+            if i % 10 == 0:
+                var_count_pd = train_pd_group_by.groupby(col).agg({col:'count'})
+                var_count_pd.columns = ['%s_count'%col]
+                var_count_pd = var_count_pd.reset_index()
 
+                compare_results = compare_tables(var_count_pd, var_count_ibis)
+                compare_results_full = compare_results_full and compare_results
+            if i == 199:
+                queries_validation_flags['q2'] = True
+                queries_validation_results['q2'] = compare_results_full
+                if compare_results_full:
+                    print("q2 results are validated!")
+                
     return t_groupby
 
 
 def q3():
     t_where = 0
-    global train_where_ibis
-
-    for c, col in enumerate(['var_0', 'var_1', 'var_2']):
-        for i in range(1, 4):
-            t0 = time.time()
-            train_where_ibis[
-                train_where_ibis['%s_count' % col] == i].execute()
-            t_where += time.time() - t0
-
-    t0 = time.time()
-    train_where_ibis[
-        train_where_ibis['%s_count' % col] > i].execute()
-    t_where += time.time() - t0
-
-    col_to_sel = datafile_columns_names + ["var_" + str(index) + "_count" for index in
-                                           range(200)]
-    train_where_ibis2 = train_pd_ibis[col_to_sel]
+    col_to_sel = datafile_columns_names + ["var_" + str(index) + "_count" for index in range(200)]
+    
+    if args.q3_full:
+        col_to_sel_list = ["var_%s, \n" % i for i in range(200)] + ["var_%s_count, \n" % i for i in range(199)] + ["var_199_count"]
+        col_to_sel_str = "".join(col_to_sel_list)
+        drop_tmp_table_query = drop_table_sql_query_template.format(database_name, tmp_table_name)
+        create_train_where_ibis_query = create_table_sql_query_template.format(database_name, tmp_table_name,
+                                                                                    col_to_sel_str, train_pd_table_name)
+        omnisci_server_worker.execute_sql_query(create_train_where_ibis_query)
+        train_where_ibis = conn.database(database_name).table(tmp_table_name)
+    else:
+        train_where_ibis = train_pd_ibis[col_to_sel]
+        
+    if args.val and not queries_validation_flags['q3']:
+        print("Validating query 3 (filter query) results ...")
+        compare_results_full = True
+        train_pd_merged_val = train_pd_merged.copy()
+        
     for i in range(200):
         col = 'var_%d' % i
         t0 = time.time()
-        (train_where_ibis2['%s_count' % col] > 1).execute()
+        mask_ibis = (train_where_ibis['%s_count' % col] > 1).execute()
         t_where += time.time() - t0
+        
+        if args.val and not queries_validation_flags['q3']:
+            mask_pd = train_pd_merged_val['%s_count'%col]>1
+            train_pd_merged_val.loc[mask_pd,'%s_gt1'%col] = train_pd_merged_val.loc[mask_pd,col]
+            
+            if i % 10 == 0:
+                compare_results = compare_tables(mask_pd, mask_ibis)
+                compare_results_full = compare_results_full and compare_results
+            if i == 199:
+                queries_validation_flags['q3'] = True
+                queries_validation_results['q3'] = compare_results_full
+                if compare_results_full:
+                    print("q3 results are validated!")
 
-        col_to_sel += ['%s_gt1' % col]
-        train_where_ibis2 = train_pd_ibis[col_to_sel]
+        if args.q3_full:
+            omnisci_server_worker.execute_sql_query(drop_tmp_table_query)
+            
+            if i == 0:
+                col_to_sel_str += ',\n%s_gt1' % col
+            else:
+                col_to_sel_str += ',\n%s_gt1' % col
+            create_train_where_ibis_query = create_table_sql_query_template.format(database_name, tmp_table_name,
+                                                                                    col_to_sel_str, train_pd_table_name)
+            omnisci_server_worker.execute_sql_query(create_train_where_ibis_query)
+            train_where_ibis = conn.database(database_name).table(tmp_table_name)
+        else:
+            col_to_sel += ['%s_gt1' % col]
+            train_where_ibis = train_pd_ibis[col_to_sel]
 
+    if args.q3_full:
+        omnisci_server_worker.execute_sql_query(drop_tmp_table_query)
+        
     return t_where
 
 
@@ -78,6 +151,18 @@ def q4():
     training_part = train_pd_ibis[190000:190000].execute()
     validation_part = train_pd_ibis[10000:200000].execute()
     t_split = time.time() - t0
+    
+    if args.val and not queries_validation_flags['q4']:
+        print("Validating query 4 (rows split query) results ...")
+        
+        queries_validation_flags['q4'] = True
+        train,valid = train_pd[:-10000],train_pd[-10000:]
+
+        validation_result1 = compare_tables(train, training_part)
+        validation_result2 = compare_tables(valid, validation_part)
+        queries_validation_results['q4'] = validation_result1 and validation_result2
+        if queries_validation_results['q4']:
+            print("q4 results are validated!")
 
     return t_split
 
@@ -173,11 +258,24 @@ queries_description[7] = 'ML inference'
 omnisci_executable = "../omnisci/build/bin/omnisci_server"
 datafile_directory = "/localdisk/work/train.csv"
 train_table_name = "train_table"
+train_pd_table_name = "train_pd_table"
+tmp_table_name = 'tmp_table'
 omnisci_server = None
+queries_validation_results = {'q%s' % i: False for i in range(1, 5)}
+queries_validation_results.update({'q%s' % i: "validation operation is not supported" for i in range(5, 8)})
+queries_validation_flags = {'q%s' % i: False for i in range(1, 8)}
+create_table_sql_query_template = '''
+\c {0} admin HyperInteractive
+CREATE TABLE {1} AS (SELECT {2} FROM {3});
+'''
+drop_table_sql_query_template = '''
+\c {0} admin HyperInteractive
+DROP TABLE IF EXISTS {1};
+'''
 
 parser = argparse.ArgumentParser(description='Run Santander benchmark using Ibis.')
 
-parser.add_argument('-e', default=omnisci_executable, help='Path to executable "omnisql".')
+parser.add_argument('-e', default=omnisci_executable, help='Path to executable "omnisci_server".')
 parser.add_argument('-r', default="report_santander_ibis.csv", help="Report file name.")
 parser.add_argument('-dp', default=datafile_directory, help="Datafile that should be loaded.")
 parser.add_argument('-i', default=5, type=int,
@@ -193,6 +291,8 @@ parser.add_argument("-p", default="HyperInteractive",
                     help="User password to use on omniscidb server.")
 parser.add_argument("-n", default="agent_test_ibis",
                     help="Database name to use on omniscidb server.")
+parser.add_argument('-q3_full', action='store_true', help="Execute q3 query correctly (script execution time will be increased).")
+parser.add_argument('-val', action='store_true', help="validate queries results (by comparison with Pandas queries results).")
 
 parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server.")
 parser.add_argument("-db-port", default=3306, type=int, help="Port number of MySQL server.")
@@ -220,7 +320,7 @@ try:
         print("Bad number of iterations specified", args.i)
 
     datafile_columns_names = ["ID_code", "target"] + ["var_" + str(index) for index in range(200)]
-    datafile_columns_types = ["string", "int16"] + ["float32" for _ in range(200)]
+    datafile_columns_types = ["string", "int64"] + ["float64" for _ in range(200)]
 
     schema_train = ibis.Schema(
         names=datafile_columns_names,
@@ -249,6 +349,7 @@ try:
             'BestExecTimeMS': 'BIGINT UNSIGNED',
             'AverageExecTimeMS': 'BIGINT UNSIGNED',
             'TotalTimeMS': 'BIGINT UNSIGNED',
+            'QueryValidation': 'VARCHAR(500) NOT NULL',
             'IbisCommitHash': 'VARCHAR(500) NOT NULL'
         }, {
             'ScriptName': 'santander_ibis.py',
@@ -271,16 +372,13 @@ try:
     except Exception as err:
         print("Database creation is skipped, because of error:", err)
 
-    cast_dict_train = {('var_%s' % str(i)): 'float32' for i in range(200)}
-    cast_dict_train['target'] = 'int16'
-
     args.dp = args.dp.replace("'", "")
     if not args.dni:
         # Datafiles import
         t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
             table_name=train_table_name, data_files_names=args.dp, files_limit=1,
             columns_names=datafile_columns_names, columns_types=datafile_columns_types,
-            cast_dict=cast_dict_train, header=0)
+            cast_dict=None, header=0)
         print("Pandas import time:", t_import_pandas)
         print("Ibis import time:", t_import_ibis)
 
@@ -314,6 +412,8 @@ try:
         var_count = var_count.reset_index()
         train_pd = train_pd.merge(var_count, on=col, how='left')
 
+    train_pd_merged = train_pd.copy()
+
     for i in range(200):
         col = 'var_%d' % i
         mask = train_pd['%s_count' % col] > 1
@@ -323,46 +423,13 @@ try:
         "var_" + str(index) + "_count" for index in range(200)] + [
         "var_" + str(index) + "_gt1" for index in range(200)]
     datafile_columns_types_train_pd = datafile_columns_types + [
-        "float32" for _ in range(200)] + [
-        "float32" for _ in range(200)]
+        "int64" for _ in range(200)] + [
+        "float64" for _ in range(200)]
 
-    schema_train_pd = ibis.Schema(
-        names=datafile_columns_names_train_pd,
-        types=datafile_columns_types_train_pd
-    )
+    train_pd_ibis = omnisci_server_worker.import_data_from_pd_df(table_name=train_pd_table_name, pd_obj=train_pd,
+                                                                 columns_names=datafile_columns_names_train_pd,
+                                                                 columns_types=datafile_columns_types_train_pd)
 
-    cast_dict = {}
-    cast_dict['target'] = 'int16'
-    for i in range(200):
-        cast_dict['var_%s' % str(i)] = 'float32'
-        cast_dict['var_%s' % str(i) + '_count'] = 'float32'
-        cast_dict['var_%s' % str(i) + '_gt1'] = 'float32'
-
-    train_pd = train_pd.astype(dtype=cast_dict, copy=False)
-
-    conn.create_table(table_name='train_pd_table', schema=schema_train_pd, database=database_name)
-    conn.load_data('train_pd_table', train_pd)
-    train_pd_ibis = db.table('train_pd_table')
-
-    table_name_where = 'train_where_table'
-    datafile_columns_names_train_where = datafile_columns_names + ["var_" + str(index) + "_count"
-                                                                   for index in range(200)]
-    datafile_columns_types_train_where = datafile_columns_types + ["float32" for _ in range(200)]
-
-    schema_train_where = ibis.Schema(
-        names=datafile_columns_names_train_where,
-        types=datafile_columns_types_train_where
-    )
-
-    train = train_pd.copy()
-    train_selected = train[datafile_columns_names_train_where]
-    conn.create_table(table_name=table_name_where, schema=schema_train_where,
-                      database=database_name)
-    conn.load_data(table_name_where, train_selected)
-    train_where_ibis = db.table(table_name_where)
-
-    # Queries definitions
-    tmp_table_name = 'tmp_table'
 
     try:
         with open(args.r, "w") as report:
@@ -395,6 +462,7 @@ try:
                       "WorstExecTimeMS: ", worst_exec_time, ",",
                       "BestExecTimeMS: ", best_exec_time, ",",
                       "AverageExecTimeMS: ", average_exec_time, ",",
+                      "QueryValidation: ", str(queries_validation_results['q%s' % (query_number + 1)]), ",",
                       "TotalTimeMS: ", total_exec_time, ",",
                       "", '\n', file=report, sep='', end='', flush=True)
                 if db_reporter is not None:
@@ -404,7 +472,7 @@ try:
                         'FirstExecTimeMS': first_exec_time,
                         'WorstExecTimeMS': worst_exec_time,
                         'BestExecTimeMS': best_exec_time,
-                        'AverageExecTimeMS': average_exec_time,
+                        'AverageExecTimeMS': str(queries_validation_results['q%s' % (query_number + 1)]),
                         'TotalTimeMS': total_exec_time
                     })
     except IOError as err:
