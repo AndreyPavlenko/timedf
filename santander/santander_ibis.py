@@ -144,8 +144,6 @@ def q3():
 
 def q4():
     t0 = time.time()
-    global training_part
-    global validation_part
 
     # Split operation syntax: OmniSciDBTable[number of rows to split: the last row index of splitted table (last element is not included)]
     training_part = train_pd_ibis[190000:190000].execute()
@@ -169,16 +167,16 @@ def q4():
 
 def q5():
     t0 = time.time()
-    global training_part
-    global validation_part
     global training_dmat_part
     global testing_dmat_part
     global y_valid
+    
+    train_q5,valid_q5 = train_pd[:-10000],train_pd[-10000:]
 
-    x_train = training_part.drop(['target','ID_code'],axis=1)
-    y_train = training_part['target']
-    x_valid = validation_part.drop(['target','ID_code'],axis=1)
-    y_valid = validation_part['target']
+    x_train = train_q5.drop(['target','ID_code'],axis=1)
+    y_train = train_q5['target']
+    x_valid = valid_q5.drop(['target','ID_code'],axis=1)
+    y_valid = valid_q5['target']
 
     training_dmat_part = xgboost.DMatrix(data=x_train, label=y_train)
     testing_dmat_part = xgboost.DMatrix(data=x_valid, label=y_valid)
