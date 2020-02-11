@@ -192,7 +192,7 @@ def q6():
     global testing_dmat_part
     global model
 
-    watchlist = [(training_dmat_part, 'eval'), (testing_dmat_part, 'train')]
+    watchlist = [(testing_dmat_part, 'eval'), (training_dmat_part, 'train')]
     xgb_params = {
             'objective': 'binary:logistic',
             'tree_method': 'hist',
