@@ -28,6 +28,18 @@ class OmnisciServerWorker:
         print("Reading datafile", file_name)
         return pd.read_csv(file_name, compression=compression_type, header=header,
                            names=columns_names, nrows=nrows)
+    
+    def import_data_by_pandas(self, data_files_names, files_limit, columns_names):
+        "Import CSV files using Pandas read_csv to the Pandas.DataFrame"
+        
+        if files_limit == 1:
+            return self._read_csv_datafile(file_name=data_files_names[0], columns_names=columns_names,
+                                                     header=None, compression_type='gzip', nrows=None)
+        else:
+            df_from_each_file = (self._read_csv_datafile(file_name=f, columns_names=taxi_names,
+                                                         header=None, compression_type='gzip', nrows=None)
+                                 for f in data_files_names[:files_limit])
+            return pd.concat(df_from_each_file, ignore_index=True)
 
     def connect_to_server(self):
         "Connect to Omnisci server using Ibis framework"
@@ -42,7 +54,7 @@ class OmnisciServerWorker:
 
     def import_data(self, table_name, data_files_names, files_limit, columns_names, columns_types,
                     header=False):
-        "Import CSV files using COPY SQL statement"
+        "Import CSV files to the OmniSciDB using COPY SQL statement"
 
         if header:
             header_value = 'true'
@@ -80,7 +92,7 @@ class OmnisciServerWorker:
     
     def import_data_by_ibis(self, table_name, data_files_names, files_limit, columns_names,
                             columns_types, cast_dict = None, header=None):
-        "Import CSV files using Ibis load_data from the Pandas.DataFrame"
+        "Import CSV files using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
         t0 = time.time()
         if files_limit > 1:
@@ -140,7 +152,7 @@ class OmnisciServerWorker:
             print("Failed to start", self._omnisci_cmd_line, err)
 
     def import_data_from_pd_df(self, table_name, pd_obj, columns_names, columns_types):
-        "Import table data using Ibis load_data from the Pandas.DataFrame"
+        "Import table data using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
         schema_table = ibis.Schema(
             names = columns_names,
@@ -156,3 +168,4 @@ class OmnisciServerWorker:
         self._conn.load_data(table_name=table_name, obj=pd_obj, database=self.omnisci_server.database_name, method='columnar')
 
         return self._conn.database(self.omnisci_server.database_name).table(table_name)
+    

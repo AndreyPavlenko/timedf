@@ -5,57 +5,156 @@ import time
 import glob
 import os
 import sys
+import pandas as pd
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from server import OmnisciServer
 from report import DbReport
 from server_worker import OmnisciServerWorker
 
+def compare_tables(table1, table2):
+    
+    if table1.equals(table2):
+        return True
+    else:
+        print("\ntables are not equal, table1:")
+
+        print(type(table1))
+        print(table1)
+        print("\ntable2:")
+
+        print(type(table2))
+        print(table2)
+        return False
+    
+def validation_prereqs():
+    return omnisci_server_worker.import_data_by_pandas(data_files_names=data_files_names, files_limit=args.df,
+                                                            columns_names=taxibench_columns_names)
 
 # Queries definitions
-def q1(df):
-    df.groupby('cab_type')[['cab_type']].count().execute()
+def q1():
+    t_query = 0
+    t0 = time.time()
+    q1_output_ibis = df.groupby('cab_type').count().sort_by('cab_type')['cab_type', 'count'].execute()
+    t_query += time.time() - t0
+    
+    if args.val and not queries_validation_flags['q1']:
+        print("Validating query 1 results ...")
+        
+        queries_validation_flags['q1'] = True
+        
+        q1_output_pd = df_pandas.groupby('cab_type')['cab_type'].count()
+        
+        # Casting of Pandas q1 output to Pandas.DataFrame type, which is compartible with
+        # Ibis q1 output
+        q1_output_pd_df = q1_output_pd.to_frame()
+        q1_output_pd_df.loc[:, 'count'] = q1_output_pd_df.loc[:, 'cab_type']
+        q1_output_pd_df['cab_type'] = q1_output_pd_df.index
+        q1_output_pd_df.index = [i for i in range(len(q1_output_pd_df))]
+        
+        queries_validation_results['q1'] = compare_tables(q1_output_pd_df, q1_output_ibis)
+        if queries_validation_results['q1']:
+            print("q1 results are validated!")
+            
+    return t_query
 
-
-def q2(df):
-    df.groupby('passenger_count').aggregate(
+def q2():
+    t_query = 0
+    t0 = time.time()
+    q2_output_ibis = df.groupby('passenger_count').aggregate(
         total_amount=df.total_amount.mean())[['passenger_count','total_amount']].execute()
+    t_query += time.time() - t0
+    
+    if args.val and not queries_validation_flags['q2']:
+        print("Validating query 2 results ...")
+        
+        queries_validation_flags['q2'] = True
+        
+        q2_output_pd = df_pandas.groupby('passenger_count',as_index=False).mean()[['passenger_count','total_amount']]
+        
+        queries_validation_results['q2'] = compare_tables(q2_output_pd, q2_output_ibis)
+        if queries_validation_results['q2']:
+            print("q2 results are validated!")
+    
+    return t_query
 
 
-def q3(df):
-    df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime')]).aggregate(count=df.passenger_count.count()).execute()
+def q3():
+    t_query = 0
+    t0 = time.time()
+    q3_output_ibis = df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime')]).aggregate(count=df.passenger_count.count()).execute()
+    t_query += time.time() - t0
+    
+    if args.val and not queries_validation_flags['q3']:
+        print("Validating query 3 results ...")
+        
+        queries_validation_flags['q3'] = True
+        
+        transformed = df_pandas[['passenger_count','pickup_datetime']].transform({'passenger_count':lambda x: x,'pickup_datetime':lambda x:  pd.DatetimeIndex(x).year})
+        q3_output_pd = transformed.groupby(['passenger_count','pickup_datetime'])[['passenger_count','pickup_datetime']].count()['passenger_count']
+        
+        # Casting of Pandas q3 output to Pandas.DataFrame type, which is compartible with
+        # Ibis q3 output
+        q3_output_pd_df = q3_output_pd.to_frame()
+        count_df = q3_output_pd_df.loc[:, 'passenger_count'].copy()
+        q3_output_pd_df['passenger_count'] = q3_output_pd.index.droplevel(level='pickup_datetime')
+        q3_output_pd_df['pickup_datetime'] = q3_output_pd.index.droplevel(level='passenger_count')
+        q3_output_pd_df = q3_output_pd_df.astype({'pickup_datetime': 'int32'})
+        q3_output_pd_df.loc[:, 'count'] = count_df
+        q3_output_pd_df.index = [i for i in range(len(q3_output_pd_df))]
+        
+        queries_validation_results['q3'] = compare_tables(q3_output_pd_df, q3_output_ibis)
+        if queries_validation_results['q3']:
+            print("q3 results are validated!")
+    
+    return t_query
 
 
-def q4(df):
-    df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime'),
-                df.trip_distance]).size().sort_by([('pickup_datetime', True),
-                                                   ('count', False)]).execute()
+def q4():
+    t_query = 0
+    t0 = time.time()
+    q4_output_ibis = df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime'),
+                df.trip_distance.cast('int64').name('trip_distance')]).size().sort_by([('pickup_datetime', True), ('count', False)]).execute()
+    t_query += time.time() - t0
+    
+    if args.val and not queries_validation_flags['q4']:
+        print("Validating query 4 results ...")
+        
+        queries_validation_flags['q4'] = True
+       
+        transformed = df_pandas[['passenger_count','pickup_datetime','trip_distance']].transform({'passenger_count':lambda x: x,'pickup_datetime':lambda x:  pd.DatetimeIndex(x).year,'trip_distance': lambda x: x.astype('int64', copy=False)}).groupby(['passenger_count','pickup_datetime','trip_distance'])
 
-
-def timeq(q):
-    t = time.time()
-    q(df)
-    return time.time()-t
-
-
-def queries_exec(index):
-    if index == 1:
-        return timeq(q1)
-    elif index == 2:
-        return timeq(q2)
-    elif index == 3:
-        return timeq(q3)
-    elif index == 4:
-        return timeq(q4)
-    else:
-        print("Non-valid index value for queries function")
-        sys.exit(3)
-        return None
+        q4_output_pd = transformed.size().reset_index().sort_values(by=['pickup_datetime',0],ascending=[True,False])
+        
+        # Casting of Pandas q4 output to Pandas.DataFrame type, which is compartible with
+        # Ibis q4 output
+        q4_output_pd = q4_output_pd.astype({'pickup_datetime': 'int32'})
+        q4_output_pd.columns = ['passenger_count', 'pickup_datetime', 'trip_distance', 'count']
+        q4_output_pd.index = [i for i in range(len(q4_output_pd))]
+        
+        queries_validation_results['q4'] = compare_tables(q4_output_pd, q4_output_ibis)
+        if queries_validation_results['q4']:
+            print("q4 results are validated!")
+    
+    return t_query
+    
+    
+queries_list = [q1, q2, q3, q4]
+queries_description = {}
+queries_description[1] = 'NYC taxi query 1'
+queries_description[2] = 'NYC taxi query 2'
+queries_description[3] = 'NYC taxi query 3'
+queries_description[4] = 'NYC taxi query 4'
 
 
 omnisci_executable = "../omnisci/build/bin/omnisci_server"
 taxi_trips_directory = "/localdisk/work/trips_x*.csv"
 taxibench_table_name = "trips"
+tmp_table_name = "tmp_table"
 omnisci_server = None
+queries_validation_results = {'q%s' % i: False for i in range(1, 5)}
+queries_validation_flags = {'q%s' % i: False for i in range(1, 5)}
+validation_prereqs_flag = False
+show_unvalidated_rows_for_input_tables = False
 
 parser = argparse.ArgumentParser(description='Run NY Taxi benchmark using Ibis.')
 
@@ -71,6 +170,8 @@ parser.add_argument('-dnd', action='store_true',
                     help="Do not delete old table.")
 parser.add_argument('-dni', action='store_true',
                     help="Do not create new table and import any data from CSV files.")
+parser.add_argument('-val', action='store_true',
+                    help="validate queries results (by comparison with Pandas queries results).")
 parser.add_argument("-port", default=62074, type=int,
                     help="TCP port that omnisql client should use to connect to server.")
 parser.add_argument("-u", default="admin",
@@ -131,14 +232,16 @@ try:
                                "dropoff_ctlabel", "dropoff_borocode", "dropoff_boroname",
                                "dropoff_ct2010", "dropoff_boroct2010", "dropoff_cdeligibil",
                                "dropoff_ntacode", "dropoff_ntaname", "dropoff_puma"]
-    taxibench_columns_types = ['int32', 'string', 'timestamp', 'timestamp', 'string', 'int16',
-                               'decimal', 'decimal', 'decimal', 'decimal', 'int16', 'decimal',
-                               'decimal', 'decimal', 'decimal', 'decimal', 'decimal', 'decimal',
-                               'decimal', 'decimal', 'string', 'int16', 'string', 'string',
-                               'string', 'int16', 'int16', 'int16', 'int16', 'int16', 'int16',
-                               'int16', 'string', 'int16', 'string', 'string', 'string', 'string',
-                               'string', 'string', 'string', 'int16', 'string', 'int16', 'string',
-                               'string', 'string', 'string', 'string', 'string', 'string']
+
+    taxibench_columns_types = ['int64', 'int64', 'timestamp', 'timestamp', 'string', 'int64',
+                               'float64', 'float64', 'float64', 'float64', 'int64', 'float64',
+                               'float64', 'float64', 'float64', 'float64', 'float64', 'float64',
+                               'float64', 'float64', 'int64', 'float64', 'string', 'string',
+                               'string', 'float64', 'int64', 'float64', 'int64', 'int64', 'float64',
+                               'float64', 'float64', 'float64', 'string', 'float64', 'float64', 'string',
+                               'string', 'string', 'float64', 'float64', 'float64', 'float64', 'string',
+                               'float64', 'float64', 'string', 'string', 'string', 'float64']
+
 
     db_reporter = None
     if args.db_user is not "":
@@ -172,6 +275,7 @@ try:
     args.dp = args.dp.replace("'", "")
     data_files_names = list(braceexpand(args.dp))
     data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
+
     data_files_number = len(data_files_names[:args.df])
 
     try:
@@ -209,17 +313,36 @@ try:
         print("Failed to access", taxibench_table_name, "table:", err)
 
     try:
+        if args.val:
+            df_pandas = validation_prereqs()
+
+            print("Validating input table for Ibis queries ...")
+
+            if df_pandas.equals(df.execute()):
+                print("Input tables are validated!")
+            else:
+                print("Input tables are not completely equal, unequal columns:")
+                for i in range(51):
+                    if not df_pandas[taxibench_columns_names[i]].equals(df[taxibench_columns_names[i]].execute()):
+                        print(taxibench_columns_names[i])
+                        if show_unvalidated_rows_for_input_tables:
+                            df1 = df_pandas[taxibench_columns_names[i]]
+                            df2 = df[taxibench_columns_names[i]].execute()
+                            df_diff = pd.concat([df1,df2]).drop_duplicates(keep=False)
+                            print("Columns difference \n", df_diff)
+
         with open(args.r, "w") as report:
             t_begin = time.time()
-            for bench_number in range(1,5):
-                exec_times = [None]*5
+            for query_number in range(0, 4):
+                exec_times = [None] * 5
                 best_exec_time = float("inf")
                 worst_exec_time = 0.0
                 first_exec_time = float("inf")
                 times_sum = 0.0
                 for iteration in range(1, args.i + 1):
-                    print("RUNNING QUERY NUMBER", bench_number, "ITERATION NUMBER", iteration)
-                    exec_times[iteration - 1] = int(round(queries_exec(bench_number) * 1000))
+                    print("Running query number:", query_number + 1, "Iteration number:", iteration)
+                    time_tmp = int(round(queries_list[query_number]() * 1000))
+                    exec_times[iteration - 1] = time_tmp
                     if iteration == 1:
                         first_exec_time = exec_times[iteration - 1]
                     if best_exec_time > exec_times[iteration - 1]:
@@ -228,28 +351,27 @@ try:
                         worst_exec_time = exec_times[iteration - 1]
                     if iteration != 1:
                         times_sum += exec_times[iteration - 1]
-                average_exec_time = times_sum/(args.i - 1)
-                total_exec_time = int(round((time.time() - t_begin)*1000))
-                print("QUERY", bench_number, "EXEC TIME MS", best_exec_time,
-                      "TOTAL TIME MS", total_exec_time)
-                print("FilesNumber: ", data_files_number,  ",",
+                average_exec_time = times_sum / (args.i - 1)
+                total_exec_time = int(round(time.time() - t_begin))
+                print("Query", query_number + 1, "Exec time (ms):", best_exec_time,
+                      "Total time (s):", total_exec_time)
+                print("QueryName: ", queries_description[query_number + 1], ",",
                       "IbisCommitHash", args.commit_ibis, ",",
-                      "QueryName: ",  'Query' + str(bench_number), ",",
                       "FirstExecTimeMS: ", first_exec_time, ",",
                       "WorstExecTimeMS: ", worst_exec_time, ",",
                       "BestExecTimeMS: ", best_exec_time, ",",
                       "AverageExecTimeMS: ", average_exec_time, ",",
+                      "QueryValidation: ", str(queries_validation_results['q%s' % (query_number + 1)]), ",",
                       "TotalTimeMS: ", total_exec_time, ",",
                       "", '\n', file=report, sep='', end='', flush=True)
                 if db_reporter is not None:
                     db_reporter.submit({
-                        'FilesNumber': data_files_number,
+                        'QueryName': queries_description[query_number + 1],
                         'IbisCommitHash': args.commit_ibis,
-                        'QueryName': 'Query' + str(bench_number),
                         'FirstExecTimeMS': first_exec_time,
                         'WorstExecTimeMS': worst_exec_time,
                         'BestExecTimeMS': best_exec_time,
-                        'AverageExecTimeMS': average_exec_time,
+                        'AverageExecTimeMS': str(queries_validation_results['q%s' % (query_number + 1)]),
                         'TotalTimeMS': total_exec_time
                     })
     except IOError as err:
