@@ -112,8 +112,9 @@ def q3():
 def q4():
     t_query = 0
     t0 = time.time()
+    # Ibis sort_by and Pandas sort_values methods function differently, sort_by arguments list was expanded to match Pandas query result
     q4_output_ibis = df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime'),
-                df.trip_distance.cast('int64').name('trip_distance')]).size().sort_by([('pickup_datetime', True), ('count', False)]).execute()
+                df.trip_distance.cast('int64').name('trip_distance')]).size().sort_by([('pickup_datetime', True), ('count', False), ('trip_distance', True), ('passenger_count', True)]).execute()
     t_query += time.time() - t0
     
     if args.val and not queries_validation_flags['q4']:
@@ -123,7 +124,10 @@ def q4():
        
         transformed = df_pandas[['passenger_count','pickup_datetime','trip_distance']].transform({'passenger_count':lambda x: x,'pickup_datetime':lambda x:  pd.DatetimeIndex(x).year,'trip_distance': lambda x: x.astype('int64', copy=False)}).groupby(['passenger_count','pickup_datetime','trip_distance'])
 
-        q4_output_pd = transformed.size().reset_index().sort_values(by=['pickup_datetime',0],ascending=[True,False])
+        # Ibis and Pandas size() methods functioning is different, additional sort_values() method was used in order to
+        # match queries output tables
+        q4_output_pd = transformed.size().reset_index().sort_values(by=['trip_distance', 'passenger_count']).sort_values(by=['pickup_datetime',0],ascending=[True,False])
+        print("q4_output_pd \n", q4_output_pd)
         
         # Casting of Pandas q4 output to Pandas.DataFrame type, which is compartible with
         # Ibis q4 output

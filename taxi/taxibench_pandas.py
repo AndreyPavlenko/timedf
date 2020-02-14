@@ -98,6 +98,9 @@ def q3(df):
 #         trips desc;
 def q4(df):
     transformed = df[['passenger_count','pickup_datetime','trip_distance']].transform({'passenger_count':lambda x: x,'pickup_datetime':lambda x:  pd.DatetimeIndex(x).year,'trip_distance': lambda x: x.astype('int64', copy=False)}).groupby(['passenger_count','pickup_datetime','trip_distance'])
+    
+    # Query version, which output matches taxibench_ibis.py query output
+    # return transformed.size().reset_index().sort_values(by=['trip_distance', 'passenger_count']).sort_values(by=['pickup_datetime',0],ascending=[True,False])
     return transformed.size().reset_index().sort_values(by=['pickup_datetime',0],ascending=[True,False])
 
 benchmarks = {
