@@ -262,6 +262,7 @@ try:
         db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user,
                                      passwd=args.db_pass, db=args.db_name)
         db_reporter = DbReport(db, args.db_table, {
+            'FilesNumber': 'INT UNSIGNED NOT NULL',
             'QueryName': 'VARCHAR(500) NOT NULL',
             'FirstExecTimeMS': 'BIGINT UNSIGNED',
             'WorstExecTimeMS': 'BIGINT UNSIGNED',
@@ -271,7 +272,7 @@ try:
             'QueryValidation': 'VARCHAR(500) NOT NULL',
             'IbisCommitHash': 'VARCHAR(500) NOT NULL'
         }, {
-            'ScriptName': 'santander_ibis.py',
+            'ScriptName': 'taxibench_ibis.py',
             'CommitHash': args.commit_omnisci
         })
 
@@ -353,7 +354,8 @@ try:
                 total_exec_time = int(round(time.time() - t_begin))
                 print("Query", query_number + 1, "Exec time (ms):", best_exec_time,
                       "Total time (s):", total_exec_time)
-                print("QueryName: ", queries_description[query_number + 1], ",",
+                print("FilesNumber: ": str(data_files_number), ",",
+                      "QueryName: ", queries_description[query_number + 1], ",",
                       "IbisCommitHash", args.commit_ibis, ",",
                       "FirstExecTimeMS: ", first_exec_time, ",",
                       "WorstExecTimeMS: ", worst_exec_time, ",",
@@ -364,6 +366,7 @@ try:
                       "", '\n', file=report, sep='', end='', flush=True)
                 if db_reporter is not None:
                     db_reporter.submit({
+                        'FilesNumber': str(data_files_number),
                         'QueryName': queries_description[query_number + 1],
                         'IbisCommitHash': args.commit_ibis,
                         'FirstExecTimeMS': first_exec_time,
