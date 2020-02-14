@@ -112,9 +112,9 @@ def q3():
 def q4():
     t_query = 0
     t0 = time.time()
-    # Ibis sort_by and Pandas sort_values methods function differently, sort_by arguments list was expanded to match Pandas query result
-    q4_output_ibis = df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime'),
-                df.trip_distance.cast('int64').name('trip_distance')]).size().sort_by([('pickup_datetime', True), ('count', False), ('trip_distance', True), ('passenger_count', True)]).execute()
+    q4_ibis_sized = df.groupby([df.passenger_count, df.pickup_datetime.year().name('pickup_datetime'),
+                                df.trip_distance.cast('int64').name('trip_distance')]).size()
+    q4_output_ibis = q4_ibis_sized.sort_by([('pickup_datetime', True), ('count', False)]).execute()
     t_query += time.time() - t0
     
     if args.val and not queries_validation_flags['q4']:
@@ -122,20 +122,30 @@ def q4():
         
         queries_validation_flags['q4'] = True
        
-        transformed = df_pandas[['passenger_count','pickup_datetime','trip_distance']].transform({'passenger_count':lambda x: x,'pickup_datetime':lambda x:  pd.DatetimeIndex(x).year,'trip_distance': lambda x: x.astype('int64', copy=False)}).groupby(['passenger_count','pickup_datetime','trip_distance'])
+        q4_pd_sized = df_pandas[['passenger_count','pickup_datetime','trip_distance']].transform({'passenger_count':lambda x: x,'pickup_datetime':lambda x:  pd.DatetimeIndex(x).year,'trip_distance': lambda x: x.astype('int64', copy=False)}).groupby(['passenger_count','pickup_datetime','trip_distance']).size().reset_index()
 
-        # Ibis and Pandas size() methods functioning is different, additional sort_values() method was used in order to
-        # match queries output tables
-        q4_output_pd = transformed.size().reset_index().sort_values(by=['trip_distance', 'passenger_count']).sort_values(by=['pickup_datetime',0],ascending=[True,False])
-        print("q4_output_pd \n", q4_output_pd)
-        
+        q4_output_pd = q4_pd_sized.sort_values(by=['pickup_datetime',0],ascending=[True,False])
+
         # Casting of Pandas q4 output to Pandas.DataFrame type, which is compartible with
         # Ibis q4 output
         q4_output_pd = q4_output_pd.astype({'pickup_datetime': 'int32'})
         q4_output_pd.columns = ['passenger_count', 'pickup_datetime', 'trip_distance', 'count']
         q4_output_pd.index = [i for i in range(len(q4_output_pd))]
         
-        queries_validation_results['q4'] = compare_tables(q4_output_pd, q4_output_ibis)
+        # compare_result_1 and compare_result_2 are the results of comparison of q4 sorted columns
+        compare_result_1 = compare_tables(q4_output_pd['pickup_datetime'], q4_output_ibis['pickup_datetime'])
+        compare_result_2 = compare_tables(q4_output_pd['count'], q4_output_ibis['count'])
+        
+        # compare_result_3 is the result of q4 output table all elements presence check
+        q4_output_ibis_validation = q4_ibis_sized.sort_by([('pickup_datetime', True), ('count', False), ('trip_distance', True), ('passenger_count', True)]).execute()
+        q4_output_pd_valid = q4_pd_sized.sort_values(by=['trip_distance', 'passenger_count']).sort_values(by=['pickup_datetime',0],ascending=[True,False])
+        q4_output_pd_valid = q4_output_pd_valid.astype({'pickup_datetime': 'int32'})
+        q4_output_pd_valid.columns = ['passenger_count', 'pickup_datetime', 'trip_distance', 'count']
+        q4_output_pd_valid.index = [i for i in range(len(q4_output_pd))]
+        
+        compare_result_3 = compare_tables(q4_output_pd_valid, q4_output_ibis_validation)
+        
+        queries_validation_results['q4'] = compare_result_1 and compare_result_2 and compare_result_3
         if queries_validation_results['q4']:
             print("q4 results are validated!")
     
@@ -158,7 +168,6 @@ omnisci_server = None
 queries_validation_results = {'q%s' % i: False for i in range(1, 5)}
 queries_validation_flags = {'q%s' % i: False for i in range(1, 5)}
 validation_prereqs_flag = False
-show_unvalidated_rows_for_input_tables = False
 
 parser = argparse.ArgumentParser(description='Run NY Taxi benchmark using Ibis.')
 
@@ -253,17 +262,17 @@ try:
         db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user,
                                      passwd=args.db_pass, db=args.db_name)
         db_reporter = DbReport(db, args.db_table, {
-            'FilesNumber': 'INT UNSIGNED NOT NULL',
             'QueryName': 'VARCHAR(500) NOT NULL',
             'FirstExecTimeMS': 'BIGINT UNSIGNED',
             'WorstExecTimeMS': 'BIGINT UNSIGNED',
             'BestExecTimeMS': 'BIGINT UNSIGNED',
             'AverageExecTimeMS': 'BIGINT UNSIGNED',
             'TotalTimeMS': 'BIGINT UNSIGNED',
+            'QueryValidation': 'VARCHAR(500) NOT NULL',
             'IbisCommitHash': 'VARCHAR(500) NOT NULL'
         }, {
-            'ScriptName': 'taxibench_ibis.py',
-            'CommitHash': args.commit_omnisci,
+            'ScriptName': 'santander_ibis.py',
+            'CommitHash': args.commit_omnisci
         })
 
     # Delete old table
@@ -319,21 +328,6 @@ try:
     try:
         if args.val:
             df_pandas = validation_prereqs()
-
-            print("Validating input table for Ibis queries ...")
-
-            if df_pandas.equals(df.execute()):
-                print("Input tables are validated!")
-            else:
-                print("Input tables are not completely equal, unequal columns:")
-                for i in range(51):
-                    if not df_pandas[taxibench_columns_names[i]].equals(df[taxibench_columns_names[i]].execute()):
-                        print(taxibench_columns_names[i])
-                        if show_unvalidated_rows_for_input_tables:
-                            df1 = df_pandas[taxibench_columns_names[i]]
-                            df2 = df[taxibench_columns_names[i]].execute()
-                            df_diff = pd.concat([df1,df2]).drop_duplicates(keep=False)
-                            print("Columns difference \n", df_diff)
 
         with open(args.r, "w") as report:
             t_begin = time.time()
