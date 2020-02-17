@@ -354,7 +354,7 @@ try:
                 total_exec_time = int(round(time.time() - t_begin))
                 print("Query", query_number + 1, "Exec time (ms):", best_exec_time,
                       "Total time (s):", total_exec_time)
-                print("FilesNumber: ": str(data_files_number), ",",
+                print("FilesNumber: ", str(data_files_number), ",",
                       "QueryName: ", queries_description[query_number + 1], ",",
                       "IbisCommitHash", args.commit_ibis, ",",
                       "FirstExecTimeMS: ", first_exec_time, ",",
