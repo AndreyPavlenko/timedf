@@ -39,3 +39,8 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
         return process, output
     except OSError as err:
         print("Failed to start", cmdline, err)
+
+
+def convertTypeIbis2Pandas(types):
+    types = ['string_' if (x == 'string') else x for x in types]
+    return types
