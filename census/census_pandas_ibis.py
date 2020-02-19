@@ -157,53 +157,6 @@ def etl_ibis(
     delete_old_database,
     create_new_table,
 ):
-    """dtypes = OrderedDict([
-    ('YEAR',             'int64')
-    ('DATANUM',          'int64')
-    ('SERIAL',           'int64')
-    ('CBSERIAL',       'float64')
-    'HHWT'             int64
-    CPI99          float64
-    GQ               int64
-    QGQ              int64
-    PERNUM           int64
-    PERWT            int64
-    SEX              int64
-    AGE              int64
-    EDUC             int64
-    EDUCD            int64
-    INCTOT           int64
-    SEX_HEAD       float64
-    SEX_MOM        float64
-    SEX_POP        float64
-    SEX_SP         float64
-    SEX_MOM2       float64
-    SEX_POP2       float64
-    AGE_HEAD       float64
-    AGE_MOM        float64
-    AGE_POP        float64
-    AGE_SP         float64
-    AGE_MOM2       float64
-    AGE_POP2       float64
-    EDUC_HEAD      float64
-    EDUC_MOM       float64
-    EDUC_POP       float64
-    EDUC_SP        float64
-    EDUC_MOM2      float64
-    EDUC_POP2      float64
-    EDUCD_HEAD     float64
-    EDUCD_MOM      float64
-    EDUCD_POP      float64
-    EDUCD_SP       float64
-    EDUCD_MOM2     float64
-    EDUCD_POP2     float64
-    INCTOT_HEAD    float64
-    INCTOT_MOM     float64
-    INCTOT_POP     float64
-    INCTOT_SP      float64
-    INCTOT_MOM2    float64
-    INCTOT_POP2    float64
-    ])"""
 
     etl_times = {
         "t_readcsv": 0.0,
