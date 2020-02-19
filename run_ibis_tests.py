@@ -219,6 +219,7 @@ try:
                                 '-db-table',
                                 args.db_table if args.db_table else 'census',
                                 f'-o={args.optimizer}',
+                                '-val',
                                 '-commit_omnisci', args.commit_omnisci,
                                 '-commit_ibis', args.commit_ibis]
 
@@ -255,7 +256,7 @@ try:
         conda_env.run(benchmarks_cmd[args.bench_name])
 
 except Exception as err:
-    print("Failed", err)
+    print("Failed: ", err)
     sys.exit(1)
 
 finally:
