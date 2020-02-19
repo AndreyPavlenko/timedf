@@ -99,6 +99,7 @@ try:
 
     os.environ["IBIS_TEST_OMNISCIDB_DATABASE"] = args.name
     os.environ["IBIS_TEST_DATA_DB"] = args.name
+    os.environ["IBIS_TEST_OMNISCIDB_PORT"] = str(args.omnisci_port)
 
     required_tasks = args.task.split(',')
     tasks = {}
