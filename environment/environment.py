@@ -75,9 +75,10 @@ class CondaEnvironment:
             execute_process(self._add_full_conda_execution(cmdline, env_name), cwd=cwd,
                             print_output=print_output)
         else:
+            print("CMD: ", " ".join(cmdline))
             _, _, return_code = run_command(Commands.RUN,
                                             self._add_conda_execution(cmdline, env_name),
                                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                             use_exception_handler=True)
             if return_code != 0:
-                raise Exception(f"Conda run returned {process.returncode}.")
+                raise Exception(f"Conda run returned {return_code}.")

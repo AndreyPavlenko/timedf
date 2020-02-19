@@ -17,7 +17,8 @@ parser._action_groups.append(optional)
 
 possible_tasks = ['build', 'test', 'benchmark']
 benchmarks = {'ny_taxi': os.path.join(omniscript_path, "taxi", "taxibench_ibis.py"),
-              'santander': os.path.join(omniscript_path, "santander", "santander_ibis.py")}
+              'santander': os.path.join(omniscript_path, "santander", "santander_ibis.py"),
+              'census': os.path.join(omniscript_path, "census", "census_pandas_ibis.py")}
 # Task
 required.add_argument("-t", "--task", dest="task", required=True,
                       help=f"Task for execute {possible_tasks}. Use , separator for multiple tasks")
@@ -51,8 +52,10 @@ optional.add_argument('-df', '--dfiles_num', dest="dfiles_num", default=1, type=
                       help="Number of datafiles to input into database for processing.")
 optional.add_argument('-dp', '--dpattern', dest="dpattern",
                       help="Wildcard pattern of datafiles that should be loaded.")
-optional.add_argument('-it', '--iters',  default=5, type=int, dest="iters",
+optional.add_argument('-it', '--iters', default=5, type=int, dest="iters",
                       help="Number of iterations to run every query. Best result is selected.")
+optional.add_argument('-o', '--optimizer', dest='optimizer', default='intel',
+                      help="Which optimizer is used. (For census only, it is ignored by others)")
 # MySQL database parameters
 optional.add_argument('-db-server', dest="db_server", default="localhost",
                       help="Host name of MySQL server.")
@@ -75,7 +78,7 @@ optional.add_argument("-w", "--workdir", dest="omnisci_cwd",
                       help="Path to omnisci working directory. "
                            "By default parent directory of executable location is used. "
                            "Data directory is used in this location.")
-optional.add_argument("-o", "--omnisci_port", dest="omnisci_port", default=6274, type=int,
+optional.add_argument("-port", "--omnisci_port", dest="omnisci_port", default=6274, type=int,
                       help="TCP port number to run omnisci_server on.")
 optional.add_argument("-u", "--user", dest="user", default="admin",
                       help="User name to use on omniscidb server.")
@@ -107,11 +110,13 @@ try:
         else:
             tasks[task] = False
     if not task_checker:
-        print(f"Only {list(tasks.keys())} are supported, {required_tasks} cannot find possible tasks")
+        print(
+            f"Only {list(tasks.keys())} are supported, {required_tasks} cannot find possible tasks")
         sys.exit(1)
 
     if args.python_version not in ['3.7', '3,6']:
-        print(f"Only 3.7 and 3.6 python versions are supported, {args.python_version} is not supported")
+        print(
+            f"Only 3.7 and 3.6 python versions are supported, {args.python_version} is not supported")
         sys.exit(1)
     ibis_requirements = os.path.join(args.ibis_path, "ci",
                                      f"requirements-{args.python_version}-dev.yml")
@@ -145,7 +150,8 @@ try:
 
     if tasks['benchmark']:
         if not args.bench_name or args.bench_name not in benchmarks.keys():
-            print(f"Benchmark {args.bench_name} is not supported, only {list(benchmarks.keys())} are supported")
+            print(
+                f"Benchmark {args.bench_name} is not supported, only {list(benchmarks.keys())} are supported")
             sys.exit(1)
 
         if not args.dpattern:
@@ -197,6 +203,28 @@ try:
 
         benchmarks_cmd['santander'] = santander_bench_cmdline
 
+        census_bench_cmdline = ['python3',
+                                benchmarks[args.bench_name],
+                                '-e', args.omnisci_executable,
+                                '-port', str(args.omnisci_port),
+                                '-db-port', str(args.db_port),
+                                '-f', f"'{args.dpattern}'",
+                                '-u', args.user,
+                                '-p', args.password,
+                                '-db-server', args.db_server,
+                                '-n', args.name,
+                                f'-db-user={args.db_user}',
+                                '-db-pass', args.db_password,
+                                '-db-name', args.db_name,
+                                '-db-table',
+                                args.db_table if args.db_table else 'census',
+                                f'-o={args.optimizer}',
+                                '-val',
+                                '-commit_omnisci', args.commit_omnisci,
+                                '-commit_ibis', args.commit_ibis]
+
+        benchmarks_cmd['census'] = census_bench_cmdline
+
     conda_env = CondaEnvironment(args.env_name)
 
     print("PREPARING ENVIRONMENT")
@@ -222,13 +250,13 @@ try:
 
         print("RUNNING TESTS")
         conda_env.run(ibis_tests_cmdline, cwd=args.ibis_path)
-    
+
     if tasks['benchmark']:
         print(f"RUNNING BENCHMARK {args.bench_name}")
         conda_env.run(benchmarks_cmd[args.bench_name])
-    
+
 except Exception as err:
-    print("Failed", err)
+    print("Failed: ", err)
     sys.exit(1)
 
 finally:
