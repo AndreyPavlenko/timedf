@@ -560,7 +560,7 @@ def main():
         "int64",
         "float64",
         "int64",
-        "int64",
+        "float64",
         "int64",
         "int64",
         "int64",
