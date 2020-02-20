@@ -347,7 +347,6 @@ try:
             'BestExecTimeMS': 'BIGINT UNSIGNED',
             'AverageExecTimeMS': 'BIGINT UNSIGNED',
             'TotalTimeMS': 'BIGINT UNSIGNED',
-            'QueryValidation': 'VARCHAR(500) NOT NULL',
             'IbisCommitHash': 'VARCHAR(500) NOT NULL'
         }, {
             'ScriptName': 'santander_ibis.py',
@@ -466,12 +465,12 @@ try:
                 if db_reporter is not None:
                     db_reporter.submit({
                         'QueryName': queries_description[query_number + 1],
-                        'IbisCommitHash': args.commit_ibis,
                         'FirstExecTimeMS': first_exec_time,
                         'WorstExecTimeMS': worst_exec_time,
                         'BestExecTimeMS': best_exec_time,
-                        'AverageExecTimeMS': str(queries_validation_results['q%s' % (query_number + 1)]),
-                        'TotalTimeMS': total_exec_time
+                        'AverageExecTimeMS': average_exec_time,
+                        'TotalTimeMS': total_exec_time * 1000,
+                        'IbisCommitHash': args.commit_ibis
                     })
     except IOError as err:
         print("Failed writing report file", args.r, err)
