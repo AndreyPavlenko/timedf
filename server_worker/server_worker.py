@@ -213,6 +213,6 @@ class OmnisciServerWorker:
                 print("Failed to create table:", err)
 
         self._conn.load_data(table_name=table_name, obj=pd_obj,
-                             database=self.omnisci_server.database_name)
+                             database=self.omnisci_server.database_name, method='columnar')
 
         return self._conn.database(self.omnisci_server.database_name).table(table_name)
