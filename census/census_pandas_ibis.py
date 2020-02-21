@@ -517,6 +517,11 @@ def main():
         default=200*1024*1024*1024,
         help="Size of memory to allocate for Ray plasma store"
     )
+    optional.add_argument(
+        "-no_ml",
+        action="store_true",
+        help="Do not run machine learning benchmark, only ETL part"
+    )
 
     args = parser.parse_args()
     args.file = args.file.replace("'", "")
@@ -650,12 +655,13 @@ def main():
             omnisci_server = None
             print_times(etl_times_ibis, name='Ibis')
 
-            mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
-                X_ibis, y_ibis, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
-            )
-            print_times(ml_times)
-            print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
-            print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
+            if not args.no_ml:
+                mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
+                    X_ibis, y_ibis, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
+                )
+                print_times(ml_times)
+                print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
+                print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
 
         import_pandas_into_module_namespace(main.__globals__,
                                             args.pandas_mode, args.ray_tmpdir, args.ray_memory)
@@ -663,12 +669,14 @@ def main():
             args.file, columns_names=columns_names, columns_types=columns_types
         )
         print_times(etl_times, name=args.pandas_mode)
-        mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
-            X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
-        )
-        print_times(ml_times)
-        print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
-        print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
+
+        if not args.no_ml:
+            mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
+                X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
+            )
+            print_times(ml_times)
+            print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
+            print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
 
         if args.val:
             compare_dataframes(ibis_df=(X_ibis, y_ibis), pandas_df=(X, y))
