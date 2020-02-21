@@ -7,12 +7,11 @@ import time
 import gzip
 import mysql.connector
 from timeit import default_timer as timer
-import pandas as pd
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from server import OmnisciServer
 from report import DbReport
-from server_worker import OmnisciServerWorker
+from utils import import_pandas_into_module_namespace
 
 warnings.filterwarnings("ignore")
 
@@ -37,12 +36,13 @@ def compare_dataframes(ibis_df, pandas_df):
 # Dataset link
 # https://rapidsai-data.s3.us-east-2.amazonaws.com/datasets/ipums_education2income_1970-2010.csv.gz
 def load_data(
-    filename, columns_names=None, columns_types=None, header=None, nrows=None
+        filename, columns_names=None, columns_types=None, header=None, nrows=None, gzip=False
 ):
     types = None
     if columns_types:
         types = {columns_names[i]: columns_types[i] for i in range(len(columns_names))}
-    with gzip.open(filename) as f:
+    open_method = gzip.open if gzip else open
+    with open_method(filename) as f:
         return pd.read_csv(
             f, names=columns_names, nrows=nrows, header=header, dtype=types
         )
@@ -61,7 +61,7 @@ def etl_pandas(filename, columns_names, columns_types):
 
     t0 = timer()
     df = load_data(filename=filename, columns_names=columns_names, columns_types=columns_types,
-                   header=0, nrows=None)
+                   header=0, nrows=None, gzip=filename.endswith(".gz"))
     etl_times["t_readcsv"] = timer() - t0
 
     t_etl_start = timer()
@@ -356,7 +356,6 @@ def ml(X, y, random_state, n_runs, train_size, optimizer):
 
     return mse_mean, cod_mean, mse_dev, cod_dev, ml_times
 
-
 def main():
     omniscript_path = os.path.dirname(__file__)
     args = None
@@ -388,6 +387,7 @@ def main():
     optional.add_argument(
         "-o",
         "--optimizer",
+        choices=["intel", "stock"],
         dest="optimizer",
         default="intel",
         help="Which optimizer is used",
@@ -436,7 +436,7 @@ def main():
         "-e",
         "--executable",
         dest="omnisci_executable",
-        required=True,
+        required=False,
         help="Path to omnisci_server executable.",
     )
     optional.add_argument(
@@ -495,6 +495,27 @@ def main():
         dest="commit_ibis",
         default="1234567890123456789012345678901234567890",
         help="Ibis commit hash to use for benchmark.",
+    )
+    optional.add_argument(
+        "-no_ibis",
+        action="store_true",
+        help="Do not run Ibis benchmark, run only Pandas (or Modin) version"
+    )
+    optional.add_argument(
+        "-pandas_mode",
+        choices=["pandas", "modin_on_ray", "modin_on_dask"],
+        default="pandas",
+        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask"
+    )
+    optional.add_argument(
+        "-ray_tmpdir",
+        default="/tmp",
+        help="Location where to keep Ray plasma store. It should have enough space to keep -ray_memory"
+    )
+    optional.add_argument(
+        "-ray_memory",
+        default=200*1024*1024*1024,
+        help="Size of memory to allocate for Ray plasma store"
     )
 
     args = parser.parse_args()
@@ -601,41 +622,47 @@ def main():
     ]
 
     try:
-        omnisci_server = OmnisciServer(
-            omnisci_executable=args.omnisci_executable,
-            omnisci_port=args.omnisci_port,
-            database_name=args.name,
-            user=args.user,
-            password=args.password,
-        )
-        omnisci_server.launch()
-        omnisci_server_worker = OmnisciServerWorker(omnisci_server)
+        if not args.no_ibis:
+            if args.omnisci_executable is None:
+                parser.error("Omnisci executable should be specified with -e/--executable")
+            omnisci_server = OmnisciServer(
+                omnisci_executable=args.omnisci_executable,
+                omnisci_port=args.omnisci_port,
+                database_name=args.name,
+                user=args.user,
+                password=args.password,
+            )
+            omnisci_server.launch()
+            from server_worker import OmnisciServerWorker
+            omnisci_server_worker = OmnisciServerWorker(omnisci_server)
 
-        X_ibis, y_ibis, etl_times_ibis = etl_ibis(
-            filename=args.file,
-            columns_names=columns_names,
-            columns_types=columns_types,
-            database_name=args.name,
-            table_name=args.table,
-            omnisci_server_worker=omnisci_server_worker,
-            delete_old_database=not args.dnd,
-            create_new_table=not args.dni,
-        )
-        omnisci_server.terminate()
-        omnisci_server = None
-        print_times(etl_times_ibis, name='Ibis')
+            X_ibis, y_ibis, etl_times_ibis = etl_ibis(
+                filename=args.file,
+                columns_names=columns_names,
+                columns_types=columns_types,
+                database_name=args.name,
+                table_name=args.table,
+                omnisci_server_worker=omnisci_server_worker,
+                delete_old_database=not args.dnd,
+                create_new_table=not args.dni,
+            )
+            omnisci_server.terminate()
+            omnisci_server = None
+            print_times(etl_times_ibis, name='Ibis')
 
-        mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
-            X_ibis, y_ibis, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
-        )
-        print_times(ml_times)
-        print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
-        print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
+            mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
+                X_ibis, y_ibis, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
+            )
+            print_times(ml_times)
+            print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
+            print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
 
+        import_pandas_into_module_namespace(main.__globals__,
+                                            args.pandas_mode, args.ray_tmpdir, args.ray_memory)
         X, y, etl_times = etl_pandas(
             args.file, columns_names=columns_names, columns_types=columns_types
         )
-        print_times(etl_times, name='Pandas')
+        print_times(etl_times, name=args.pandas_mode)
         mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
             X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
         )
