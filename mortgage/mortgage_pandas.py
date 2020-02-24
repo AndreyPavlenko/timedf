@@ -513,7 +513,6 @@ def main():
         })
 
     data_directory = args.dp
-    mb = MortgagePandasBenchmark(data_directory, args.algo)
     benchName = "mortgage_pandas"
 
     perf_data_path = os.path.join(data_directory, "perf")
@@ -530,6 +529,7 @@ def main():
         pd_dfs = []
         time_ETL = default_timer()
         exec_time_total = 0
+        mb = MortgagePandasBenchmark(data_directory, args.algo)
         print("RUNNING BENCHMARK NUMBER", benchName, "ITERATION NUMBER", iii)
         for quarter in range(0, args.df):
             year = 2000 + quarter // 4
