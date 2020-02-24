@@ -108,22 +108,30 @@ class OmnisciServerWorker:
                             columns_types, cast_dict=None, header=None, nrows=None):
         "Import CSV files using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
+        compression_type = None
         if columns_types:
             columns_types_pd = convertTypeIbis2Pandas(columns_types)
         t0 = time.time()
         if files_limit > 1:
+            if data_files_names[0].endswith('.gz'):
+                compression_type = 'gzip'
             pandas_df_from_each_file = (
                 self._read_csv_datafile(file_name, columns_names=columns_names,
                                         columns_types=columns_types_pd,
-                                        header=header, nrows=nrows)
+                                        header=header, compression_type=compression_type,
+                                        nrows=nrows)
                 for file_name in data_files_names[:files_limit])
             self._imported_pd_df[table_name] = pd.concat(pandas_df_from_each_file,
                                                          ignore_index=True)
         else:
+            if data_files_names.endswith('.gz'):
+                compression_type = 'gzip'
             self._imported_pd_df[table_name] = self._read_csv_datafile(data_files_names,
                                                                        columns_names=columns_names,
                                                                        columns_types=columns_types_pd,
-                                                                       header=header, nrows=nrows)
+                                                                       header=header,  compression_type=compression_type,
+                                                                       nrows=nrows)
+
         t_import_pandas = time.time() - t0
         if cast_dict is not None:
             pandas_concatenated_df_casted = self._imported_pd_df[table_name].astype(dtype=cast_dict,
