@@ -1,5 +1,6 @@
 channels:
   - conda-forge
+  - intel
 dependencies:
   - pytest-html
   - braceexpand
@@ -9,4 +10,8 @@ dependencies:
   - pandas>=1.0.0
   - pymapd>=0.12.0
   - xgboost
-  
+  - daal4py
+  - scikit-learn
+  - pip
+  - pip:
+    - HiYaPyCo

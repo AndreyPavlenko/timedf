@@ -1,7 +1,8 @@
 import argparse
 import subprocess
 import re
-
+import hiyapyco
+import os
 
 def str_arg_to_bool(v):
     if isinstance(v, bool):
@@ -15,15 +16,9 @@ def str_arg_to_bool(v):
 
 
 def combinate_requirements(ibis, ci, res):
-    with open(ibis) as f_ibis:
-        ibis_data = f_ibis.read()
-    with open(ci) as f_ci:
-        ci_data = f_ci.read()
+    merged_yaml = hiyapyco.load([ibis, ci], method=hiyapyco.METHOD_MERGE)
     with open(res, "w") as f_res:
-        for line in ci_data.split('\n'):
-            if line not in ibis_data:
-                ibis_data += line + '\n'
-        f_res.write(ibis_data)
+        hiyapyco.dump(merged_yaml, stream=f_res)
 
 
 def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=True):
@@ -44,3 +39,30 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
         return process, output
     except OSError as err:
         print("Failed to start", cmdline, err)
+
+
+def convertTypeIbis2Pandas(types):
+    types = ['string_' if (x == 'string') else x for x in types]
+    return types
+
+def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory):
+    if mode == 'pandas':
+        print("Running on Pandas")
+        import pandas as pd
+    else:
+        if mode == 'modin_on_ray':
+            import ray
+            if ray_tmpdir is None:
+                ray_tmpdir = "/tmp"
+            if ray_memory is None:
+                ray_memory = 200*1024*1024*1024
+            ray.init(huge_pages=False, plasma_directory=ray_tmpdir, memory=ray_memory, object_store_memory=ray_memory)
+            os.environ["MODIN_ENGINE"] = "ray"
+            print("Running on Ray on Pandas with tmp directory", ray_tmpdir, "and memory", ray_memory)
+        elif mode == 'modin_on_dask':
+            os.environ["MODIN_ENGINE"] = "dask"
+            print("Running on Dask")
+        else:
+            raise ValueError(f"Unknown pandas mode {mode}")
+        import modin.pandas as pd
+    namespace['pd'] = pd
