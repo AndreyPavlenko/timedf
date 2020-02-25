@@ -528,7 +528,6 @@ def main():
         dataFilesNumber = 0
         pd_dfs = []
         time_ETL = default_timer()
-        exec_time_total = 0
         mb = MortgagePandasBenchmark(data_directory, args.algo)
         print("RUNNING BENCHMARK NUMBER", benchName, "ITERATION NUMBER", iii)
         for quarter in range(0, args.df):
@@ -540,7 +539,8 @@ def main():
                  pd_dfs.append(mb.run_cpu_workflow(year=year, quarter=(quarter % 4 + 1),
                                                    perf_file=str(f)))
             dataFilesNumber += 1
-            time_ETL = default_timer() - time_ETL
+
+        time_ETL = default_timer() - time_ETL
         print("ITERATION", iii, "ETL TIME: ", time_ETL)
 
         if bestExecTime > time_ETL:
@@ -551,7 +551,7 @@ def main():
         if bestTotalTime > time_ETL:
             bestTotalTime = time_ETL
         if worstTotalTime < time_ETL:
-            bestTotalTime = time_ETL
+            worstTotalTime = time_ETL
         avgTotalTime += time_ETL
 
         print("t_readcsv = ", mb.t_read_csv)
