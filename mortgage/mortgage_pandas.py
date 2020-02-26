@@ -1,5 +1,3 @@
-# Derived from https://gitlab.devtools.intel.com/ml-architecture/rapids-response-e2e-workloads/blob/master/e2e/mortgage/mortgage_cpu.py
-
 import numpy as np
 import os
 import sys
