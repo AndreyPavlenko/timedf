@@ -36,12 +36,12 @@ def compare_dataframes(ibis_df, pandas_df):
 # Dataset link
 # https://rapidsai-data.s3.us-east-2.amazonaws.com/datasets/ipums_education2income_1970-2010.csv.gz
 def load_data(
-        filename, columns_names=None, columns_types=None, header=None, nrows=None, gzip=False
+        filename, columns_names=None, columns_types=None, header=None, nrows=None, use_gzip=False
 ):
     types = None
     if columns_types:
         types = {columns_names[i]: columns_types[i] for i in range(len(columns_names))}
-    open_method = gzip.open if gzip else open
+    open_method = gzip.open if use_gzip else open
     with open_method(filename) as f:
         return pd.read_csv(
             f, names=columns_names, nrows=nrows, header=header, dtype=types
@@ -61,7 +61,7 @@ def etl_pandas(filename, columns_names, columns_types):
 
     t0 = timer()
     df = load_data(filename=filename, columns_names=columns_names, columns_types=columns_types,
-                   header=0, nrows=None, gzip=filename.endswith(".gz"))
+                   header=0, nrows=None, use_gzip=filename.endswith(".gz"))
     etl_times["t_readcsv"] = timer() - t0
 
     t_etl_start = timer()
