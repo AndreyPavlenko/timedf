@@ -398,7 +398,6 @@ try:
     # Since OmniSciDB doesn't support JOIN operation for tables with non-integer
     # values, tables for filter and split queries were reproduced by Pandas (as it
     # it was done in the similar Pandas benchmark
-    # https://gitlab.devtools.intel.com/jianminl/rapids-response-e2e-workloads/blob/master/e2e/santander/santander_cpu.py)
 
     train_pd = omnisci_server_worker.get_pd_df(table_name=train_table_name)
 
