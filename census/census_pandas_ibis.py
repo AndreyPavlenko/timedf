@@ -41,11 +41,8 @@ def load_data(
     types = None
     if columns_types:
         types = {columns_names[i]: columns_types[i] for i in range(len(columns_names))}
-    open_method = gzip.open if use_gzip else open
-    with open_method(filename) as f:
-        return pd.read_csv(
-            f, names=columns_names, nrows=nrows, header=header, dtype=types
-        )
+    return pd.read_csv(filename, names=columns_names, nrows=nrows, header=header, dtype=types,
+                       compression='gzip' if use_gzip else None)
 
 
 def etl_pandas(filename, columns_names, columns_types):
