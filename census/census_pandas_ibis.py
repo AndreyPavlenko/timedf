@@ -266,9 +266,10 @@ def etl_ibis(
         table = table.set_column(column, table[column].cast("float64"))
         etl_times["t_typeconvert"] += timer() - t0
 
-    y = table["EDUC"].execute()
+    df = table.execute()
+    y = df["EDUC"]
     t0 = timer()
-    X = table.drop(["EDUC"]).execute()
+    X = df.drop(["EDUC"], axis=1)
     etl_times["t_drop"] += timer() - t0
 
     etl_times["t_etl"] = timer() - t_etl_start
