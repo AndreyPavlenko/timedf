@@ -90,7 +90,7 @@ def q2(df):
 #         year;
 def q3(df):
     transformed = df[["passenger_count", "pickup_datetime"]].assign(
-        pickup_datetime=df["pickup_datetime"].apply(lambda x: pd.to_datetime(x).year)
+        pickup_datetime=df["pickup_datetime"].apply(lambda x: x.year)
     )
     return transformed.groupby(["passenger_count", "pickup_datetime"]).count()[
         "passenger_count"
@@ -111,14 +111,12 @@ def q4(df):
     transformed = (
         df[["passenger_count", "pickup_datetime", "trip_distance"]]
         .assign(
-          pickup_datetime=df["pickup_datetime"].apply(lambda x: pd.to_datetime(x)),
-          trip_distance=df["trip_distance"].apply(int)
+            pickup_datetime=df["pickup_datetime"].apply(lambda x: x.year),
+            trip_distance=df["trip_distance"].apply(int),
         )
         .groupby(["passenger_count", "pickup_datetime", "trip_distance"])
     )
-    return (
-        transformed.count()
-    )
+    return transformed.count()
 
 
 benchmarks = {"MQ01.pd": q1, "MQ02.pd": q2, "MQ03.pd": q3, "MQ04.pd": q4}
@@ -222,7 +220,13 @@ dataFilesNumber = len(dataFileNames[: args.df])
 
 def read_datafile(f):
     print("READING DATAFILE", f)
-    return pd.read_csv(f, compression="gzip", header=None, names=taxi_names)
+    return pd.read_csv(
+        f,
+        compression="gzip",
+        header=None,
+        names=taxi_names,
+        parse_dates=["pickup_datetime", "dropoff_datetime",],
+    )
 
 
 df_from_each_file = (read_datafile(f) for f in dataFileNames[: args.df])
