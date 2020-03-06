@@ -10,59 +10,59 @@ if __name__ == "__main__":
   import sys
   import os
 
-  taxi_names = [
-      "trip_id",
-      "vendor_id",
-      "pickup_datetime",
-      "dropoff_datetime",
-      "store_and_fwd_flag",
-      "rate_code_id",
-      "pickup_longitude",
-      "pickup_latitude",
-      "dropoff_longitude",
-      "dropoff_latitude",
-      "passenger_count",
-      "trip_distance",
-      "fare_amount",
-      "extra",
-      "mta_tax",
-      "tip_amount",
-      "tolls_amount",
-      "ehail_fee",
-      "improvement_surcharge",
-      "total_amount",
-      "payment_type",
-      "trip_type",
-      "pickup",
-      "dropoff",
-      "cab_type",
-      "precipitation",
-      "snow_depth",
-      "snowfall",
-      "max_temperature",
-      "min_temperature",
-      "average_wind_speed",
-      "pickup_nyct2010_gid",
-      "pickup_ctlabel",
-      "pickup_borocode",
-      "pickup_boroname",
-      "pickup_ct2010",
-      "pickup_boroct2010",
-      "pickup_cdeligibil",
-      "pickup_ntacode",
-      "pickup_ntaname",
-      "pickup_puma",
-      "dropoff_nyct2010_gid",
-      "dropoff_ctlabel",
-      "dropoff_borocode",
-      "dropoff_boroname",
-      "dropoff_ct2010",
-      "dropoff_boroct2010",
-      "dropoff_cdeligibil",
-      "dropoff_ntacode",
-      "dropoff_ntaname",
-      "dropoff_puma",
-  ]
+taxi_names = [
+    "trip_id",
+    "vendor_id",
+    "pickup_datetime",
+    "dropoff_datetime",
+    "store_and_fwd_flag",
+    "rate_code_id",
+    "pickup_longitude",
+    "pickup_latitude",
+    "dropoff_longitude",
+    "dropoff_latitude",
+    "passenger_count",
+    "trip_distance",
+    "fare_amount",
+    "extra",
+    "mta_tax",
+    "tip_amount",
+    "tolls_amount",
+    "ehail_fee",
+    "improvement_surcharge",
+    "total_amount",
+    "payment_type",
+    "trip_type",
+    "pickup",
+    "dropoff",
+    "cab_type",
+    "precipitation",
+    "snow_depth",
+    "snowfall",
+    "max_temperature",
+    "min_temperature",
+    "average_wind_speed",
+    "pickup_nyct2010_gid",
+    "pickup_ctlabel",
+    "pickup_borocode",
+    "pickup_boroname",
+    "pickup_ct2010",
+    "pickup_boroct2010",
+    "pickup_cdeligibil",
+    "pickup_ntacode",
+    "pickup_ntaname",
+    "pickup_puma",
+    "dropoff_nyct2010_gid",
+    "dropoff_ctlabel",
+    "dropoff_borocode",
+    "dropoff_boroname",
+    "dropoff_ct2010",
+    "dropoff_boroct2010",
+    "dropoff_cdeligibil",
+    "dropoff_ntacode",
+    "dropoff_ntaname",
+    "dropoff_puma",
+]
 
   # SELECT cab_type,
   #       count(*)
@@ -90,10 +90,8 @@ if __name__ == "__main__":
   # GROUP BY passenger_count,
   #         year;
   def q3(df):
-      transformed = df[["passenger_count"]].assign(
-          pickup_datetime=df["pickup_datetime"].apply(lambda x: x.year)
-      )
-      return transformed.groupby("pickup_datetime").max()["passenger_count"].iloc[-10**10:]
+      transformed = df.applymap(lambda x: x.year if hasattr(x, "year") else x)
+      return transformed.groupby(["pickup_datetime", "passenger_count"]).max()
 
 
   # SELECT passenger_count,
@@ -107,15 +105,15 @@ if __name__ == "__main__":
   # ORDER BY year,
   #         trips desc;
   def q4(df):
-      transformed = (
-          df[["passenger_count"]]
-          .assign(
-              pickup_datetime=df["pickup_datetime"].apply(lambda x: x.year),
-              trip_distance=df["trip_distance"].apply(int),
-          )
-          .groupby("trip_distance")
-      )
-      return transformed.count()
+    transformed = (
+        df[["passenger_count"]]
+        .assign(
+            pickup_datetime=df["pickup_datetime"].apply(lambda x: x.year),
+            trip_distance=df["trip_distance"].apply(round),
+        )
+        .groupby("trip_distance")
+    )
+    return transformed.sum()[["passenger_count"]]
 
 
   benchmarks = {"MQ01.pd": q1, "MQ02.pd": q2, "MQ03.pd": q3, "MQ04.pd": q4}
@@ -207,34 +205,30 @@ if __name__ == "__main__":
           {"ScriptName": "taxibench_pandas.py", "CommitHash": args.commit},
       )
 
+  print("READING", args.df, "DATAFILES")
+  dataFilesNumber = len(dataFileNames[: args.df])
   dataFileNames = list(braceexpand(args.dp))
   dataFileNames = sorted([x for f in dataFileNames for x in glob.glob(f)])
   if len(dataFileNames) == 0:
       print("Could not find any data files matching", args.dp)
       sys.exit(2)
-
+  
   print("READING", args.df, "DATAFILES")
-  dataFilesNumber = len(dataFileNames[: args.df])
-
+  dataFilesNumber = len(dataFileNames[:args.df])
+  
   def read_datafile(f):
       print("READING DATAFILE", f)
-      return pd.read_csv(
+      t1 = time.time()
+      result = pd.read_csv(
           f,
           header=None,
           names=taxi_names,
           parse_dates=["pickup_datetime", "dropoff_datetime",],
       )
-
-  def time_data_loading(f):
-    df_from_each_file = read_datafile(f)
-    return df_from_each_file
-
-  files = ["trips_xaa_1K.csv"]
-
-  t1 = time.time()
-  df_from_each_file = [time_data_loading(f) for f in files]
-  t2 = time.time()
-  print("Time to load data: {}".format(t2 - t1))
+      t2 = time.time()
+      print("Time to load {} datafile: {}".format(f, t2 - t1))
+      return result
+  df_from_each_file = [read_datafile(f) for f in dataFileNames[:args.df]]
 
   t1 = time.time()
   concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
