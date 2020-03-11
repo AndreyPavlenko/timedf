@@ -7,9 +7,11 @@ import time
 import gzip
 import mysql.connector
 from timeit import default_timer as timer
+import ibis
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from server import OmnisciServer
+from server_worker import OmnisciServerWorker
 from report import DbReport
 from utils import import_pandas_into_module_namespace, execute_process
 
@@ -41,7 +43,7 @@ def compare_dataframes(ibis_df, pandas_df):
         diff = {}
         for i in range(len(ibis_df)):
             print("Checking DataFrames values " + str(i + 1) + "/4 ...")
-            diff_df = pandas_df[i] - ibis_df[i]
+            diff_df = ibis_df[i] - pandas_df[i]
             if (len(diff_df.shape) > 1):
                 diff['DataFrame %s max deviation' % str(i + 1)] = diff_df.max().max()
                 diff['DataFrame %s min deviation' % str(i + 1)] = diff_df.min().min()
@@ -53,6 +55,7 @@ def compare_dataframes(ibis_df, pandas_df):
         for dev_type, value in diff.items():
             print(dev_type, ':', value)
         return False
+    
 
 # Dataset link
 # https://www.kaggle.com/c/santander-customer-transaction-prediction/data
@@ -122,10 +125,8 @@ def etl_pandas(filename, columns_names, columns_types):
 
     # train, test data split
     t0 = timer()
-    #train,valid = train_pd[:-10000],train_pd[-10000:]
-    train,valid = train_pd[0:500], train_pd[500:600]
+    train,valid = train_pd[:-10000],train_pd[-10000:]
     etl_times["t_train_test_split"] = timer() - t0
-
 
     t0 = timer()
     x_train = train.drop(['target','ID_code'],axis=1)
@@ -149,7 +150,7 @@ def etl_ibis(
     columns_types,
     database_name,
     table_name,
-    omnisci_server_worker,
+    args,
     delete_old_database,
     create_new_table,
 ):
@@ -187,9 +188,21 @@ def etl_ibis(
         "t_train_test_split": 0.0,
         "t_etl": 0.0,
     }
+    
+    
+    omnisci_server = OmnisciServer(
+            omnisci_executable=args.omnisci_executable,
+            omnisci_port=args.omnisci_port,
+            database_name=args.name,
+            user=args.user,
+            password=args.password,
+            debug_timer=True
+    )
 
-    import ibis
+    omnisci_server.launch()
 
+    omnisci_server_worker = OmnisciServerWorker(omnisci_server)
+    
     time.sleep(2)
     conn_ipc = omnisci_server_worker.ipc_connect_to_server()
     conn = omnisci_server_worker.connect_to_server()
@@ -208,6 +221,7 @@ def etl_ibis(
             columns_types=columns_types_import_query,
             header=0,
             nrows=None,
+            compression_type=None
         )
     
     etl_times["t_readcsv_by_ibis"] = t_import_pandas + t_import_ibis
@@ -231,7 +245,6 @@ def etl_ibis(
     
     # Create table and import data for ETL queries
     if create_new_table:
-        omnisci_server_worker.drop_table(table_name)
         # Datafiles import
         omnisci_server_worker.import_data_by_ibis(
             table_name=table_name,
@@ -241,88 +254,61 @@ def etl_ibis(
             columns_types=columns_types,
             header=0,
             nrows=None,
+            compression_type=None
         )
-    db = conn.database(database_name) # db = conn_ipc.database(database_name) doesn't work
+    db = conn_ipc.database(database_name)
+    #db = conn.database(database_name)
     table = db.table(table_name)
 
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding
     # nested sql requests
     
-    
     t0 = timer()
     count_cols = []
     gt1_cols = []
+    table_query = table['ID_code', 'target']
     for i in range(200):
         col = 'var_%d' % i
         col_count = 'var_%d_count' % i
+        col_gt1 = 'var_%d_gt1' % i
         w = ibis.window(group_by=col)
+        table_query = table_query.mutate(table[col].cast("float32").name(col))
         count_cols.append(table[col].count().over(w).name(col_count))
         gt1_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
-                                         table[col]).else_(ibis.null()).end().name('var_%d_gt1' % i))
+                                         table[col].cast("float32")).else_(ibis.null()).end().name(col_gt1))
 
-    table = table.mutate(count_cols)
-    table = table.mutate(gt1_cols)
-    
-    '''
-    count_cols = []
-    orig_cols = []
-    gt1_cols = []
-    cast_cols = []
-    
-    t0 = timer()
-    for i in range(200):
-        col = 'var_%d' % i
-        col_count = 'var_%d_count' % i
-        w = ibis.window(group_by=col)
-        count_cols.append(table[col].count().over(w).name(col_count))
-        count_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
-                                        table[col].cast("float32")).else_(ibis.null()).end().name('var_%d_gt1' % i))
-        cast_cols.append(table[col].cast("float32").name(col))
+    table_query = table_query.mutate(count_cols)
+    table_query = table_query.mutate(gt1_cols)
 
-        
-    for i in range(200):
-        col = 'var_%d' % i
-        orig_cols.append(col)
-
-    
-    table = table.mutate(count_cols)
-    table = table.drop(orig_cols)
-    table = table.mutate(cast_cols)
-    '''
-
-    table_df = table.execute()
+    table_df = table_query.execute()
     etl_times["t_groupby_merge_where"] = timer() - t0
-    table_df = table_df.rename(columns={"rowid": "rowid0"})
     
     # rows split query
     t0 = timer()
-    #training_part = table_final[190000:190000].execute()
-    #validation_part = table_final[10000:200000].execute()
-    #training_part, validation_part = table_df[:-10000], table_df[-10000:]
-    training_part, validation_part = table_df[0:500], table_df[500:600]
+    training_part, validation_part = table_df[:-10000], table_df[-10000:]
     etl_times["t_train_test_split"] = timer() - t0
     
     etl_times["t_etl"] = etl_times["t_groupby_merge_where"] + etl_times["t_train_test_split"]
-    print("training_part \n", training_part)
     
     x_train = training_part.drop(['target','ID_code'],axis=1)
     y_train = training_part['target']
     x_valid = validation_part.drop(['target','ID_code'],axis=1)
     y_valid = validation_part['target']
-
+    
+    omnisci_server.terminate()
+    omnisci_server = None
+    
     return x_train, y_train, x_valid, y_valid, etl_times
-
+    
 def print_times(etl_times, name=None):
     if name:
         print(f"{name} times:")
     for time_name, time in etl_times.items():
         print("{} = {:.5f} s".format(time_name, time))
 
-
 def mse(y_test, y_pred):
     return ((y_test - y_pred) ** 2).mean()
-
 
 def cod(y_test, y_pred):
     y_bar = y_test.mean()
@@ -370,9 +356,6 @@ def ml(x_train, y_train, x_valid, y_valid):
 
     score_mse = mse(y_valid, yp)
     score_cod = cod(y_valid, yp)
-    print('Scores: ')
-    print('  mse = ', score_mse)
-    print('  cod = ', score_cod)
     
     ml_times["t_ML"] += ml_times["t_train"] + ml_times["t_inference"]
     
@@ -564,6 +547,19 @@ def main():
         action="store_true",
         help="Do not run machine learning benchmark, only ETL part"
     )
+    optional.add_argument(
+        "-i",
+        "--iterations",
+        dest="iterations",
+        default=1,
+        type=int,
+        help="Number of iterations to run every query. Best result is selected.",
+    )
+    optional.add_argument(
+        "-r",
+        default="report_santander_pandas_ibis.csv",
+        help="Report file name."
+    )
 
     args = parser.parse_args()
     args.file = args.file.replace("'", "")
@@ -579,83 +575,82 @@ def main():
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
     columns_types_ibis = ["string", "int64"] + ["decimal(8, 4)" for _ in range(200)]
 
-    #try:
-    if not args.no_ibis:
-        if args.omnisci_executable is None:
-            parser.error("Omnisci executable should be specified with -e/--executable")
-        omnisci_server = OmnisciServer(
-            omnisci_executable=args.omnisci_executable,
-            omnisci_port=args.omnisci_port,
-            database_name=args.name,
-            user=args.user,
-            password=args.password,
-        )
-        omnisci_server.launch()
-        from server_worker import OmnisciServerWorker
-        omnisci_server_worker = OmnisciServerWorker(omnisci_server)
+    try:
+        if not args.no_ibis:
+            if args.omnisci_executable is None:
+                parser.error("Omnisci executable should be specified with -e/--executable")
 
-        x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis = etl_ibis(
-            filename=args.file,
-            columns_names=columns_names,
-            columns_types=columns_types_ibis,
-            database_name=args.name,
-            table_name=args.table,
-            omnisci_server_worker=omnisci_server_worker,
-            delete_old_database=not args.dnd,
-            create_new_table=not args.dni,
-        )
-        omnisci_server.terminate()
-        omnisci_server = None
-        print_times(etl_times_ibis, name='Ibis')
+            etl_times_ibis = {}
+            for iteration in range(args.iterations):
+                print("Running etl_ibis, iteration", iteration + 1)
+                x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis_cur = etl_ibis(
+                    filename=args.file,
+                    columns_names=columns_names,
+                    columns_types=columns_types_ibis,
+                    database_name=args.name,
+                    table_name=args.table,
+                    args=args,
+                    delete_old_database=not args.dnd,
+                    create_new_table=not args.dni,
+                )
+
+                for key, value in etl_times_ibis_cur.items():
+                    if iteration == 0:
+                        etl_times_ibis[key] = float("inf")
+
+                    if etl_times_ibis[key] > value:
+                        etl_times_ibis[key] = value
+
+
+            print_times(etl_times_ibis, name='Ibis')
+
+        import_pandas_into_module_namespace(main.__globals__,
+                                            args.pandas_mode, args.ray_tmpdir, args.ray_memory)
+
+        etl_times_pandas = {}
+        for iteration in range(args.iterations):
+            print("Running etl_pandas, iteration", iteration + 1)
+            x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas, etl_times_pandas_cur = etl_pandas(
+                args.file,
+                columns_names=columns_names,
+                columns_types=columns_types_pd
+            )
+
+            for key, value in etl_times_pandas_cur.items():
+                if iteration == 0:
+                    etl_times_pandas[key] = float("inf")
+
+                if etl_times_pandas[key] > value:
+                    etl_times_pandas[key] = value
+
+        print_times(etl_times_pandas, name=args.pandas_mode)
 
         if not args.no_ml:
-            score_mse_ibis, score_cod_ibis, ml_times_ibis = ml(x_train_ibis,
-                                                               y_train_ibis,
-                                                               x_valid_ibis,
-                                                               y_valid_ibis)
-            print_times(ml_times_pandas)
+            score_mse_pandas, score_cod_pandas, ml_times_pandas = ml(x_train_pandas,
+                                                                     y_train_pandas,
+                                                                     x_valid_pandas,
+                                                                     y_valid_pandas)
             print('Scores with etl_pandas ML inputs: ')
-            print('  mse = ', score_mse_ibis)
-            print('  cod = ', score_cod_ibis)
+            print('  mse = ', score_mse_pandas)
+            print('  cod = ', score_cod_pandas)
+            print_times(ml_times_pandas)
 
-    import_pandas_into_module_namespace(main.__globals__,
-                                        args.pandas_mode, args.ray_tmpdir, args.ray_memory)
-    x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas, etl_times_pandas = etl_pandas(
-        args.file,
-        columns_names=columns_names,
-        columns_types=columns_types_pd
-    )
-    print_times(etl_times_pandas, name=args.pandas_mode)
+        if args.val:
+            #x_train_ibis = x_train_ibis.drop(['rowid0'],axis=1)
+            #x_valid_ibis = x_valid_ibis.drop(['rowid0'],axis=1)
+            cast_dict = {"var_%s"%i: "float64" for i in range(200)}
+            cast_dict.update({"var_%s_gt1"%i: "float64" for i in range(200)})
+            x_train_ibis = x_train_ibis.astype(dtype=cast_dict)
+            x_valid_ibis = x_valid_ibis.astype(dtype=cast_dict)
+            compare_dataframes(ibis_df=(x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis),
+                               pandas_df=(x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas))
 
-    if not args.no_ml:
-        score_mse_pandas, score_cod_pandas, ml_times_pandas = ml(x_train_pandas,
-                                                                 y_train_pandas,
-                                                                 x_valid_pandas,
-                                                                 y_valid_pandas)
-        print_times(ml_times_pandas)
-        print('Scores with etl_ibis ML inputs: ')
-        print('  mse = ', score_mse_pandas)
-        print('  cod = ', score_cod_pandas)
-
-    if args.val:
-        #validation(x_train_ibis, x_train_pandas, x_valid_ibis, x_valid_pandas)
-        
-        x_train_ibis = x_train_ibis.drop(['rowid0'],axis=1)
-        x_valid_ibis = x_valid_ibis.drop(['rowid0'],axis=1)
-        cast_dict = {"var_%s"%i: "float64" for i in range(200)}
-        cast_dict.update({"var_%s_gt1"%i: "float64" for i in range(200)})
-        x_train_ibis = x_train_ibis.astype(dtype=cast_dict)
-        x_valid_ibis = x_valid_ibis.astype(dtype=cast_dict)
-        compare_dataframes(ibis_df=(x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis),
-                           pandas_df=(x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas))
-        
-    #except Exception as err:
-        #print("Failed: ", err)
-        #sys.exit(1)
-    #finally:
-        #if omnisci_server:
-            #omnisci_server.terminate()
-
+    except Exception as err:
+        print("Failed: ", err)
+        sys.exit(1)
+    finally:
+        if omnisci_server:
+            omnisci_server.terminate()
 
 if __name__ == "__main__":
     main()
