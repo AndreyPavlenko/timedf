@@ -266,10 +266,9 @@ def etl_ibis(
         table = table.set_column(column, table[column].cast("float64"))
         etl_times["t_typeconvert"] += timer() - t0
 
-    df = table.execute()
-    y = df["EDUC"]
+    y = table["EDUC"].execute()
     t0 = timer()
-    X = df.drop(["EDUC"], axis=1)
+    X = table.drop(["EDUC"]).execute()
     etl_times["t_drop"] += timer() - t0
 
     etl_times["t_etl"] = timer() - t_etl_start
@@ -281,12 +280,21 @@ def etl_ibis(
     return X, y, etl_times
 
 
-def print_times(etl_times, name=None):
+def print_times(etl_times, db_reporter=None, name=None):
     if name:
         print(f"{name} times:")
     for time_name, time in etl_times.items():
         print("{} = {:.5f} s".format(time_name, time))
-
+        if db_reporter is not None:
+            db_reporter.submit({
+                'QueryName': time_name,
+                'FirstExecTimeMS': time*1000,
+                'WorstExecTimeMS': time*1000,
+                'BestExecTimeMS': time*1000,
+                'AverageExecTimeMS': time*1000,
+                'TotalTimeMS': time*1000,
+                'BackEnd': name
+            })
 
 def mse(y_test, y_pred):
     return ((y_test - y_pred) ** 2).mean()
@@ -414,7 +422,7 @@ def main():
     )
     optional.add_argument(
         "-db-pass",
-        dest="db_password",
+        dest="db_pass",
         default="omniscidb",
         help="Password to use to connect to MySQL database.",
     )
@@ -639,6 +647,26 @@ def main():
             from server_worker import OmnisciServerWorker
             omnisci_server_worker = OmnisciServerWorker(omnisci_server)
 
+            db_reporter = None
+            if args.db_user is not "":
+                print("Connecting to database")
+                db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user,
+                                             passwd=args.db_pass, db=args.db_name)
+                db_reporter = DbReport(db, args.db_table, {
+                    'QueryName': 'VARCHAR(500) NOT NULL',
+                    'FirstExecTimeMS': 'BIGINT UNSIGNED',
+                    'WorstExecTimeMS': 'BIGINT UNSIGNED',
+                    'BestExecTimeMS': 'BIGINT UNSIGNED',
+                    'AverageExecTimeMS': 'BIGINT UNSIGNED',
+                    'TotalTimeMS': 'BIGINT UNSIGNED',
+                    'IbisCommitHash': 'VARCHAR(500) NOT NULL',
+                    'BackEnd': 'VARCHAR(100) NOT NULL'
+                }, {
+                    'ScriptName': 'census_pandas_ibis.py',
+                    'CommitHash': args.commit_omnisci,
+                    'IbisCommitHash': args.commit_ibis
+                })
+                
             X_ibis, y_ibis, etl_times_ibis = etl_ibis(
                 filename=args.file,
                 columns_names=columns_names,
@@ -651,7 +679,7 @@ def main():
             )
             omnisci_server.terminate()
             omnisci_server = None
-            print_times(etl_times_ibis, name='Ibis')
+            print_times(etl_times_ibis, db_reporter, name='Ibis')
 
             if not args.no_ml:
                 mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
@@ -666,7 +694,7 @@ def main():
         X, y, etl_times = etl_pandas(
             args.file, columns_names=columns_names, columns_types=columns_types
         )
-        print_times(etl_times, name=args.pandas_mode)
+        print_times(etl_times, db_reporter, name=args.pandas_mode)
 
         if not args.no_ml:
             mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
