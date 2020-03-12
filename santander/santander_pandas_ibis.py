@@ -42,7 +42,6 @@ def compare_dataframes(ibis_df, pandas_df):
         print("Tables are not equal:")
         diff = {}
         for i in range(len(ibis_df)):
-            print("Checking DataFrames values " + str(i + 1) + "/4 ...")
             diff_df = ibis_df[i] - pandas_df[i]
             if (len(diff_df.shape) > 1):
                 diff['DataFrame %s max deviation' % str(i + 1)] = diff_df.max().max()
@@ -55,6 +54,35 @@ def compare_dataframes(ibis_df, pandas_df):
         for dev_type, value in diff.items():
             print(dev_type, ':', value)
         return False
+    
+def query_measurement(query_name, query_args, iterations_number):
+    
+    meas_results = {}
+    times_sum = {}
+    t_begin = timer()
+    exec_times = [None] * iterations_number
+
+    for iteration in range(1, iterations_number + 1):
+        
+        cur_results = query_name()
+        for key, value in cur_results.items():
+            
+            meas_results[key]['best_exec_time'] = float("inf")
+            meas_results[key]['worst_exec_time'] = 0.0
+            meas_results[key]['first_exec_time'] = float("inf")
+            meas_results[key]['times_sum'] = 0.0
+            
+            if iteration == 1:
+                meas_results[key]['first_exec_time'] = value
+            if meas_results[key]['best_exec_time'] > value:
+                meas_results[key]['best_exec_time'] = value
+            if meas_results[key]['worst_exec_time'] < value:
+                meas_results[key]['worst_exec_time'] = value
+                
+            times_sum[key] += value
+            meas_results[key]['average_exec_time'] = times_sum[key] / iterations_number
+        
+    return meas_results
     
 
 # Dataset link
@@ -380,6 +408,20 @@ def validation(train_ibis, train_pd, valid_ibis, valid_pd):
     queries_validation_results = validation_result1 and validation_result2
     if queries_validation_results:
         print("Queries results are validated!")
+        
+def submit_results_to_db(db_reporter, args, backend, results):
+    for key, value in results.items():
+        db_reporter.submit({
+            'QueryName': str(key),
+            'FirstExecTimeMS': 0,
+            'WorstExecTimeMS': 0,
+            'BestExecTimeMS': int(round(value * 1000)),
+            'AverageExecTimeMS': 0,
+            'TotalTimeMS': 0,
+            'IbisCommitHash': args.commit_ibis,
+            'BackEnd': str(backend)
+        })
+    
 
 def main():
     omniscript_path = os.path.dirname(__file__)
@@ -576,6 +618,25 @@ def main():
     columns_types_ibis = ["string", "int64"] + ["decimal(8, 4)" for _ in range(200)]
 
     try:
+        db_reporter = None
+        if args.db_user is not "":
+            print("Connecting to database")
+            db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user,
+                                         passwd=args.db_pass, db=args.db_name)
+            db_reporter = DbReport(db, args.db_table, {
+                'QueryName': 'VARCHAR(500) NOT NULL',
+                'FirstExecTimeMS': 'BIGINT UNSIGNED',
+                'WorstExecTimeMS': 'BIGINT UNSIGNED',
+                'BestExecTimeMS': 'BIGINT UNSIGNED',
+                'AverageExecTimeMS': 'BIGINT UNSIGNED',
+                'TotalTimeMS': 'BIGINT UNSIGNED',
+                'IbisCommitHash': 'VARCHAR(500) NOT NULL',
+                'BackEnd': 'VARCHAR(100) NOT NULL'
+            }, {
+                'ScriptName': 'santander_pandas_ibis.py',
+                'CommitHash': args.commit_omnisci,
+                'IbisCommitHash': args.commit_ibis
+            })
         if not args.no_ibis:
             if args.omnisci_executable is None:
                 parser.error("Omnisci executable should be specified with -e/--executable")
@@ -603,6 +664,8 @@ def main():
 
 
             print_times(etl_times_ibis, name='Ibis')
+            if db_reporter is not None:
+                submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_ibis', results=etl_times_ibis)
 
         import_pandas_into_module_namespace(main.__globals__,
                                             args.pandas_mode, args.ray_tmpdir, args.ray_memory)
@@ -624,6 +687,8 @@ def main():
                     etl_times_pandas[key] = value
 
         print_times(etl_times_pandas, name=args.pandas_mode)
+        if db_reporter is not None:
+                submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_pandas', results=etl_times_pandas)
 
         if not args.no_ml:
             score_mse_pandas, score_cod_pandas, ml_times_pandas = ml(x_train_pandas,
@@ -634,6 +699,8 @@ def main():
             print('  mse = ', score_mse_pandas)
             print('  cod = ', score_cod_pandas)
             print_times(ml_times_pandas)
+            if db_reporter is not None:
+                submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_pandas', results=ml_times_pandas)
 
         if args.val:
             #x_train_ibis = x_train_ibis.drop(['rowid0'],axis=1)

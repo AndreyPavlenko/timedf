@@ -64,11 +64,7 @@ class OmnisciServerWorker:
         return self._conn
 
     def ipc_connect_to_server(self):
-<<<<<<< HEAD
-        "IPC connect to Omnisci server using Ibis framework"
-=======
         "Connect to Omnisci server using Ibis framework"
->>>>>>> master
 
         self._conn = ibis.omniscidb.connect(host="localhost", port=self.omnisci_server.server_port,
                                             user=self.omnisci_server.user,

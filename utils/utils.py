@@ -43,7 +43,8 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
 
 def convertTypeIbis2Pandas(types):
     types = ['string_' if (x == 'string') else x for x in types]
-    types = ['float64' if (x.startswith('decimal')) else x for x in types]
+    types = ['float64' if (x.startswith('decimal')) else x for x in types] # since there is no explicit decimal type in Pandas /
+    # Ibis decimal type should be converted to float64 type
     return types
 
 def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory):
