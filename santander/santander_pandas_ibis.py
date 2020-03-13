@@ -55,36 +55,6 @@ def compare_dataframes(ibis_df, pandas_df):
         for dev_type, value in diff.items():
             print(dev_type, ':', value)
         return False
-    
-def query_measurement(query_name, query_args, iterations_number):
-    
-    meas_results = {}
-    times_sum = {}
-    t_begin = timer()
-    exec_times = [None] * iterations_number
-
-    for iteration in range(1, iterations_number + 1):
-        
-        cur_results = query_name()
-        for key, value in cur_results.items():
-            
-            meas_results[key]['best_exec_time'] = float("inf")
-            meas_results[key]['worst_exec_time'] = 0.0
-            meas_results[key]['first_exec_time'] = float("inf")
-            meas_results[key]['times_sum'] = 0.0
-            
-            if iteration == 1:
-                meas_results[key]['first_exec_time'] = value
-            if meas_results[key]['best_exec_time'] > value:
-                meas_results[key]['best_exec_time'] = value
-            if meas_results[key]['worst_exec_time'] < value:
-                meas_results[key]['worst_exec_time'] = value
-                
-            times_sum[key] += value
-            meas_results[key]['average_exec_time'] = times_sum[key] / iterations_number
-        
-    return meas_results
-    
 
 # Dataset link
 # https://www.kaggle.com/c/santander-customer-transaction-prediction/data
@@ -155,8 +125,6 @@ def etl_pandas(filename, columns_names, columns_types):
     # train, test data split
     t0 = timer()
     train,valid = train_pd[:-10000],train_pd[-10000:]
-    #train,valid = train_pd[0:5000],train_pd[5000:6000]
-    #train,valid = train_pd[0:500],train_pd[500:600]
     etl_times["t_train_test_split"] = timer() - t0
 
     t0 = timer()
@@ -350,7 +318,6 @@ def etl_ibis(
     # rows split query
     t0 = timer()
     training_part, validation_part = table_df[:-10000], table_df[-10000:]
-    #training_part, validation_part = table_df[0:500], table_df[500:600]
     etl_times["t_train_test_split"] = timer() - t0
     
     etl_times["t_etl"] = etl_times["t_groupby_merge_where"] + etl_times["t_train_test_split"]
@@ -364,12 +331,20 @@ def etl_ibis(
     omnisci_server = None
     
     return x_train, y_train, x_valid, y_valid, etl_times
-    
+
 def print_times(etl_times, name=None):
     if name:
         print(f"{name} times:")
     for time_name, time in etl_times.items():
         print("{} = {:.5f} s".format(time_name, time))
+
+def print_times_nested(etl_times, name=None):
+    if name:
+        print(f"{name} times:")
+    for meas_name, metrics in etl_times.items():
+        print(meas_name + ':')
+        for metric_name, time_value in metrics.items():
+            print("    {} = {:.5f} s".format(metric_name, time_value))
 
 def mse(y_test, y_pred):
     return ((y_test - y_pred) ** 2).mean()
@@ -424,20 +399,81 @@ def ml(x_train, y_train, x_valid, y_valid):
     ml_times["t_ML"] += ml_times["t_train"] + ml_times["t_inference"]
     
     return score_mse, score_cod, ml_times
+
+def query_measurement_etl(query_function, query_func_args, iterations_number, query_name):
+    meas_results = {}
+    times_sum = {}
+
+    for iteration in range(1, iterations_number + 1):
+        print("Running", query_name, ", iteration", iteration)
+        
+        if iteration == iterations_number:
+            x_train, y_train, x_valid, y_valid, cur_results = query_function(**query_func_args)
+        else:
+            _, _, _, _, cur_results = query_function(**query_func_args)
+            
+        for key, value in cur_results.items():
+            if iteration == 1:
+                meas_results[key] = {'first_exec_time': value}
+                meas_results[key].update({'best_exec_time': float("inf")})
+                meas_results[key].update({'worst_exec_time': 0.0})
+                times_sum[key] = value
+            if meas_results[key]['best_exec_time'] > value:
+                meas_results[key]['best_exec_time'] = value
+            if meas_results[key]['worst_exec_time'] < value:
+                meas_results[key]['worst_exec_time'] = value
+            
+            if iteration != 1:
+                times_sum[key] += value
+                
+            if iteration == iterations_number:
+                meas_results[key].update({'average_exec_time': times_sum[key] / iterations_number})
+
+    return x_train, y_train, x_valid, y_valid, meas_results
+
+def query_measurement_ml(query_function, query_func_args, iterations_number, query_name):
+    meas_results = {}
+    times_sum = {}
+
+    for iteration in range(1, iterations_number + 1):
+        print("Running", query_name, ", iteration", iteration)
+        
+        if iteration == iterations_number:
+            score_mse, score_cod, cur_results = query_function(**query_func_args)
+        else:
+            _, _, cur_results = query_function(**query_func_args)
+            
+        for key, value in cur_results.items():
+            if iteration == 1:
+                meas_results[key] = {'first_exec_time': value}
+                meas_results[key].update({'best_exec_time': float("inf")})
+                meas_results[key].update({'worst_exec_time': 0.0})
+                times_sum[key] = value
+            if meas_results[key]['best_exec_time'] > value:
+                meas_results[key]['best_exec_time'] = value
+            if meas_results[key]['worst_exec_time'] < value:
+                meas_results[key]['worst_exec_time'] = value
+            
+            if iteration != 1:
+                times_sum[key] += value
+                
+            if iteration == iterations_number:
+                meas_results[key].update({'average_exec_time': times_sum[key] / iterations_number})
+
+    return score_mse, score_cod, meas_results
         
 def submit_results_to_db(db_reporter, args, backend, results):
-    for key, value in results.items():
+    for meas_name, metrics in results.items():
         db_reporter.submit({
-            'QueryName': str(key),
-            'FirstExecTimeMS': 0,
-            'WorstExecTimeMS': 0,
-            'BestExecTimeMS': int(round(value * 1000)),
-            'AverageExecTimeMS': 0,
+            'QueryName': str(meas_name),
+            'FirstExecTimeMS': int(round(metrics['first_exec_time'] * 1000)),
+            'WorstExecTimeMS': int(round(metrics['worst_exec_time'] * 1000)),
+            'BestExecTimeMS': int(round(metrics['best_exec_time'] * 1000)),
+            'AverageExecTimeMS': int(round(metrics['average_exec_time'] * 1000)),
             'TotalTimeMS': 0,
             'IbisCommitHash': args.commit_ibis,
             'BackEnd': str(backend)
         })
-    
 
 def main():
     omniscript_path = os.path.dirname(__file__)
@@ -662,63 +698,47 @@ def main():
             if args.omnisci_executable is None:
                 parser.error("Omnisci executable should be specified with -e/--executable")
 
-            etl_times_ibis = {}
-            for iteration in range(args.iterations):
-                print("Running etl_ibis, iteration", iteration + 1)
-                x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis_cur = etl_ibis(
-                    args=args,
-                    run_import_queries=True,
-                    columns_names=columns_names,
-                    columns_types=columns_types_ibis,
-                )
 
-                for key, value in etl_times_ibis_cur.items():
-                    if iteration == 0:
-                        etl_times_ibis[key] = float("inf")
+            etl_ibis_args = {'args': args, 'run_import_queries': "True",
+                             'columns_names': columns_names, 'columns_types': columns_types_ibis}
+            x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis = query_measurement_etl(etl_ibis,
+                                                                                                           etl_ibis_args,
+                                                                                                           args.iterations,
+                                                                                                           "etl_ibis")
 
-                    if etl_times_ibis[key] > value:
-                        etl_times_ibis[key] = value
-
-
-            print_times(etl_times_ibis, name='Ibis')
+            print_times_nested(etl_times_ibis, name='Ibis')
             if db_reporter is not None:
                 submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_ibis', results=etl_times_ibis)
 
         import_pandas_into_module_namespace(main.__globals__,
                                             args.pandas_mode, args.ray_tmpdir, args.ray_memory)
 
-        etl_times_pandas = {}
-        for iteration in range(args.iterations):
-            print("Running etl_pandas, iteration", iteration + 1)
-            x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas, etl_times_pandas_cur = etl_pandas(
-                args.file,
-                columns_names=columns_names,
-                columns_types=columns_types_pd
-            )
+        etl_pandas_args = {'filename': args.file, 'columns_names': columns_names, 'columns_types': columns_types_pd}
+        x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas, etl_times_pandas = query_measurement_etl(etl_pandas,
+                                                                                                                 etl_pandas_args,
+                                                                                                                 args.iterations,
+                                                                                                                 "etl_pandas")
 
-            for key, value in etl_times_pandas_cur.items():
-                if iteration == 0:
-                    etl_times_pandas[key] = float("inf")
+        print_times_nested(etl_times_pandas, name=args.pandas_mode)
 
-                if etl_times_pandas[key] > value:
-                    etl_times_pandas[key] = value
-
-        print_times(etl_times_pandas, name=args.pandas_mode)
         if db_reporter is not None:
                 submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_pandas', results=etl_times_pandas)
 
         if not args.no_ml:
-            score_mse_pandas, score_cod_pandas, ml_times_pandas = ml(x_train_pandas,
-                                                                     y_train_pandas,
-                                                                     x_valid_pandas,
-                                                                     y_valid_pandas)
+            ml_args = {'x_train': x_train_pandas, 'y_train': y_train_pandas,
+                       'x_valid': x_valid_pandas, 'y_valid': y_valid_pandas}
+            score_mse_pandas, score_cod_pandas, ml_times_pandas = query_measurement_ml(ml,
+                                                                                       ml_args,
+                                                                                       args.iterations,
+                                                                                       "ml")
             print('Scores with etl_pandas ML inputs: ')
             print('  mse = ', score_mse_pandas)
             print('  cod = ', score_cod_pandas)
-            print_times(ml_times_pandas)
+            print_times_nested(ml_times_pandas)
             if db_reporter is not None:
                 submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_pandas', results=ml_times_pandas)
 
+        # Results validation block (comparison of etl_ibis and etl_pandas outputs)
         if args.val:
             print("Validation of ETL query results with input tables with original datatypes values ...")
 
@@ -759,7 +779,6 @@ def main():
                 print("Validating queries results (var_xx_gt1 columns) ...")
                 compare_result3 = compare_dataframes(ibis_df=(x_train_ibis_val[gt1_cols], x_valid_ibis_val[gt1_cols]),
                                                      pandas_df=(x_train_pandas_val[gt1_cols], x_valid_pandas_val[gt1_cols]))
-
 
     except Exception as err:
         print("Failed: ", err)
