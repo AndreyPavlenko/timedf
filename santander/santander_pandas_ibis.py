@@ -24,13 +24,14 @@ def compare_tables(table1, table2):
     else:
         print("\ntables are not equal, table1:")
         print(table1.info())
+        print(table1)
         print("\ntable2:")
         print(table2.info())
+        print(table2)
         return False
 
 def compare_dataframes(ibis_df, pandas_df):
-    print("Validating queries results ...")
-    comparison_result = False
+    comparison_result = True
     for i in range (len(ibis_df)):
         ibis_df[i].index = pandas_df[i].index
         comparison_result = comparison_result and ibis_df[i].equals(pandas_df[i])
@@ -154,6 +155,8 @@ def etl_pandas(filename, columns_names, columns_types):
     # train, test data split
     t0 = timer()
     train,valid = train_pd[:-10000],train_pd[-10000:]
+    #train,valid = train_pd[0:5000],train_pd[5000:6000]
+    #train,valid = train_pd[0:500],train_pd[500:600]
     etl_times["t_train_test_split"] = timer() - t0
 
     t0 = timer()
@@ -171,51 +174,36 @@ def etl_pandas(filename, columns_names, columns_types):
     etl_times["t_etl"] = timer() - t_etl_begin
     
     return x_train, y_train, x_valid, y_valid, etl_times
-    
+
 def etl_ibis(
-    filename,
+    args,
+    run_import_queries,
     columns_names,
     columns_types,
-    database_name,
-    table_name,
-    args,
-    delete_old_database,
-    create_new_table,
+    validation=False
 ):
-
-    # SQL statemnts preparation for data file import queries
-    connect_to_db_sql_template = "\c {0} admin HyperInteractive"
-    create_table_sql_template = '''
-    CREATE TABLE {0} ({1});
-    '''
-    import_by_COPY_sql_template = '''
-    COPY {0} FROM '{1}' WITH (header='{2}');
-    '''
-    import_by_FSI_sql_template = '''
-    CREATE TEMPORARY TABLE {0} ({1}) WITH (storage_type='CSV:{2}');
-    '''
-    drop_table_sql_template = '''
-    DROP TABLE IF EXISTS {0};
-    '''
+    
+    filename=args.file
+    database_name=args.name
+    table_name=args.table
+    delete_old_database=not args.dnd
+    create_new_table=not args.dni
+    
     tmp_table_name = 'tmp_table'
 
-    import_query_cols_list = ["ID_code TEXT ENCODING NONE, \n", "target SMALLINT, \n"] + [
-        "var_%s DOUBLE, \n" % i for i in range(199)] + ["var_199 DOUBLE"]
-    import_query_cols_str = "".join(import_query_cols_list)
-
-    connect_to_db_sql = connect_to_db_sql_template.format(database_name)
-    create_table_sql = create_table_sql_template.format(tmp_table_name, import_query_cols_str)
-    import_by_COPY_sql = import_by_COPY_sql_template.format(tmp_table_name, filename, 'true')
-    import_by_FSI_sql = import_by_FSI_sql_template.format(tmp_table_name, import_query_cols_str, filename)
-
     etl_times = {
-        "t_readcsv_by_ibis": 0.0,
-        "t_readcsv_by_COPY": 0.0,
-        "t_readcsv_by_FSI": 0.0,
         "t_groupby_merge_where": 0.0,
         "t_train_test_split": 0.0,
-        "t_etl": 0.0,
+        "t_etl": 0.0
     }
+    
+    if run_import_queries:
+        etl_times_import = {
+        "t_readcsv_by_ibis": 0.0,
+        "t_readcsv_by_COPY": 0.0,
+        "t_readcsv_by_FSI": 0.0
+        }
+        etl_times.update(etl_times_import)
     
     
     omnisci_server = OmnisciServer(
@@ -239,37 +227,62 @@ def etl_ibis(
         database_name, delete_if_exists=delete_old_database
     )
     
-    # data file import by ibis
-    columns_types_import_query = ["string", "int64"] + ["float64" for _ in range(200)]
-    t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
-            table_name=tmp_table_name,
-            data_files_names=filename,
-            files_limit=1,
-            columns_names=columns_names,
-            columns_types=columns_types_import_query,
-            header=0,
-            nrows=None,
-            compression_type=None
-        )
-    
-    etl_times["t_readcsv_by_ibis"] = t_import_pandas + t_import_ibis
-    
-    # data file import by FSI
-    omnisci_server_worker.drop_table(tmp_table_name)
-    t0 = timer()
-    omnisci_server_worker.execute_sql_query(import_by_FSI_sql)
-    etl_times["t_readcsv_by_FSI"] = timer() - t0
+    if run_import_queries:
+         # SQL statemnts preparation for data file import queries
+        connect_to_db_sql_template = "\c {0} admin HyperInteractive"
+        create_table_sql_template = '''
+        CREATE TABLE {0} ({1});
+        '''
+        import_by_COPY_sql_template = '''
+        COPY {0} FROM '{1}' WITH (header='{2}');
+        '''
+        import_by_FSI_sql_template = '''
+        CREATE TEMPORARY TABLE {0} ({1}) WITH (storage_type='CSV:{2}');
+        '''
+        drop_table_sql_template = '''
+        DROP TABLE IF EXISTS {0};
+        '''
 
-    omnisci_server_worker.drop_table(tmp_table_name)
+        import_query_cols_list = ["ID_code TEXT ENCODING NONE, \n", "target SMALLINT, \n"] + [
+            "var_%s DOUBLE, \n" % i for i in range(199)] + ["var_199 DOUBLE"]
+        import_query_cols_str = "".join(import_query_cols_list)
 
-    # data file import by SQL COPY statement
-    omnisci_server_worker.execute_sql_query(create_table_sql)
-    
-    t0 = timer()
-    omnisci_server_worker.execute_sql_query(import_by_COPY_sql)
-    etl_times["t_readcsv_by_COPY"] = timer() - t0
+        connect_to_db_sql = connect_to_db_sql_template.format(database_name)
+        create_table_sql = create_table_sql_template.format(tmp_table_name, import_query_cols_str)
+        import_by_COPY_sql = import_by_COPY_sql_template.format(tmp_table_name, filename, 'true')
+        import_by_FSI_sql = import_by_FSI_sql_template.format(tmp_table_name, import_query_cols_str, filename)
+        
+        # data file import by ibis
+        columns_types_import_query = ["string", "int64"] + ["float64" for _ in range(200)]
+        t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
+                table_name=tmp_table_name,
+                data_files_names=filename,
+                files_limit=1,
+                columns_names=columns_names,
+                columns_types=columns_types_import_query,
+                header=0,
+                nrows=None,
+                compression_type=None
+            )
 
-    omnisci_server_worker.drop_table(tmp_table_name)
+        etl_times["t_readcsv_by_ibis"] = t_import_pandas + t_import_ibis
+
+        # data file import by FSI
+        omnisci_server_worker.drop_table(tmp_table_name)
+        t0 = timer()
+        omnisci_server_worker.execute_sql_query(import_by_FSI_sql)
+        etl_times["t_readcsv_by_FSI"] = timer() - t0
+
+        omnisci_server_worker.drop_table(tmp_table_name)
+
+        # data file import by SQL COPY statement
+        omnisci_server_worker.execute_sql_query(create_table_sql)
+
+        t0 = timer()
+        omnisci_server_worker.execute_sql_query(import_by_COPY_sql)
+        etl_times["t_readcsv_by_COPY"] = timer() - t0
+
+        omnisci_server_worker.drop_table(tmp_table_name)
     
     # Create table and import data for ETL queries
     if create_new_table:
@@ -292,29 +305,52 @@ def etl_ibis(
     # We are making 400 columns and then insert them into original table thus avoiding
     # nested sql requests
     
-    t0 = timer()
-    count_cols = []
-    gt1_cols = []
-    table_query = table['ID_code', 'target']
-    for i in range(200):
-        col = 'var_%d' % i
-        col_count = 'var_%d_count' % i
-        col_gt1 = 'var_%d_gt1' % i
-        w = ibis.window(group_by=col)
-        table_query = table_query.mutate(table[col].cast("float32").name(col))
-        count_cols.append(table[col].count().over(w).name(col_count))
-        gt1_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
-                                         table[col].cast("float32")).else_(ibis.null()).end().name(col_gt1))
+    if validation:
+        t0 = timer()
+        count_cols = []
+        gt1_cols = []
+        table_query = table['ID_code', 'target']
+        for i in range(200):
+            col = 'var_%d' % i
+            col_count = 'var_%d_count' % i
+            col_gt1 = 'var_%d_gt1' % i
+            w = ibis.window(group_by=col)
+            table_query = table_query.mutate(table[col].name(col))
+            count_cols.append(table[col].count().over(w).name(col_count))
+            gt1_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
+                                             table[col]).else_(ibis.null()).end().name(col_gt1))
 
-    table_query = table_query.mutate(count_cols)
-    table_query = table_query.mutate(gt1_cols)
+        table_query = table_query.mutate(count_cols)
+        table_query = table_query.mutate(gt1_cols)
 
-    table_df = table_query.execute()
-    etl_times["t_groupby_merge_where"] = timer() - t0
+        table_df = table_query.execute()
+        etl_times["t_groupby_merge_where"] = timer() - t0
+        
+    else:
+        t0 = timer()
+        count_cols = []
+        gt1_cols = []
+        table_query = table['ID_code', 'target']
+        for i in range(200):
+            col = 'var_%d' % i
+            col_count = 'var_%d_count' % i
+            col_gt1 = 'var_%d_gt1' % i
+            w = ibis.window(group_by=col)
+            table_query = table_query.mutate(table[col].cast("float32").name(col))
+            count_cols.append(table[col].count().over(w).name(col_count))
+            gt1_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
+                                             table[col].cast("float32")).else_(ibis.null()).end().name(col_gt1))
+
+        table_query = table_query.mutate(count_cols)
+        table_query = table_query.mutate(gt1_cols)
+
+        table_df = table_query.execute()
+        etl_times["t_groupby_merge_where"] = timer() - t0
     
     # rows split query
     t0 = timer()
     training_part, validation_part = table_df[:-10000], table_df[-10000:]
+    #training_part, validation_part = table_df[0:500], table_df[500:600]
     etl_times["t_train_test_split"] = timer() - t0
     
     etl_times["t_etl"] = etl_times["t_groupby_merge_where"] + etl_times["t_train_test_split"]
@@ -388,26 +424,6 @@ def ml(x_train, y_train, x_valid, y_valid):
     ml_times["t_ML"] += ml_times["t_train"] + ml_times["t_inference"]
     
     return score_mse, score_cod, ml_times
-
-def validation(train_ibis, train_pd, valid_ibis, valid_pd):
-    
-    float_cols = ['var_%s'%i for i in range(200)] + ['var_%s_gt1'%i for i in range(200)]
-    train_ibis_val = train_ibis.copy()
-    train_ibis_val = train_ibis_val.sort_values(by=['rowid'])
-    valid_ibis_val = valid_ibis.copy()
-    valid_ibis_val = valid_ibis_val.sort_values(by=['rowid'])
-    cast_dict = {'var_%s'%i: 'float64' for i in range(200)}
-    cast_dict.update({'var_%s_gt1'%i: 'float64' for i in range(200)})
-    train_ibis_val = train_ibis_val.astype(dtype=cast_dict, copy=False)
-    valid_ibis_val = valid_ibis_val.astype(dtype=cast_dict, copy=False)
-    train_ibis_val = train_ibis_val.drop(['rowid'],axis=1)
-    valid_ibis_val = valid_ibis_val.drop(['rowid'],axis=1)
-
-    validation_result1 = compare_tables(train_pd, train_ibis_val)
-    validation_result2 = compare_tables(valid_pd, valid_ibis_val)
-    queries_validation_results = validation_result1 and validation_result2
-    if queries_validation_results:
-        print("Queries results are validated!")
         
 def submit_results_to_db(db_reporter, args, backend, results):
     for key, value in results.items():
@@ -613,9 +629,14 @@ def main():
             execute_process(cmdline=['tar', '-xvf', args.dp, '--strip', '1'],
                             cwd=pathlib.Path(args.file).parent)
 
-    columns_names = ["ID_code", "target"] + ["var_%s"%i for i in range(200)]
+    var_cols = ["var_%s"%i for i in range(200)]
+    count_cols = ["var_%s_count"%i for i in range(200)]
+    gt1_cols = ["var_%s_gt1"%i for i in range(200)]
+    columns_names = ["ID_code", "target"] + var_cols
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
     columns_types_ibis = ["string", "int64"] + ["decimal(8, 4)" for _ in range(200)]
+    columns_types_ibis_val = ["string", "string"] + ["string" for _ in range(200)]
+    columns_types_pd_val = ["object", "object"] + ["object" for _ in range(200)]
 
     try:
         db_reporter = None
@@ -645,14 +666,10 @@ def main():
             for iteration in range(args.iterations):
                 print("Running etl_ibis, iteration", iteration + 1)
                 x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis_cur = etl_ibis(
-                    filename=args.file,
+                    args=args,
+                    run_import_queries=True,
                     columns_names=columns_names,
                     columns_types=columns_types_ibis,
-                    database_name=args.name,
-                    table_name=args.table,
-                    args=args,
-                    delete_old_database=not args.dnd,
-                    create_new_table=not args.dni,
                 )
 
                 for key, value in etl_times_ibis_cur.items():
@@ -703,14 +720,46 @@ def main():
                 submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_pandas', results=ml_times_pandas)
 
         if args.val:
-            #x_train_ibis = x_train_ibis.drop(['rowid0'],axis=1)
-            #x_valid_ibis = x_valid_ibis.drop(['rowid0'],axis=1)
-            cast_dict = {"var_%s"%i: "float64" for i in range(200)}
-            cast_dict.update({"var_%s_gt1"%i: "float64" for i in range(200)})
-            x_train_ibis = x_train_ibis.astype(dtype=cast_dict)
-            x_valid_ibis = x_valid_ibis.astype(dtype=cast_dict)
-            compare_dataframes(ibis_df=(x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis),
-                               pandas_df=(x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas))
+            print("Validation of ETL query results with input tables with original datatypes values ...")
+
+            print("Validating queries results (var_xx columns) ...")
+            compare_result1 = compare_dataframes(ibis_df=(x_train_ibis[var_cols], x_valid_ibis[var_cols]),
+                                                 pandas_df=(x_train_pandas[var_cols], x_valid_pandas[var_cols]))
+            print("Validating queries results (var_xx_count columns) ...")
+            compare_result2 = compare_dataframes(ibis_df=(x_train_ibis[count_cols], x_valid_ibis[count_cols]),
+                                                 pandas_df=(x_train_pandas[count_cols], x_valid_pandas[count_cols]))
+            print("Validating queries results (var_xx_gt1 columns) ...")
+            compare_result3 = compare_dataframes(ibis_df=(x_train_ibis[gt1_cols], x_valid_ibis[gt1_cols]),
+                                                 pandas_df=(x_train_pandas[gt1_cols], x_valid_pandas[gt1_cols]))
+
+            if not (compare_result1 and compare_result2 and compare_result3):
+                print("ETL query results with input tables with original datatypes values are not equal, \
+    checking query results with input tables with string datatypes values ...")
+
+                x_train_ibis_val, _, x_valid_ibis_val, _, _ = etl_ibis(
+                        args=args,
+                        run_import_queries=False,
+                        columns_names=columns_names,
+                        columns_types=columns_types_ibis_val,
+                        validation=True
+                )
+
+                x_train_pandas_val, _, x_valid_pandas_val, _, _ = etl_pandas(
+                    args.file,
+                    columns_names=columns_names,
+                    columns_types=columns_types_pd_val
+                )
+
+                print("Validating queries results (var_xx columns) ...")
+                compare_result1 = compare_dataframes(ibis_df=(x_train_ibis_val[var_cols], x_valid_ibis_val[var_cols]),
+                                                     pandas_df=(x_train_pandas_val[var_cols], x_valid_pandas_val[var_cols]))
+                print("Validating queries results (var_xx_count columns) ...")
+                compare_result2 = compare_dataframes(ibis_df=(x_train_ibis_val[count_cols], x_valid_ibis_val[count_cols]),
+                                                     pandas_df=(x_train_pandas_val[count_cols], x_valid_pandas_val[count_cols]))
+                print("Validating queries results (var_xx_gt1 columns) ...")
+                compare_result3 = compare_dataframes(ibis_df=(x_train_ibis_val[gt1_cols], x_valid_ibis_val[gt1_cols]),
+                                                     pandas_df=(x_train_pandas_val[gt1_cols], x_valid_pandas_val[gt1_cols]))
+
 
     except Exception as err:
         print("Failed: ", err)
