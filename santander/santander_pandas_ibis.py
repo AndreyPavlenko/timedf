@@ -13,7 +13,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
 from report import DbReport
-from utils import import_pandas_into_module_namespace, execute_process
+from utils import import_pandas_into_module_namespace, execute_process, str_arg_to_bool
 
 warnings.filterwarnings("ignore")
 
@@ -180,7 +180,9 @@ def etl_ibis(
             database_name=args.name,
             user=args.user,
             password=args.password,
-            debug_timer=True
+            debug_timer=True,
+            columnar_output=args.server_columnar_output,
+            lazy_fetch=args.server_lazy_fetch
     )
 
     omnisci_server.launch()
@@ -602,6 +604,20 @@ def main():
         default="santander_table",
         help="Table name name to use in omniscidb server.",
     )
+    optional.add_argument(
+        "--enable-columnar-output",
+        dest="server_columnar_output",
+        type=str_arg_to_bool,
+        default=None,
+        help="Launch OmniSci server with --enable-columnar-output option.",
+    )
+    optional.add_argument(
+        "--enable-lazy-fetch",
+        dest="server_lazy_fetch",
+        type=str_arg_to_bool,
+        default=None,
+        help="Launch OmniSci server with --enable-lazy-fetch option.",
+    )
 
     optional.add_argument(
         "-commit_omnisci",
@@ -649,11 +665,7 @@ def main():
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
-    optional.add_argument(
-        "-r",
-        default="report_santander_pandas_ibis.csv",
-        help="Report file name."
-    )
+    
 
     args = parser.parse_args()
     args.file = args.file.replace("'", "")
