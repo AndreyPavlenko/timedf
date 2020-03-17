@@ -124,8 +124,7 @@ def etl_pandas(filename, columns_names, columns_types):
 
     # train, test data split
     t0 = timer()
-    #train,valid = train_pd[:-10000],train_pd[-10000:]
-    train,valid = train_pd[:500],train_pd[500:600]
+    train,valid = train_pd[:-10000],train_pd[-10000:]
     etl_times["t_train_test_split"] = timer() - t0
 
     t0 = timer()
@@ -197,8 +196,14 @@ def etl_ibis(
     )
     
     time.sleep(2)
-    conn_ipc = omnisci_server_worker.ipc_connect_to_server()
-    conn = omnisci_server_worker.connect_to_server()
+    if args.server_conn_type == 'regular':
+        conn = omnisci_server_worker.connect_to_server()
+    elif args.server_conn_type == 'ipc':
+        conn = omnisci_server_worker.ipc_connect_to_server()
+    else:
+        print("Wrong connection type is specified!")
+        sys.exit(0)
+        
     if run_import_queries:
          # SQL statemnts preparation for data file import queries
         connect_to_db_sql_template = "\c {0} admin HyperInteractive"
@@ -270,7 +275,7 @@ def etl_ibis(
             compression_type=None
         )
 
-    db = conn_ipc.database(database_name)
+    db = conn.database(database_name)
     table = db.table(table_name)
 
     # group_by/count, merge (join) and filtration queries
@@ -321,8 +326,7 @@ def etl_ibis(
     
     # rows split query
     t0 = timer()
-    #training_part, validation_part = table_df[:-10000], table_df[-10000:]
-    training_part, validation_part = table_df[:500], table_df[500:600]
+    training_part, validation_part = table_df[:-10000], table_df[-10000:]
     etl_times["t_train_test_split"] = timer() - t0
     
     etl_times["t_etl"] = etl_times["t_groupby_merge_where"] + etl_times["t_train_test_split"]
@@ -597,7 +601,7 @@ def main():
         "-n",
         "--name",
         dest="name",
-        default="santander_database",
+        default="benchmarks_database",
         help="Database name to use in omniscidb server.",
     )
     optional.add_argument(
@@ -606,6 +610,13 @@ def main():
         dest="table",
         default="santander_table",
         help="Table name name to use in omniscidb server.",
+    )
+    optional.add_argument(
+        "--server-connection-type",
+        choices=["ipc", "regular"],
+        dest="server_conn_type",
+        default="ipc",
+        help="Connection type to the OmniSci server",
     )
     optional.add_argument(
         "--enable-columnar-output",
