@@ -124,7 +124,8 @@ def etl_pandas(filename, columns_names, columns_types):
 
     # train, test data split
     t0 = timer()
-    train,valid = train_pd[:-10000],train_pd[-10000:]
+    #train,valid = train_pd[:-10000],train_pd[-10000:]
+    train,valid = train_pd[:500],train_pd[500:600]
     etl_times["t_train_test_split"] = timer() - t0
 
     t0 = timer()
@@ -156,6 +157,8 @@ def etl_ibis(
     table_name=args.table
     delete_old_database=not args.dnd
     create_new_table=not args.dni
+    run_import_queries = str_arg_to_bool(run_import_queries)
+    validation = str_arg_to_bool(validation)
     
     tmp_table_name = 'tmp_table'
 
@@ -189,14 +192,13 @@ def etl_ibis(
 
     omnisci_server_worker = OmnisciServerWorker(omnisci_server)
     
-    time.sleep(2)
-    conn_ipc = omnisci_server_worker.ipc_connect_to_server()
-    conn = omnisci_server_worker.connect_to_server()
-
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
     
+    time.sleep(2)
+    conn_ipc = omnisci_server_worker.ipc_connect_to_server()
+    conn = omnisci_server_worker.connect_to_server()
     if run_import_queries:
          # SQL statemnts preparation for data file import queries
         connect_to_db_sql_template = "\c {0} admin HyperInteractive"
@@ -221,7 +223,7 @@ def etl_ibis(
         create_table_sql = create_table_sql_template.format(tmp_table_name, import_query_cols_str)
         import_by_COPY_sql = import_by_COPY_sql_template.format(tmp_table_name, filename, 'true')
         import_by_FSI_sql = import_by_FSI_sql_template.format(tmp_table_name, import_query_cols_str, filename)
-        
+
         # data file import by ibis
         columns_types_import_query = ["string", "int64"] + ["float64" for _ in range(200)]
         t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
@@ -267,15 +269,15 @@ def etl_ibis(
             nrows=None,
             compression_type=None
         )
+
     db = conn_ipc.database(database_name)
-    #db = conn.database(database_name)
     table = db.table(table_name)
 
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding
     # nested sql requests
     
-    if validation:
+    if validation == True:
         t0 = timer()
         count_cols = []
         gt1_cols = []
@@ -319,7 +321,8 @@ def etl_ibis(
     
     # rows split query
     t0 = timer()
-    training_part, validation_part = table_df[:-10000], table_df[-10000:]
+    #training_part, validation_part = table_df[:-10000], table_df[-10000:]
+    training_part, validation_part = table_df[:500], table_df[500:600]
     etl_times["t_train_test_split"] = timer() - t0
     
     etl_times["t_etl"] = etl_times["t_groupby_merge_where"] + etl_times["t_train_test_split"]
@@ -710,9 +713,9 @@ def main():
             if args.omnisci_executable is None:
                 parser.error("Omnisci executable should be specified with -e/--executable")
 
-
-            etl_ibis_args = {'args': args, 'run_import_queries': "True",
-                             'columns_names': columns_names, 'columns_types': columns_types_ibis}
+            etl_ibis_args = {'args': args, 'run_import_queries': "False",
+                             'columns_names': columns_names, 'columns_types': columns_types_ibis,
+                             'validation': "False"}
             x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis = query_measurement_etl(etl_ibis,
                                                                                                            etl_ibis_args,
                                                                                                            args.iterations,
@@ -763,6 +766,7 @@ def main():
             print("Validating queries results (var_xx_gt1 columns) ...")
             compare_result3 = compare_dataframes(ibis_df=(x_train_ibis[gt1_cols], x_valid_ibis[gt1_cols]),
                                                  pandas_df=(x_train_pandas[gt1_cols], x_valid_pandas[gt1_cols]))
+
 
             if not (compare_result1 and compare_result2 and compare_result3):
                 print("ETL query results with input tables with original datatypes values are not equal, \
