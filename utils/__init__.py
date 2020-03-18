@@ -1,3 +1,6 @@
 from .utils import (combinate_requirements, compare_dataframes,
-                    convertTypeIbis2Pandas, execute_process,
-                    import_pandas_into_module_namespace, str_arg_to_bool)
+                    convert_type_ibis2pandas, execute_process,
+                    files_names_from_pattern,
+                    import_pandas_into_module_namespace, int_random,
+                    load_data_pandas, print_times, random_if_default,
+                    str_arg_to_bool)

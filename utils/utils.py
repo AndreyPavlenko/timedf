@@ -1,9 +1,11 @@
 import argparse
+import glob
 import os
 import re
 import subprocess
 
 import hiyapyco
+from braceexpand import braceexpand
 
 
 def str_arg_to_bool(v):
@@ -48,26 +50,24 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
         print("Failed to start", cmdline, err)
 
 
-def convertTypeIbis2Pandas(types):
+def convert_type_ibis2pandas(types):
     types = ["string_" if (x == "string") else x for x in types]
-    types = [
-        "float64" if (x.startswith("decimal")) else x for x in types
-    ]  # since there is no explicit decimal type in Pandas /
-    # Ibis decimal type should be converted to float64 type
     return types
 
 
-def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory):
-    if mode == "pandas":
+def import_pandas_into_module_namespace(
+    namespace, mode, ray_tmpdir=None, ray_memory=None
+):
+    if mode == "Pandas":
         print("Running on Pandas")
         import pandas as pd
     else:
-        if mode == "modin_on_ray":
+        if mode == "Modin_on_ray":
             import ray
 
-            if ray_tmpdir is None:
+            if not ray_tmpdir:
                 ray_tmpdir = "/tmp"
-            if ray_memory is None:
+            if not ray_memory:
                 ray_memory = 200 * 1024 * 1024 * 1024
             ray.init(
                 huge_pages=False,
@@ -82,7 +82,7 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory)
                 "and memory",
                 ray_memory,
             )
-        elif mode == "modin_on_dask":
+        elif mode == "Modin_on_dask":
             os.environ["MODIN_ENGINE"] = "dask"
             print("Running on Modin on Dask")
         elif mode == "modin_on_python":
@@ -156,3 +156,35 @@ def compare_dataframes(ibis_dfs, pandas_dfs):
                     raise assert_err
 
     print("dataframes are equal")
+
+
+def load_data_pandas(
+    filename,
+    columns_names=None,
+    columns_types=None,
+    header=None,
+    nrows=None,
+    use_gzip=False,
+    parse_dates=None,
+    pd=None,
+):
+    if not pd:
+        import_pandas_into_module_namespace(namespace=main.__globals__, mode="Pandas")
+    types = None
+    if columns_types:
+        types = {columns_names[i]: columns_types[i] for i in range(len(columns_names))}
+    return pd.read_csv(
+        filename,
+        names=columns_names,
+        nrows=nrows,
+        header=header,
+        dtype=types,
+        compression="gzip" if use_gzip else None,
+        parse_dates=parse_dates,
+    )
+
+
+def files_names_from_pattern(filename):
+    data_files_names = list(braceexpand(filename))
+    data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
+    return data_files_names
