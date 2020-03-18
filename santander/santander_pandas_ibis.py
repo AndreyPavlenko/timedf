@@ -8,6 +8,7 @@ import gzip
 import mysql.connector
 from timeit import default_timer as timer
 import ibis
+import pandas as pd
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from server import OmnisciServer
@@ -20,6 +21,7 @@ warnings.filterwarnings("ignore")
 def compare_tables(table1, table2):
     
     if table1.equals(table2):
+        print("Tables are equal")
         return True
     else:
         print("\ntables are not equal, table1:")
@@ -196,13 +198,8 @@ def etl_ibis(
     )
     
     time.sleep(2)
-    if args.server_conn_type == 'regular':
-        conn = omnisci_server_worker.connect_to_server()
-    elif args.server_conn_type == 'ipc':
-        conn = omnisci_server_worker.ipc_connect_to_server()
-    else:
-        print("Wrong connection type is specified!")
-        sys.exit(0)
+    conn = omnisci_server_worker.connect_to_server()
+    conn_ipc = omnisci_server_worker.ipc_connect_to_server()
         
     if run_import_queries:
          # SQL statemnts preparation for data file import queries
@@ -264,65 +261,51 @@ def etl_ibis(
     # Create table and import data for ETL queries
     if create_new_table:
         # Datafiles import
-        omnisci_server_worker.import_data_by_ibis(
-            table_name=table_name,
-            data_files_names=filename,
-            files_limit=1,
-            columns_names=columns_names,
-            columns_types=columns_types,
-            header=0,
-            nrows=None,
-            compression_type=None
-        )
-
-    db = conn.database(database_name)
+        table_df = pd.read_csv(filename)
+        table_df["id"] = [x for x in range(table_df[table_df.columns[0]].count())]
+        table = omnisci_server_worker.import_data_from_pd_df(table_name=table_name, pd_obj=table_df,
+                                                             columns_names=columns_names+['row_id'],
+                                                             columns_types=columns_types+['int32'])
+        
+    if args.server_conn_type == 'regular':
+        db = conn.database(database_name)
+    elif args.server_conn_type == 'ipc':
+        db = conn_ipc.database(database_name)
+    else:
+        print("Wrong connection type is specified!")
+        sys.exit(0)
+        
     table = db.table(table_name)
 
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding
     # nested sql requests
     
-    if validation == True:
-        t0 = timer()
-        count_cols = []
-        gt1_cols = []
-        table_query = table['ID_code', 'target']
-        for i in range(200):
-            col = 'var_%d' % i
-            col_count = 'var_%d_count' % i
-            col_gt1 = 'var_%d_gt1' % i
-            w = ibis.window(group_by=col)
-            table_query = table_query.mutate(table[col].name(col))
-            count_cols.append(table[col].count().over(w).name(col_count))
-            gt1_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
-                                             table[col]).else_(ibis.null()).end().name(col_gt1))
+    t0 = timer()
+    count_cols = []
+    orig_cols = ["ID_code"] + ['var_%s'%i for i in range(200)]
+    cast_cols = []   
+    gt1_cols = []
+    for i in range(200):
+        col = 'var_%d' % i
+        col_count = 'var_%d_count' % i
+        col_gt1 = 'var_%d_gt1' % i
+        w = ibis.window(group_by=col)
+        count_cols.append(table[col].count().over(w).name(col_count))
+        gt1_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
+                                         table[col].cast("float32")).else_(ibis.null()).end().name('var_%d_gt1' % i))
+        cast_cols.append(table[col].cast("float32").name(col))
 
-        table_query = table_query.mutate(count_cols)
-        table_query = table_query.mutate(gt1_cols)
+    table = table.mutate(count_cols)
+    table = table.drop(orig_cols)
+    table = table.mutate(gt1_cols)
+    table = table.mutate(cast_cols)
 
-        table_df = table_query.execute()
-        etl_times["t_groupby_merge_where"] = timer() - t0
+    table_df = table.execute()
+
+    etl_times["t_groupby_merge_where"] = timer() - t0
         
-    else:
-        t0 = timer()
-        count_cols = []
-        gt1_cols = []
-        table_query = table['ID_code', 'target']
-        for i in range(200):
-            col = 'var_%d' % i
-            col_count = 'var_%d_count' % i
-            col_gt1 = 'var_%d_gt1' % i
-            w = ibis.window(group_by=col)
-            table_query = table_query.mutate(table[col].cast("float32").name(col))
-            count_cols.append(table[col].count().over(w).name(col_count))
-            gt1_cols.append(ibis.case().when(table[col].count().over(w).name(col_count) > 1,
-                                             table[col].cast("float32")).else_(ibis.null()).end().name(col_gt1))
-
-        table_query = table_query.mutate(count_cols)
-        table_query = table_query.mutate(gt1_cols)
-
-        table_df = table_query.execute()
-        etl_times["t_groupby_merge_where"] = timer() - t0
+    table_df = table_df.drop(['row_id'] ,axis=1)
     
     # rows split query
     t0 = timer()
@@ -331,9 +314,9 @@ def etl_ibis(
     
     etl_times["t_etl"] = etl_times["t_groupby_merge_where"] + etl_times["t_train_test_split"]
     
-    x_train = training_part.drop(['target','ID_code'],axis=1)
+    x_train = training_part.drop(['target'],axis=1)
     y_train = training_part['target']
-    x_valid = validation_part.drop(['target','ID_code'],axis=1)
+    x_valid = validation_part.drop(['target'],axis=1)
     y_valid = validation_part['target']
     
     omnisci_server.terminate()
@@ -696,7 +679,7 @@ def main():
     gt1_cols = ["var_%s_gt1"%i for i in range(200)]
     columns_names = ["ID_code", "target"] + var_cols
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
-    columns_types_ibis = ["string", "int64"] + ["decimal(8, 4)" for _ in range(200)]
+    columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
     columns_types_ibis_val = ["string", "string"] + ["string" for _ in range(200)]
     columns_types_pd_val = ["object", "object"] + ["object" for _ in range(200)]
 
@@ -778,34 +761,6 @@ def main():
             compare_result3 = compare_dataframes(ibis_df=(x_train_ibis[gt1_cols], x_valid_ibis[gt1_cols]),
                                                  pandas_df=(x_train_pandas[gt1_cols], x_valid_pandas[gt1_cols]))
 
-
-            if not (compare_result1 and compare_result2 and compare_result3):
-                print("ETL query results with input tables with original datatypes values are not equal, \
-    checking query results with input tables with string datatypes values ...")
-
-                x_train_ibis_val, _, x_valid_ibis_val, _, _ = etl_ibis(
-                        args=args,
-                        run_import_queries=False,
-                        columns_names=columns_names,
-                        columns_types=columns_types_ibis_val,
-                        validation=True
-                )
-
-                x_train_pandas_val, _, x_valid_pandas_val, _, _ = etl_pandas(
-                    args.file,
-                    columns_names=columns_names,
-                    columns_types=columns_types_pd_val
-                )
-
-                print("Validating queries results (var_xx columns) ...")
-                compare_result1 = compare_dataframes(ibis_df=(x_train_ibis_val[var_cols], x_valid_ibis_val[var_cols]),
-                                                     pandas_df=(x_train_pandas_val[var_cols], x_valid_pandas_val[var_cols]))
-                print("Validating queries results (var_xx_count columns) ...")
-                compare_result2 = compare_dataframes(ibis_df=(x_train_ibis_val[count_cols], x_valid_ibis_val[count_cols]),
-                                                     pandas_df=(x_train_pandas_val[count_cols], x_valid_pandas_val[count_cols]))
-                print("Validating queries results (var_xx_gt1 columns) ...")
-                compare_result3 = compare_dataframes(ibis_df=(x_train_ibis_val[gt1_cols], x_valid_ibis_val[gt1_cols]),
-                                                     pandas_df=(x_train_pandas_val[gt1_cols], x_valid_pandas_val[gt1_cols]))
 
     except Exception as err:
         print("Failed: ", err)

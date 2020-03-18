@@ -236,7 +236,8 @@ class OmnisciServerWorker:
             except Exception as err:
                 print("Failed to create table:", err)
 
-        self._conn.load_data(table_name=table_name, obj=pd_obj,
+        self._conn_ipc.load_data(table_name=table_name, obj=pd_obj,
                              database=self.omnisci_server.database_name, method='columnar')
 
-        return self._conn.database(self.omnisci_server.database_name).table(table_name)
+        return self._conn_ipc.database(self.omnisci_server.database_name).table(table_name)
+    
