@@ -15,6 +15,7 @@ from utils import (
     files_names_from_pattern,
     import_pandas_into_module_namespace,
     load_data_pandas,
+    print_times,
 )
 
 
@@ -533,7 +534,7 @@ def main():
     args = parser.parse_args()
 
     ignored_args = {
-        "--optimizer": args.optimizer,
+        "optimizer": args.optimizer,
         "q3_full": args.q3_full,
         "no_ml": args.no_ml,
     }
@@ -680,7 +681,8 @@ def main():
                 create_new_table=not args.dni,
                 val=args.validation,
             )
-            print(etl_times_ibis)
+
+            print_times(etl_times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
         pandas_files_limit = 1
@@ -691,7 +693,8 @@ def main():
             columns_names=columns_names,
             columns_types=columns_types,
         )
-        print(etl_times)
+
+        print_times(etl_times=etl_times, backend=args.pandas_mode)
         etl_times["Backend"] = args.pandas_mode
 
         with open(args.result_file, "w") as json_file:

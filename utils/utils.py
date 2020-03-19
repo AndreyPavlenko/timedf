@@ -188,3 +188,9 @@ def files_names_from_pattern(filename):
     data_files_names = list(braceexpand(filename))
     data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
+
+def print_times(etl_times, backend=None):
+    if backend:
+        print(f"{backend} times:")
+    for time_name, time in etl_times.items():
+        print("{} = {:.5f} s".format(time_name, time))
