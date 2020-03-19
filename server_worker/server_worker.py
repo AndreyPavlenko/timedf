@@ -185,7 +185,6 @@ class OmnisciServerWorker:
             drop_db_sql = "DROP DATABASE IF EXISTS {0};\n".format(database_name)
             self.execute_sql_query(drop_db_sql)
             time.sleep(2)
-            #self._conn_ipc = self.ipc_connect_to_server()
         except Exception as err:
             print("Failed to delete ", database_name, "database: ", err)
 
