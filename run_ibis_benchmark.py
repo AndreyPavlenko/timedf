@@ -268,7 +268,6 @@ def main():
             omnisci_server_worker = OmnisciServerWorker(omnisci_server)
             pickled_file = "server_worker.pickled"
             cloudpickle.dump(omnisci_server_worker, open(pickled_file, "wb"))
-            omnisci_server.launch()
 
             benchmark_cmd.extend(
                 [
