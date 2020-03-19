@@ -139,6 +139,7 @@ class OmnisciServer:
                 time.sleep(2)
                 self.server_process.kill()
                 time.sleep(1)
+                self.server_process = None
         except Exception as err:
             print("Failed to terminate server, error occured:", err)
             sys.exit(1)
