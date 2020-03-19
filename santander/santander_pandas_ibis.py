@@ -228,18 +228,17 @@ def etl_ibis(
 
         # data file import by ibis
         columns_types_import_query = ["string", "int64"] + ["float64" for _ in range(200)]
-        t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
-                table_name=tmp_table_name,
-                data_files_names=filename,
-                files_limit=1,
-                columns_names=columns_names,
-                columns_types=columns_types_import_query,
-                header=0,
-                nrows=None,
-                compression_type=None
-            )
+        schema_table_import = ibis.Schema(
+                names=columns_names,
+                types=columns_types_import_query
+                )
+        conn.create_table(table_name=tmp_table_name, schema=schema_table_import,
+                          database=database_name, fragment_size = args.fragment_size)
 
-        etl_times["t_readcsv_by_ibis"] = t_import_pandas + t_import_ibis
+        table_import_query = conn.database(database_name).table(tmp_table_name)
+        t0 = timer()
+        table_import_query.read_csv(filename, delimiter=",")
+        etl_times["t_readcsv_by_ibis"] = timer() - t0
 
         # data file import by FSI
         omnisci_server_worker.drop_table(tmp_table_name)
@@ -258,14 +257,26 @@ def etl_ibis(
 
         omnisci_server_worker.drop_table(tmp_table_name)
     
-    # Create table and import data for ETL queries
     if create_new_table:
-        # Datafiles import
-        table_df = pd.read_csv(filename)
-        table_df["id"] = [x for x in range(table_df[table_df.columns[0]].count())]
-        table = omnisci_server_worker.import_data_from_pd_df(table_name=table_name, pd_obj=table_df,
-                                                             columns_names=columns_names+['row_id'],
-                                                             columns_types=columns_types+['int32'])
+        if validation == True:
+
+            # Datafiles import
+            table_df = pd.read_csv(filename)
+            table_df["id"] = [x for x in range(table_df[table_df.columns[0]].count())]
+            table = omnisci_server_worker.import_data_from_pd_df(table_name=table_name, pd_obj=table_df,
+                                                                 columns_names=columns_names+['row_id'],
+                                                                 columns_types=columns_types+['int32'])
+        else:
+            # Create table and import data for ETL queries
+            schema_table = ibis.Schema(
+                names=columns_names,
+                types=columns_types
+            )
+            conn.create_table(table_name=table_name, schema=schema_table,
+                              database=database_name, fragment_size = args.fragment_size)
+
+            table_import = conn.database(database_name).table(table_name)
+            table_import.read_csv(filename, delimiter=",")
         
     if args.server_conn_type == 'regular':
         db = conn.database(database_name)
@@ -303,9 +314,11 @@ def etl_ibis(
 
     table_df = table.execute()
 
+    if validation:
+        table_df = table_df.sort_values(by=['row_id'])
+        table_df = table_df.drop(['row_id'] ,axis=1)
+
     etl_times["t_groupby_merge_where"] = timer() - t0
-        
-    table_df = table_df.drop(['row_id'] ,axis=1)
     
     # rows split query
     t0 = timer()
@@ -615,6 +628,12 @@ def main():
         default=None,
         help="Launch OmniSci server with --enable-lazy-fetch option.",
     )
+    optional.add_argument(
+        "-fragment-size",
+        dest="fragment_size",
+        default=32000000,
+        help="Ibis table fragment size.",
+    )
 
     optional.add_argument(
         "-commit_omnisci",
@@ -746,7 +765,7 @@ def main():
             print_times_nested(ml_times_pandas)
             if db_reporter is not None:
                 submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_pandas', results=ml_times_pandas)
-                
+
             ml_args_ibis = {'x_train': x_train_ibis, 'y_train': y_train_ibis,
                             'x_valid': x_valid_ibis, 'y_valid': y_valid_ibis}
             score_mse_ibis, score_cod_ibis, ml_times_ibis = query_measurement_ml(ml,
@@ -773,15 +792,15 @@ def main():
             print("Validating queries results (var_xx_gt1 columns) ...")
             compare_result3 = compare_dataframes(ibis_df=(x_train_ibis[gt1_cols], x_valid_ibis[gt1_cols]),
                                                  pandas_df=(x_train_pandas[gt1_cols], x_valid_pandas[gt1_cols]))
-            
-            if not (compare_result1 and compare_result2 and compare_result3 and not args.no_ml):
+
+            if not (compare_result1 and compare_result2 and compare_result3) and not args.no_ml:
                 print("Validation of ML queries results ...")
                 if score_mse_ibis == score_mse_pandas:
                     print("Scores mse are equal!")
                 else:
                     print("Scores mse are unequal, score mse Ibis =", score_mse_ibis,
                          "score mse Pandas =", score_mse_pandas)
-                    
+
                 if score_mse_ibis == score_mse_pandas:
                     print("Scores cod are equal!")
                 else:
