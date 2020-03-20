@@ -6,10 +6,8 @@ import os
 import sys
 import traceback
 
-import cloudpickle
 import mysql.connector
 
-from environment import CondaEnvironment
 from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
@@ -21,14 +19,7 @@ def main():
     args = None
     omnisci_server = None
 
-    benchmarks = {
-        "ny_taxi": os.path.join(omniscript_path, "taxi", "taxibench_pandas_ibis.py"),
-        "santander": os.path.join(omniscript_path, "santander", "santander_ibis.py"),
-        "census": os.path.join(omniscript_path, "census", "census_pandas_ibis.py"),
-        "plasticc": os.path.join(
-            omniscript_path, "plasticc", "plasticc_pandas_ibis.py"
-        ),
-    }
+    benchmarks = ["ny_taxi", "santander", "census", "plasticc"]
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -36,53 +27,74 @@ def main():
     parser._action_groups.append(optional)
 
     required.add_argument(
-        "-bn",
-        "--bench_name",
-        dest="bench_name",
-        choices=list(benchmarks.keys()),
-        help="Benchmark name.",
+        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.",
     )
     required.add_argument(
-        "-en", "--env_name", dest="env_name", help="Conda env name.",
-    )
-    required.add_argument(
-        "-f", "--file", dest="file", help="A datafile that should be loaded.",
+        "-data_file", dest="data_file", help="A datafile that should be loaded.",
     )
     optional.add_argument(
-        "-df",
-        "--dfiles_num",
+        "-dfiles_num",
         dest="dfiles_num",
         default=1,
         type=int,
         help="Number of datafiles to input into database for processing.",
     )
     optional.add_argument(
-        "-it",
-        "--iterations",
+        "-iterations",
         dest="iterations",
         default=5,
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
-    optional.add_argument("-dnd", action="store_true", help="Do not delete old table.")
+    optional.add_argument("-dnd", default=False, help="Do not delete old table.")
     optional.add_argument(
         "-dni",
-        action="store_true",
+        default=False,
         help="Do not create new table and import any data from CSV files.",
     )
     optional.add_argument(
-        "-val",
+        "-validation",
         dest="validation",
-        action="store_true",
+        default=False,
         help="validate queries results (by comparison with Pandas queries results).",
     )
     optional.add_argument(
-        "-o",
-        "--optimizer",
+        "-optimizer",
         choices=["intel", "stock"],
         dest="optimizer",
         default="intel",
         help="Which optimizer is used",
+    )
+    optional.add_argument(
+        "-no_ibis",
+        default=False,
+        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
+    )
+    optional.add_argument(
+        "-pandas_mode",
+        choices=["Pandas", "Modin_on_ray", "Modin_on_dask"],
+        default="pandas",
+        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
+    )
+    optional.add_argument(
+        "-ray_tmpdir",
+        default="/tmp",
+        help="Location where to keep Ray plasma store. It should have enough space to keep -ray_memory",
+    )
+    optional.add_argument(
+        "-ray_memory",
+        default=200 * 1024 * 1024 * 1024,
+        help="Size of memory to allocate for Ray plasma store",
+    )
+    optional.add_argument(
+        "-no_ml",
+        default=False,
+        help="Do not run machine learning benchmark, only ETL part",
+    )
+    optional.add_argument(
+        "-q3_full",
+        default=False,
+        help="Execute q3 query correctly (script execution time will be increased).",
     )
     # MySQL database parameters
     optional.add_argument(
@@ -123,15 +135,11 @@ def main():
         help="Table to use to store results for this benchmark.",
     )
     # Omnisci server parameters
-    required.add_argument(
-        "-e",
-        "--executable",
-        dest="omnisci_executable",
-        help="Path to omnisci_server executable.",
+    optional.add_argument(
+        "-executable", dest="executable", help="Path to omnisci_server executable.",
     )
     optional.add_argument(
-        "-w",
-        "--workdir",
+        "-omnisci_cwd",
         dest="omnisci_cwd",
         help="Path to omnisci working directory. "
              "By default parent directory of executable location is used. "
@@ -139,71 +147,34 @@ def main():
     )
     optional.add_argument(
         "-port",
-        "--omnisci_port",
-        dest="omnisci_port",
+        dest="port",
         default=6274,
         type=int,
         help="TCP port number to run omnisci_server on.",
     )
     optional.add_argument(
-        "-u",
-        "--user",
+        "-user",
         dest="user",
         default="admin",
         help="User name to use on omniscidb server.",
     )
     optional.add_argument(
-        "-p",
-        "--password",
+        "-password",
         dest="password",
         default="HyperInteractive",
         help="User password to use on omniscidb server.",
     )
     optional.add_argument(
-        "-db",
-        "--database_name",
+        "-database_name",
         dest="database_name",
         default="omnisci",
         help="Database name to use in omniscidb server.",
     )
     optional.add_argument(
-        "-t",
-        "--table",
+        "-table",
         dest="table",
         default="benchmark_table",
         help="Table name name to use in omniscidb server.",
-    )
-    # Benchmark parameters
-    optional.add_argument(
-        "-no_ibis",
-        action="store_true",
-        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
-    )
-    optional.add_argument(
-        "-pandas_mode",
-        choices=["Pandas", "Modin_on_ray", "Modin_on_dask"],
-        default="pandas",
-        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
-    )
-    optional.add_argument(
-        "-ray_tmpdir",
-        default="/tmp",
-        help="Location where to keep Ray plasma store. It should have enough space to keep -ray_memory",
-    )
-    optional.add_argument(
-        "-ray_memory",
-        default=200 * 1024 * 1024 * 1024,
-        help="Size of memory to allocate for Ray plasma store",
-    )
-    optional.add_argument(
-        "-no_ml",
-        action="store_true",
-        help="Do not run machine learning benchmark, only ETL part",
-    )
-    optional.add_argument(
-        "-q3_full",
-        action="store_true",
-        help="Execute q3 query correctly (script execution time will be increased).",
     )
     # Additional information
     optional.add_argument(
@@ -225,80 +196,67 @@ def main():
 
         args = parser.parse_args()
 
-        conda_env = CondaEnvironment(args.env_name)
-        if not conda_env.is_env_exist():
-            print(f"Conda environment {args.env_name} is not existed.")
-            exit(1)
+        if args.bench_name == "ny_taxi":
+            from taxi import run_benchmark
+        elif args.bench_name == "santander":
+            from santander import run_benchmark
+        elif args.bench_name == "census":
+            from census import run_benchmark
+        elif args.bench_name == "plasticc":
+            from plasticc import run_benchmark
 
-        result_file = f"{args.bench_name}_results.json"
-        benchmark_cmd = [
-            "python3",
-            benchmarks[args.bench_name],
-            f"--file={args.file}",
-            "--dfiles_num",
-            str(args.dfiles_num),
-            "--result_file",
-            result_file,
-            "-no_ml" if args.no_ml else "",
-            "-no_ibis" if args.no_ibis else "",
-            "-q3_full" if args.q3_full else "",
-            f"--optimizer={args.optimizer}" if args.optimizer else "",
-            "-pandas_mode",
-            args.pandas_mode,
-            "-ray_tmpdir",
-            args.ray_tmpdir,
-            "-ray_memory",
-            str(args.ray_memory),
-        ]
+        parameters = {
+            "data_file": args.data_file,
+            "dfiles_num": args.dfiles_num,
+            "no_ml": args.no_ml,
+            "no_ibis": args.no_ibis,
+            "q3_full": args.q3_full,
+            "optimizer": args.optimizer,
+            "pandas_mode": args.pandas_mode,
+            "ray_tmpdir": args.ray_tmpdir,
+            "ray_memory": args.ray_memory,
+        }
 
         omnisci_server_worker = None
         if not args.no_ibis:
-            if args.omnisci_executable is None:
+            if args.executable is None:
                 parser.error(
-                    "Omnisci executable should be specified with -e/--executable"
+                    "Omnisci executable should be specified with -e/--executable for Ibis part"
                 )
             omnisci_server = OmnisciServer(
-                omnisci_executable=args.omnisci_executable,
-                omnisci_port=args.omnisci_port,
+                omnisci_executable=args.executable,
+                omnisci_port=args.port,
                 database_name=args.database_name,
                 user=args.user,
                 password=args.password,
             )
 
-            omnisci_server_worker = OmnisciServerWorker(omnisci_server)
-            pickled_file = "server_worker.pickled"
-            cloudpickle.dump(omnisci_server_worker, open(pickled_file, "wb"))
-
-            benchmark_cmd.extend(
-                [
-                    "--omnisci_server_worker",
-                    pickled_file,
-                    "--database_name",
-                    args.database_name,
-                    "--table",
-                    args.table,
-                    "-dnd" if args.dnd else "",
-                    "-dni" if args.dni else "",
-                    "-val" if args.validation else "",
-                ]
-            )
+            parameters["database_name"] = args.database_name
+            parameters["table"] = args.table
+            parameters["dnd"] = args.dnd
+            parameters["dni"] = args.dni
+            parameters["validation"] = args.validation
 
         results = []
+        print(parameters)
         for iter_num in range(1, args.iterations + 1):
+            print(f"Iteration №{iter_num}")
+
             if not args.no_ibis:
+                omnisci_server_worker = OmnisciServerWorker(omnisci_server)
+                parameters["omnisci_server_worker"] = omnisci_server_worker
                 omnisci_server.launch()
 
-            conda_env.run(benchmark_cmd)
+            result = run_benchmark(parameters)
 
             if not args.no_ibis:
                 omnisci_server.terminate()
 
-            with open(result_file, "r") as json_file:
-                result = json.load(json_file)
-
             for backend_res in result:
-                backend_res["Iteration"] = iter_num
-            results.extend(result)
+                if backend_res:
+                    backend_res["Iteration"] = iter_num
+                    results.append(result)
+
 
         # if args.db_user is not "":
         #     print("Connecting to database")
@@ -321,7 +279,7 @@ def main():
         #     )
         #     for result in results:
         #           db_reporter.submit(result)
-
+        omnisci_server = None
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)

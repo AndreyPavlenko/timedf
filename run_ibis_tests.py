@@ -2,10 +2,16 @@ import argparse
 import os
 import sys
 import traceback
+import re
+
+import mysql.connector
 
 from environment import CondaEnvironment
+from report import DbReport
 from server import OmnisciServer
-from utils import combinate_requirements, str_arg_to_bool
+from server_worker import OmnisciServerWorker
+from utils import combinate_requirements, compare_dataframes
+from utils import import_pandas_into_module_namespace, execute_process, str_arg_to_bool
 
 
 def main():
@@ -14,16 +20,18 @@ def main():
     args = None
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
-    optional = parser._action_groups.pop()
-    required = parser.add_argument_group("required arguments")
-    parser._action_groups.append(optional)
+    required = parser._action_groups.pop()
+    optional = parser.add_argument_group("optional arguments")
+    omnisci = parser.add_argument_group("omnisci")
+    benchmark = parser.add_argument_group("benchmark")
+    mysql = parser.add_argument_group("mysql")
+    commits = parser.add_argument_group("commits")
 
-    possible_tasks = ["build", "test"]
+    possible_tasks = ["build", "test", "benchmark"]
     benchmarks = ["ny_taxi", "santander", "census", "plasticc"]
     # Task
     required.add_argument(
-        "-t",
-        "--task",
+        "-task",
         dest="task",
         required=True,
         help=f"Task for execute {possible_tasks}. Use , separator for multiple tasks",
@@ -78,7 +86,7 @@ def main():
     )
     # Ibis tests
     optional.add_argument(
-        "--expression",
+        "-expression",
         dest="expression",
         default=" ",
         help="Run tests which match the given substring test names and their parent "
@@ -86,58 +94,167 @@ def main():
         "that don't contain 'test_method' in their names.",
     )
     # Omnisci server parameters
-    optional.add_argument(
-        "-e",
-        "--executable",
-        dest="omnisci_executable",
+    omnisci.add_argument(
+        "-executable",
+        dest="executable",
         required=True,
         help="Path to omnisci_server executable.",
     )
-    optional.add_argument(
-        "-w",
-        "--workdir",
+    omnisci.add_argument(
+        "--omnisci_cwd",
         dest="omnisci_cwd",
         help="Path to omnisci working directory. "
         "By default parent directory of executable location is used. "
         "Data directory is used in this location.",
     )
-    optional.add_argument(
+    omnisci.add_argument(
         "-port",
-        "--omnisci_port",
-        dest="omnisci_port",
+        dest="port",
         default=6274,
         type=int,
         help="TCP port number to run omnisci_server on.",
     )
-    optional.add_argument(
-        "-u",
-        "--user",
+    omnisci.add_argument(
+        "-user",
         dest="user",
         default="admin",
         help="User name to use on omniscidb server.",
     )
-    optional.add_argument(
-        "-p",
-        "--password",
+    omnisci.add_argument(
+        "-password",
         dest="password",
         default="HyperInteractive",
         help="User password to use on omniscidb server.",
     )
-    optional.add_argument(
-        "-db",
-        "--database_name",
+    omnisci.add_argument(
+        "-database_name",
         dest="database_name",
         default="agent_test_ibis",
         help="Database name to use in omniscidb server.",
     )
-
-    optional.add_argument(
+    omnisci.add_argument(
+        "-table",
+        dest="table",
+        default="benchmark_table",
+        help="Table name name to use in omniscidb server.",
+    )
+    # Benchmark parameters
+    benchmark.add_argument(
+        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.",
+    )
+    benchmark.add_argument(
+        "-data_file", dest="data_file", help="A datafile that should be loaded.",
+    )
+    benchmark.add_argument(
+        "-dfiles_num",
+        dest="dfiles_num",
+        default=1,
+        type=int,
+        help="Number of datafiles to input into database for processing.",
+    )
+    benchmark.add_argument(
+        "-iterations",
+        dest="iterations",
+        default=5,
+        type=int,
+        help="Number of iterations to run every query. Best result is selected.",
+    )
+    benchmark.add_argument("-dnd", default=False, help="Do not delete old table.")
+    benchmark.add_argument(
+        "-dni",
+        default=False,
+        help="Do not create new table and import any data from CSV files.",
+    )
+    benchmark.add_argument(
+        "-validation",
+        dest="validation",
+        default=False,
+        help="validate queries results (by comparison with Pandas queries results).",
+    )
+    benchmark.add_argument(
+        "-optimizer",
+        choices=["intel", "stock"],
+        dest="optimizer",
+        default="intel",
+        help="Which optimizer is used",
+    )
+    benchmark.add_argument(
+        "-no_ibis",
+        default=False,
+        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
+    )
+    benchmark.add_argument(
+        "-pandas_mode",
+        choices=["Pandas", "Modin_on_ray", "Modin_on_dask"],
+        default="Pandas",
+        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
+    )
+    benchmark.add_argument(
+        "-ray_tmpdir",
+        default="/tmp",
+        help="Location where to keep Ray plasma store. It should have enough space to keep -ray_memory",
+    )
+    benchmark.add_argument(
+        "-ray_memory",
+        default=200 * 1024 * 1024 * 1024,
+        help="Size of memory to allocate for Ray plasma store",
+    )
+    benchmark.add_argument(
+        "-no_ml",
+        default=False,
+        help="Do not run machine learning benchmark, only ETL part",
+    )
+    benchmark.add_argument(
+        "-q3_full",
+        default=False,
+        help="Execute q3 query correctly (script execution time will be increased).",
+    )
+    # MySQL database parameters
+    mysql.add_argument(
+        "-db-server",
+        dest="db_server",
+        default="localhost",
+        help="Host name of MySQL server.",
+    )
+    mysql.add_argument(
+        "-db-port",
+        dest="db_port",
+        default=3306,
+        type=int,
+        help="Port number of MySQL server.",
+    )
+    mysql.add_argument(
+        "-db-user",
+        dest="db_user",
+        help="Username to use to connect to MySQL database. "
+        "If user name is specified, script attempts to store results in MySQL "
+        "database using other -db-* parameters.",
+    )
+    mysql.add_argument(
+        "-db-pass",
+        dest="db_pass",
+        default="omniscidb",
+        help="Password to use to connect to MySQL database.",
+    )
+    mysql.add_argument(
+        "-db-name",
+        dest="db_name",
+        default="omniscidb",
+        help="MySQL database to use to store benchmark results.",
+    )
+    mysql.add_argument(
+        "-db-table",
+        dest="db_table",
+        help="Table to use to store results for this benchmark.",
+    )
+    # Additional information
+    commits.add_argument(
         "-commit_omnisci",
         dest="commit_omnisci",
         default="1234567890123456789012345678901234567890",
         help="Omnisci commit hash to use for tests.",
     )
-    optional.add_argument(
+    commits.add_argument(
         "-commit_ibis",
         dest="commit_ibis",
         default="1234567890123456789012345678901234567890",
@@ -149,7 +266,7 @@ def main():
 
         os.environ["IBIS_TEST_OMNISCIDB_DATABASE"] = args.database_name
         os.environ["IBIS_TEST_DATA_DB"] = args.database_name
-        os.environ["IBIS_TEST_OMNISCIDB_PORT"] = str(args.omnisci_port)
+        os.environ["IBIS_TEST_OMNISCIDB_PORT"] = str(args.port)
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
 
@@ -169,42 +286,11 @@ def main():
                 f"Only 3.7 and 3.6 python versions are supported, {args.python_version} is not supported"
             )
             sys.exit(1)
+
         ibis_requirements = os.path.join(
             args.ibis_path, "ci", f"requirements-{args.python_version}-dev.yml"
         )
-        ibis_data_script = os.path.join(args.ibis_path, "ci", "datamgr.py")
-
         requirements_file = "requirements.yml"
-        report_file_name = (
-            f"report-{args.commit_ibis[:8]}-{args.commit_omnisci[:8]}.html"
-        )
-        if not os.path.isdir(args.report_path):
-            os.makedirs(args.report_path)
-        report_file_path = os.path.join(args.report_path, report_file_name)
-
-        install_ibis_cmdline = ["python3", os.path.join("setup.py"), "install"]
-
-        dataset_download_cmdline = ["python3", ibis_data_script, "download"]
-
-        dataset_import_cmdline = [
-            "python3",
-            ibis_data_script,
-            "omniscidb",
-            "-P",
-            str(args.omnisci_port),
-            "--database",
-            args.database_name,
-        ]
-
-        ibis_tests_cmdline = [
-            "pytest",
-            "-m",
-            "omniscidb",
-            "--disable-pytest-warnings",
-            "-k",
-            args.expression,
-            f"--html={report_file_path}",
-        ]
 
         conda_env = CondaEnvironment(args.env_name)
 
@@ -215,14 +301,44 @@ def main():
         conda_env.create(args.env_check, requirements_file=requirements_file)
 
         if tasks["build"]:
+            install_ibis_cmdline = ["python3", os.path.join("setup.py"), "install"]
+
             print("IBIS INSTALLATION")
             conda_env.run(install_ibis_cmdline, cwd=args.ibis_path, print_output=False)
 
         if tasks["test"]:
+            ibis_data_script = os.path.join(args.ibis_path, "ci", "datamgr.py")
+            dataset_download_cmdline = ["python3", ibis_data_script, "download"]
+            dataset_import_cmdline = [
+                "python3",
+                ibis_data_script,
+                "omniscidb",
+                "-P",
+                str(args.port),
+                "--database",
+                args.database_name,
+            ]
+            report_file_name = (
+                f"report-{args.commit_ibis[:8]}-{args.commit_omnisci[:8]}.html"
+            )
+            if not os.path.isdir(args.report_path):
+                os.makedirs(args.report_path)
+            report_file_path = os.path.join(args.report_path, report_file_name)
+
+            ibis_tests_cmdline = [
+                "pytest",
+                "-m",
+                "omniscidb",
+                "--disable-pytest-warnings",
+                "-k",
+                args.expression,
+                f"--html={report_file_path}",
+            ]
+
             print("STARTING OMNISCI SERVER")
             omnisci_server = OmnisciServer(
-                omnisci_executable=args.omnisci_executable,
-                omnisci_port=args.omnisci_port,
+                omnisci_executable=args.executable,
+                omnisci_port=args.port,
                 database_name=args.database_name,
                 omnisci_cwd=args.omnisci_cwd,
                 user=args.user,
@@ -236,6 +352,70 @@ def main():
 
             print("RUNNING TESTS")
             conda_env.run(ibis_tests_cmdline, cwd=args.ibis_path)
+
+        if tasks["benchmark"]:
+            # if not args.bench_name or args.bench_name not in benchmarks:
+            #     print(
+            #     f"Benchmark {args.bench_name} is not supported, only {benchmarks} are supported")
+            # sys.exit(1)
+
+            if not args.data_file:
+                print(
+                    f"Parameter --data_file was received empty, but it is required for benchmarks"
+                )
+                sys.exit(1)
+
+            benchmark_script_path = os.path.join(
+                omniscript_path, "run_ibis_benchmark.py"
+            )
+
+            benchmark_cmd = ["python3", benchmark_script_path]
+
+            possible_benchmark_args = [
+                "bench_name",
+                "data_file",
+                "dfiles_num",
+                "iterations",
+                "dnd",
+                "dni",
+                "validation",
+                "optimizer",
+                "no_ibis",
+                "pandas_mode",
+                "ray_tmpdir",
+                "ray_memory",
+                "no_ml",
+                "q3_full",
+                "db-server",
+                "db-port",
+                "db-user",
+                "db-pass",
+                "db-name",
+                "db-table",
+                "executable",
+                "omnisci_cwd",
+                "port",
+                "user",
+                "password",
+                "database_name",
+                "table",
+                "commit_omnisci",
+                "commit_ibis",
+            ]
+            args_dict = vars(args)
+            args_dict["data_file"] = f"'{args_dict['data_file']}'"
+            for arg_name in list(parser._option_string_actions.keys()):
+                try:
+                    pure_arg = re.sub(r"^--*", "", arg_name)
+                    if pure_arg in possible_benchmark_args:
+                        pure_arg = pure_arg.replace("-", "_")
+                        arg_value = args_dict[pure_arg]
+                        if arg_value:
+                            benchmark_cmd.extend([arg_name, str(arg_value)])
+                except KeyError:
+                    pass
+
+            conda_env.run(benchmark_cmd)
 
     except Exception:
         traceback.print_exc(file=sys.stdout)

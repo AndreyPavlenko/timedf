@@ -46,7 +46,7 @@ def etl_pandas(filename, columns_names, columns_types):
         header=0,
         nrows=None,
         use_gzip=filename.endswith(".gz"),
-        pd=main.__globals__["pd"],
+        pd=run_benchmark.__globals__["pd"],
     )
     etl_times["t_readcsv"] = timer() - t0
 
@@ -123,6 +123,7 @@ def etl_ibis(
     create_new_table,
     validation,
 ):
+
     etl_times = {
         "t_readcsv": 0.0,
         "t_where": 0.0,
@@ -313,124 +314,18 @@ def ml(X, y, random_state, n_runs, train_size, optimizer):
     return mse_mean, cod_mean, mse_dev, cod_dev, ml_times
 
 
-def main():
-    omniscript_path = os.path.dirname(__file__)
-    args = None
-    omnisci_server_worker = None
+def run_benchmark(parameters):
 
-    parser = argparse.ArgumentParser(
-        description="Run cencus benchmark on Ibis and Pandas."
-    )
-    optional = parser._action_groups.pop()
-    required = parser.add_argument_group("required arguments")
-    parser._action_groups.append(optional)
-
-    required.add_argument(
-        "-f", "--file", dest="file", help="A datafile that should be loaded.",
-    )
-    optional.add_argument(
-        "-df",
-        "--dfiles_num",
-        dest="dfiles_num",
-        default=1,
-        type=int,
-        help="Number of datafiles to input into database for processing.",
-    )
-    required.add_argument(
-        "--omnisci_server_worker",
-        dest="omnisci_server_worker",
-        default="server_worker.pickled",
-        help="File with pickled omnisci_server_worker representation.",
-    )
-    optional.add_argument(
-        "--result_file",
-        dest="result_file",
-        default="taxi_results.json",
-        help="File to which the results will be written.",
-    )
-    # Omnisci server parameters
-    optional.add_argument(
-        "-db",
-        "--database_name",
-        dest="database_name",
-        default="omnisci",
-        help="Database name to use in omniscidb server.",
-    )
-    optional.add_argument(
-        "-t",
-        "--table",
-        dest="table",
-        default="benchmark_table",
-        help="Table name name to use in omniscidb server.",
-    )
-    # Ibis parameters
-    optional.add_argument("-dnd", action="store_true", help="Do not delete old table.")
-    optional.add_argument(
-        "-dni",
-        action="store_true",
-        help="Do not create new table and import any data from CSV files.",
-    )
-    # Benchmark parameters
-    optional.add_argument(
-        "-val",
-        dest="validation",
-        action="store_true",
-        help="validate queries results (by comparison with Pandas queries results).",
-    )
-    optional.add_argument(
-        "-o",
-        "--optimizer",
-        choices=["intel", "stock"],
-        dest="optimizer",
-        default="intel",
-        help="Which optimizer is used",
-    )
-    # Benchmark parameters
-    optional.add_argument(
-        "-no_ibis",
-        action="store_true",
-        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
-    )
-    optional.add_argument(
-        "-pandas_mode",
-        choices=["pandas", "modin_on_ray", "modin_on_dask", "modin_on_python"],
-        default="pandas",
-        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
-    )
-    optional.add_argument(
-        "-ray_tmpdir",
-        default="/tmp",
-        help="Location where to keep Ray plasma store. It should have enough space to keep -ray_memory",
-    )
-    optional.add_argument(
-        "-ray_memory",
-        default=200 * 1024 * 1024 * 1024,
-        help="Size of memory to allocate for Ray plasma store",
-    )
-    optional.add_argument(
-        "-no_ml",
-        action="store_true",
-        help="Do not run machine learning benchmark, only ETL part",
-    )
-    optional.add_argument(
-        "-q3_full",
-        action="store_true",
-        help="Execute q3 query correctly (script execution time will be increased).",
-    )
-
-    args = parser.parse_args()
-
-    ignored_args = {
-        "q3_full": args.q3_full,
-        "dfiles_num": args.dfiles_num,
+    ignored_parameters = {
+        "q3_full": parameters["q3_full"],
+        "dfiles_num": parameters["dfiles_num"],
     }
-    if args.no_ibis:
-        ignored_args["omnisci_server_worker"] = args.omnisci_server_worker
-        ignored_args["dnd"] = args.dnd
-        ignored_args["dni"] = args.dni
-    warnings.warn(f"Parameters {ignored_args} are irnored", RuntimeWarning)
+    if parameters["no_ibis"]:
+        ignored_parameters["dnd"] = parameters["dnd"]
+        ignored_parameters["dni"] = parameters["dni"]
+    warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
 
-    args.file = args.file.replace("'", "")
+    parameters["data_file"] = parameters["data_file"].replace("'", "")
 
     # ML specific
     N_RUNS = 50
@@ -537,69 +432,67 @@ def main():
     try:
 
         import_pandas_into_module_namespace(
-            namespace=main.__globals__,
-            mode=args.pandas_mode,
-            ray_tmpdir=args.ray_tmpdir,
-            ray_memory=args.ray_memory,
+            namespace=run_benchmark.__globals__,
+            mode=parameters["pandas_mode"],
+            ray_tmpdir=parameters["ray_tmpdir"],
+            ray_memory=parameters["ray_memory"],
         )
 
         etl_times_ibis = None
-        if not args.no_ibis:
+        if not parameters["no_ibis"]:
+
             X_ibis, y_ibis, etl_times_ibis = etl_ibis(
-                filename=args.file,
+                filename=parameters["data_file"],
                 columns_names=columns_names,
                 columns_types=columns_types,
-                database_name=args.database_name,
-                table_name=args.table,
-                omnisci_server_worker=cloudpickle.load(
-                    open(args.omnisci_server_worker, "rb")
-                ),
-                delete_old_database=not args.dnd,
-                create_new_table=not args.dni,
-                validation=args.val,
+                database_name=parameters["database_name"],
+                table_name=parameters["table"],
+                omnisci_server_worker=parameters["omnisci_server_worker"],
+                delete_old_database=not parameters["dnd"],
+                create_new_table=not parameters["dni"],
             )
 
-            omnisci_server_worker.terminate()
-            omnisci_server_worker = None
+            print_times(etl_times=etl_times_ibis, backend="Ibis")
+            etl_times_ibis["Backend"] = "Ibis"
 
-            print_times(etl_times_ibis, "Ibis", db_reporter)
-
-            if not args.no_ml:
+            if not parameters["no_ml"]:
                 mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
-                    X_ibis, y_ibis, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
+                    X_ibis,
+                    y_ibis,
+                    RANDOM_STATE,
+                    N_RUNS,
+                    TRAIN_SIZE,
+                    parameters["optimizer"],
                 )
                 print_times(ml_times, "Ibis")
                 print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
                 print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
 
         X, y, etl_times = etl_pandas(
-            args.file, columns_names=columns_names, columns_types=columns_types
+            parameters["data_file"],
+            columns_names=columns_names,
+            columns_types=columns_types,
         )
 
-        print_times(etl_times=etl_times, backend=args.pandas_mode)
-        etl_times["Backend"] = args.pandas_mode
+        print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
+        etl_times["Backend"] = parameters["pandas_mode"]
 
-        if not args.no_ml:
+        if not parameters["no_ml"]:
             mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
-                X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, args.optimizer
+                X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, parameters["optimizer"]
             )
-            print_times(ml_times, args.pandas_mode)
+            print_times(ml_times, parameters["pandas_mode"])
             print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
             print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
 
-        if args.validation:
-            compare_dataframes(ibis_df=(X_ibis, y_ibis), pandas_df=(X, y),
-                               pd=main.__globals__["pd"])
+        if parameters["validation"]:
+            compare_dataframes(
+                ibis_df=(X_ibis, y_ibis),
+                pandas_df=(X, y),
+                pd=run_benchmark.__globals__["pd"],
+            )
 
-        with open(args.result_file, "w") as json_file:
-            json.dump([etl_times_ibis, etl_times], json_file)
+        return [etl_times_ibis, etl_times]
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
-    finally:
-        if omnisci_server_worker:
-            omnisci_server_worker.terminate()
-
-
-if __name__ == "__main__":
-    main()

@@ -29,10 +29,10 @@ def validation_prereqs(
     )
 
 
-def run_queries(queries, args, etl_times):
+def run_queries(queries, parameters, etl_times):
     for query_number, (query_name, query_func) in enumerate(queries.items()):
         print("Running query number:", query_number + 1)
-        exec_time = int(round(query_func(**args) * 1000, 3))
+        exec_time = int(round(query_func(**parameters) * 1000, 3))
         etl_times[query_name] = exec_time
         print("Query", query_number + 1, "Exec time (ms):", exec_time)
     return etl_times
@@ -67,7 +67,7 @@ def q1_ibis(
         q1_output_pd_df.index = [i for i in range(len(q1_output_pd_df))]
 
         queries_validation_results["q1"] = compare_dataframes(
-            ibis_df=q1_output_pd_df, pandas_df=q1_output_ibis, pd=main.__globals__["pd"]
+            ibis_df=q1_output_pd_df, pandas_df=q1_output_ibis, pd=run_benchmark.__globals__["pd"]
         )
         if queries_validation_results["q1"]:
             print("q1 results are validated!")
@@ -99,7 +99,7 @@ def q2_ibis(
         ]
 
         queries_validation_results["q2"] = compare_dataframes(
-            pandas_df=q2_output_pd, ibis_df=q2_output_ibis, pd=main.__globals__["pd"]
+            pandas_df=q2_output_pd, ibis_df=q2_output_ibis, pd=run_benchmark.__globals__["pd"]
         )
         if queries_validation_results["q2"]:
             print("q2 results are validated!")
@@ -154,7 +154,7 @@ def q3_ibis(
         q3_output_pd_df.index = [i for i in range(len(q3_output_pd_df))]
 
         queries_validation_results["q3"] = compare_dataframes(
-            pandas_df=q3_output_pd_df, ibis_df=q3_output_ibis, pd=main.__globals__["pd"]
+            pandas_df=q3_output_pd_df, ibis_df=q3_output_ibis, pd=run_benchmark.__globals__["pd"]
         )
         if queries_validation_results["q3"]:
             print("q3 results are validated!")
@@ -217,12 +217,12 @@ def q4_ibis(
         compare_result_1 = compare_dataframes(
             pandas_df=q4_output_pd["pickup_datetime"],
             ibis_df=q4_output_ibis["pickup_datetime"],
-            pd=main.__globals__["pd"],
+            pd=run_benchmark.__globals__["pd"],
         )
         compare_result_2 = compare_dataframes(
             pandas_df=q4_output_pd["count"],
             ibis_df=q4_output_ibis["count"],
-            pd=main.__globals__["pd"],
+            pd=run_benchmark.__globals__["pd"],
         )
 
         # compare_result_3 is the result of q4 output table all elements presence check
@@ -249,7 +249,7 @@ def q4_ibis(
         compare_result_3 = compare_dataframes(
             pandas_df=q4_output_pd_valid,
             ibis_df=q4_output_ibis_validation,
-            pd=main.__globals__["pd"],
+            pd=run_benchmark.__globals__["pd"],
         )
 
         queries_validation_results["q4"] = (
@@ -321,14 +321,14 @@ def etl_ibis(
             omnisci_server_worker, data_files_names, files_limit, columns_names
         )
 
-    queries_args = {
+    queries_parameters = {
         "table": table,
         "df_pandas": df_pandas,
         "queries_validation_results": queries_validation_results,
         "queries_validation_flags": queries_validation_flags,
         "val": val,
     }
-    return run_queries(queries=queries, args=queries_args, etl_times=etl_times)
+    return run_queries(queries=queries, parameters=queries_parameters, etl_times=etl_times)
 
 
 # SELECT cab_type,
@@ -418,133 +418,30 @@ def etl_pandas(
             nrows=1000,
             use_gzip=f.endswith(".gz"),
             parse_dates=["pickup_datetime", "dropoff_datetime",],
-            pd=main.__globals__["pd"],
+            pd=run_benchmark.__globals__["pd"],
         )
         for f in filename
     ]
     concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
     etl_times["t_readcsv"] = time.time() - t0
 
-    queries_args = {"df": concatenated_df}
-    return run_queries(queries=queries, args=queries_args, etl_times=etl_times)
+    queries_parameters = {"df": concatenated_df}
+    return run_queries(queries=queries, parameters=queries_parameters, etl_times=etl_times)
 
 
-def main():
+def run_benchmark(parameters):
 
-    parser = argparse.ArgumentParser(
-        description="Run taxi benchmark on Ibis and Pandas"
-    )
-    optional = parser._action_groups.pop()
-    required = parser.add_argument_group("required arguments")
-    parser._action_groups.append(optional)
-
-    required.add_argument(
-        "-f", "--file", dest="file", help="A datafile that should be loaded.",
-    )
-    optional.add_argument(
-        "-df",
-        "--dfiles_num",
-        dest="dfiles_num",
-        default=1,
-        type=int,
-        help="Number of datafiles to input into database for processing.",
-    )
-    required.add_argument(
-        "--omnisci_server_worker",
-        dest="omnisci_server_worker",
-        default="server_worker.pickled",
-        help="File with pickled omnisci_server_worker representation.",
-    )
-    optional.add_argument(
-        "--result_file",
-        dest="result_file",
-        default="taxi_results.json",
-        help="File to which the results will be written.",
-    )
-    # Omnisci server parameters
-    optional.add_argument(
-        "-db",
-        "--database_name",
-        dest="database_name",
-        default="omnisci",
-        help="Database name to use in omniscidb server.",
-    )
-    optional.add_argument(
-        "-t",
-        "--table",
-        dest="table",
-        default="benchmark_table",
-        help="Table name name to use in omniscidb server.",
-    )
-    # Ibis parameters
-    optional.add_argument("-dnd", action="store_true", help="Do not delete old table.")
-    optional.add_argument(
-        "-dni",
-        action="store_true",
-        help="Do not create new table and import any data from CSV files.",
-    )
-    # Benchmark parameters
-    optional.add_argument(
-        "-val",
-        dest="validation",
-        action="store_true",
-        help="validate queries results (by comparison with Pandas queries results).",
-    )
-    optional.add_argument(
-        "-o",
-        "--optimizer",
-        choices=["intel", "stock"],
-        dest="optimizer",
-        default="intel",
-        help="Which optimizer is used",
-    )
-    # Benchmark parameters
-    optional.add_argument(
-        "-no_ibis",
-        action="store_true",
-        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
-    )
-    optional.add_argument(
-        "-pandas_mode",
-        choices=["Pandas", "Modin_on_ray", "Modin_on_dask"],
-        default="pandas",
-        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
-    )
-    optional.add_argument(
-        "-ray_tmpdir",
-        default="/tmp",
-        help="Location where to keep Ray plasma store. It should have enough space to keep -ray_memory",
-    )
-    optional.add_argument(
-        "-ray_memory",
-        default=200 * 1024 * 1024 * 1024,
-        help="Size of memory to allocate for Ray plasma store",
-    )
-    optional.add_argument(
-        "-no_ml",
-        action="store_true",
-        help="Do not run machine learning benchmark, only ETL part",
-    )
-    optional.add_argument(
-        "-q3_full",
-        action="store_true",
-        help="Execute q3 query correctly (script execution time will be increased).",
-    )
-
-    args = parser.parse_args()
-
-    ignored_args = {
-        "optimizer": args.optimizer,
-        "q3_full": args.q3_full,
-        "no_ml": args.no_ml,
+    ignored_parameters = {
+        "optimizer": parameters["optimizer"],
+        "q3_full": parameters["q3_full"],
+        "no_ml": parameters["no_ml"],
     }
-    if args.no_ibis:
-        ignored_args["omnisci_server_worker"] = args.omnisci_server_worker
-        ignored_args["dnd"] = args.dnd
-        ignored_args["dni"] = args.dni
-    warnings.warn(f"Parameters {ignored_args} are irnored", RuntimeWarning)
+    if parameters["no_ibis"]:
+        ignored_parameters["dnd"] = parameters["dnd"]
+        ignored_parameters["dni"] = parameters["dni"]
+    warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
 
-    args.file = args.file.replace("'", "")
+    parameters["data_file"] = parameters["data_file"].replace("'", "")
 
     columns_names = [
         "trip_id",
@@ -654,39 +551,37 @@ def main():
         "float64",
     ]
 
-    if not args.dfiles_num or args.dfiles_num <= 0:
-        print("Bad number of data files specified: ", args.dfiles_num)
+    if parameters["dfiles_num"] <= 0:
+        print("Bad number of data files specified: ", parameters["dfiles_num"])
         sys.exit(1)
     try:
         import_pandas_into_module_namespace(
-            namespace=main.__globals__,
-            mode=args.pandas_mode,
-            ray_tmpdir=args.ray_tmpdir,
-            ray_memory=args.ray_memory,
+            namespace=run_benchmark.__globals__,
+            mode=parameters["pandas_mode"],
+            ray_tmpdir=parameters["ray_tmpdir"],
+            ray_memory=parameters["ray_memory"],
         )
 
         etl_times_ibis = None
-        if not args.no_ibis:
+        if not parameters["no_ibis"]:
             etl_times_ibis = etl_ibis(
-                filename=args.file,
-                files_limit=args.dfiles_num,
+                filename=parameters["data_file"],
+                files_limit=parameters["dfiles_num"],
                 columns_names=columns_names,
                 columns_types=columns_types,
-                database_name=args.database_name,
-                table_name=args.table,
-                omnisci_server_worker=cloudpickle.load(
-                    open(args.omnisci_server_worker, "rb")
-                ),
-                delete_old_database=not args.dnd,
-                create_new_table=not args.dni,
-                val=args.validation,
+                database_name=parameters["database_name"],
+                table_name=parameters["table"],
+                omnisci_server_worker=parameters["omnisci_server_worker"],
+                delete_old_database=not parameters["dnd"],
+                create_new_table=not parameters["dni"],
+                val=parameters["validation"],
             )
 
             print_times(etl_times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
         pandas_files_limit = 1
-        filename = files_names_from_pattern(args.file)[:pandas_files_limit]
+        filename = files_names_from_pattern(parameters["data_file"])[:pandas_files_limit]
         etl_times = etl_pandas(
             filename=filename,
             files_limit=pandas_files_limit,
@@ -694,15 +589,10 @@ def main():
             columns_types=columns_types,
         )
 
-        print_times(etl_times=etl_times, backend=args.pandas_mode)
-        etl_times["Backend"] = args.pandas_mode
+        print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
+        etl_times["Backend"] = parameters["pandas_mode"]
 
-        with open(args.result_file, "w") as json_file:
-            json.dump([etl_times_ibis, etl_times], json_file)
+        return [etl_times_ibis, etl_times]
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
