@@ -153,6 +153,20 @@ def main():
         help="TCP port number to run omnisci_server on.",
     )
     optional.add_argument(
+        "-http-port",
+        dest="http_port",
+        default=62278,
+        type=int,
+        help="HTTP port number to run omnisci_server on.",
+    )
+    optional.add_argument(
+        "-calcite-port",
+        dest="calcite_port",
+        default=62279,
+        type=int,
+        help="Calcite port number to run omnisci_server on.",
+    )
+    optional.add_argument(
         "-user",
         dest="user",
         default="admin",
@@ -226,6 +240,8 @@ def main():
             omnisci_server = OmnisciServer(
                 omnisci_executable=args.executable,
                 omnisci_port=args.port,
+                http_port=args.http_port,
+                calcite_port=args.calcite_port,
                 database_name=args.database_name,
                 user=args.user,
                 password=args.password,
@@ -256,7 +272,6 @@ def main():
                 if backend_res:
                     backend_res["Iteration"] = iter_num
                     results.append(result)
-
 
         # if args.db_user is not "":
         #     print("Connecting to database")

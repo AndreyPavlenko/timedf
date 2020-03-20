@@ -115,6 +115,20 @@ def main():
         help="TCP port number to run omnisci_server on.",
     )
     omnisci.add_argument(
+        "-http-port",
+        dest="http_port",
+        default=62278,
+        type=int,
+        help="HTTP port number to run omnisci_server on.",
+    )
+    omnisci.add_argument(
+        "-calcite-port",
+        dest="calcite_port",
+        default=62279,
+        type=int,
+        help="Calcite port number to run omnisci_server on.",
+    )
+    omnisci.add_argument(
         "-user",
         dest="user",
         default="admin",
@@ -339,6 +353,8 @@ def main():
             omnisci_server = OmnisciServer(
                 omnisci_executable=args.executable,
                 omnisci_port=args.port,
+                http_port=args.http_port,
+                calcite_port=args.calcite_port,
                 database_name=args.database_name,
                 omnisci_cwd=args.omnisci_cwd,
                 user=args.user,
@@ -414,6 +430,8 @@ def main():
                             benchmark_cmd.extend([arg_name, str(arg_value)])
                 except KeyError:
                     pass
+
+            print(benchmark_cmd)
 
             conda_env.run(benchmark_cmd)
 
