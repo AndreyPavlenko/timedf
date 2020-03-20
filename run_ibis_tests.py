@@ -11,7 +11,12 @@ from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
 from utils import combinate_requirements, compare_dataframes
-from utils import import_pandas_into_module_namespace, execute_process, str_arg_to_bool
+from utils import (
+    import_pandas_into_module_namespace,
+    execute_process,
+    str_arg_to_bool,
+    random_if_default,
+)
 
 
 def main():
@@ -110,21 +115,21 @@ def main():
     omnisci.add_argument(
         "-port",
         dest="port",
-        default=6274,
+        default=-1,
         type=int,
         help="TCP port number to run omnisci_server on.",
     )
     omnisci.add_argument(
         "-http-port",
         dest="http_port",
-        default=62278,
+        default=-1,
         type=int,
         help="HTTP port number to run omnisci_server on.",
     )
     omnisci.add_argument(
         "-calcite-port",
         dest="calcite_port",
-        default=62279,
+        default=-1,
         type=int,
         help="Calcite port number to run omnisci_server on.",
     )
@@ -283,6 +288,10 @@ def main():
         os.environ["IBIS_TEST_OMNISCIDB_PORT"] = str(args.port)
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
+
+        args.port = random_if_default(value=args.port, least=60000, greater=69999, default=-1)
+        args.http_port = random_if_default(value=args.http_port, least=60000, greater=69999, default=-1)
+        args.calcite_port = random_if_default(value=args.calcite_port, least=60000, greater=69999, default=-1)
 
         required_tasks = args.task.split(",")
         tasks = {}

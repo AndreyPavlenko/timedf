@@ -1,8 +1,10 @@
 import argparse
 import glob
 import os
+import random
 import re
 import subprocess
+from datetime import datetime
 
 import hiyapyco
 from braceexpand import braceexpand
@@ -189,8 +191,21 @@ def files_names_from_pattern(filename):
     data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
 
+
 def print_times(etl_times, backend=None):
     if backend:
         print(f"{backend} times:")
     for time_name, time in etl_times.items():
         print("{} = {:.5f} s".format(time_name, time))
+
+
+def int_random(least, greatest, seed=True):
+    if seed:
+        random.seed(datetime.now())
+    return random.randint(least, greatest)
+
+
+def random_if_default(value, least, greater, default=-1):
+    if value == default:
+        return int_random(least, greater)
+    return value
