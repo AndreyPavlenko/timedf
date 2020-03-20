@@ -42,7 +42,6 @@ def compare_dataframes(ibis_df, pandas_df):
         print("Tables are equal")
         return True
     else:
-        print("Tables are not equal:")
         diff = {}
         for i in range(len(ibis_df)):
             diff_df = ibis_df[i] - pandas_df[i]
@@ -53,10 +52,18 @@ def compare_dataframes(ibis_df, pandas_df):
                 diff['DataFrame %s max deviation' % str(i + 1)] = diff_df.max()
                 diff['DataFrame %s min deviation' % str(i + 1)] = diff_df.min()
             
+        check_res = True
+        lowest_order = 0.0001
         print("Values check summary:")
         for dev_type, value in diff.items():
             print(dev_type, ':', value)
-        return False
+            check_res = check_res and (abs(value) < lowest_order)
+            
+        if check_res == True:
+            print("Deviation of values is lower, than values smallest order -> tables are equal")
+        else:
+            print("Deviation of values is higher, than values smallest order -> tables are unequal")
+        return check_res
 
 # Dataset link
 # https://www.kaggle.com/c/santander-customer-transaction-prediction/data
@@ -78,7 +85,7 @@ def load_data(
         )
 
 
-def etl_pandas(filename, columns_names, columns_types):
+def etl_pandas(filename, columns_names, columns_types, validation=False):
     etl_times = {
         "t_groupby_agg": 0.0,
         "t_drop": 0.0,
@@ -190,9 +197,7 @@ def etl_ibis(
     )
 
     omnisci_server.launch()
-
     omnisci_server_worker = OmnisciServerWorker(omnisci_server)
-    
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
@@ -258,25 +263,16 @@ def etl_ibis(
         omnisci_server_worker.drop_table(tmp_table_name)
     
     if create_new_table:
-        if validation == True:
+        # Create table and import data for ETL queries
+        schema_table = ibis.Schema(
+            names=columns_names,
+            types=columns_types
+        )
+        conn.create_table(table_name=table_name, schema=schema_table,
+                          database=database_name, fragment_size = args.fragment_size)
 
-            # Datafiles import
-            table_df = pd.read_csv(filename)
-            table_df["id"] = [x for x in range(table_df[table_df.columns[0]].count())]
-            table = omnisci_server_worker.import_data_from_pd_df(table_name=table_name, pd_obj=table_df,
-                                                                 columns_names=columns_names+['row_id'],
-                                                                 columns_types=columns_types+['int32'])
-        else:
-            # Create table and import data for ETL queries
-            schema_table = ibis.Schema(
-                names=columns_names,
-                types=columns_types
-            )
-            conn.create_table(table_name=table_name, schema=schema_table,
-                              database=database_name, fragment_size = args.fragment_size)
-
-            table_import = conn.database(database_name).table(table_name)
-            table_import.read_csv(filename, delimiter=",")
+        table_import = conn.database(database_name).table(table_name)
+        table_import.read_csv(filename, delimiter=",")
         
     if args.server_conn_type == 'regular':
         db = conn.database(database_name)
@@ -291,7 +287,6 @@ def etl_ibis(
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding
     # nested sql requests
-    
     t0 = timer()
     count_cols = []
     orig_cols = ["ID_code"] + ['var_%s'%i for i in range(200)]
@@ -313,11 +308,6 @@ def etl_ibis(
     table = table.mutate(cast_cols)
 
     table_df = table.execute()
-
-    if validation:
-        table_df = table_df.sort_values(by=['row_id'])
-        table_df = table_df.drop(['row_id'] ,axis=1)
-
     etl_times["t_groupby_merge_where"] = timer() - t0
     
     # rows split query
@@ -722,6 +712,7 @@ def main():
                 'CommitHash': args.commit_omnisci,
                 'IbisCommitHash': args.commit_ibis
             })
+
         if not args.no_ibis:
             if args.omnisci_executable is None:
                 parser.error("Omnisci executable should be specified with -e/--executable")
@@ -779,21 +770,28 @@ def main():
             if db_reporter is not None:
                 submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_ibis', results=ml_times_pandas)
 
+
         # Results validation block (comparison of etl_ibis and etl_pandas outputs)
         if args.val:
-            print("Validation of ETL query results ...")
+            print("Validation of ETL query results with original input table ...")
+            cols_to_sort = ['var_0', 'var_1', 'var_2', 'var_3', 'var_4']
+
+            x_ibis = pd.concat([x_train_ibis, x_valid_ibis])
+            x_ibis = x_ibis.sort_values(by=cols_to_sort)
+            x_pandas = pd.concat([x_train_pandas, x_valid_pandas])
+            x_pandas = x_pandas.sort_values(by=cols_to_sort)
 
             print("Validating queries results (var_xx columns) ...")
-            compare_result1 = compare_dataframes(ibis_df=(x_train_ibis[var_cols], x_valid_ibis[var_cols]),
-                                                 pandas_df=(x_train_pandas[var_cols], x_valid_pandas[var_cols]))
+            compare_result1 = compare_dataframes(ibis_df=[x_ibis[var_cols]],
+                                                 pandas_df=[x_pandas[var_cols]])
             print("Validating queries results (var_xx_count columns) ...")
-            compare_result2 = compare_dataframes(ibis_df=(x_train_ibis[count_cols], x_valid_ibis[count_cols]),
-                                                 pandas_df=(x_train_pandas[count_cols], x_valid_pandas[count_cols]))
+            compare_result2 = compare_dataframes(ibis_df=[x_ibis[count_cols]],
+                                                 pandas_df=[x_pandas[count_cols]])
             print("Validating queries results (var_xx_gt1 columns) ...")
-            compare_result3 = compare_dataframes(ibis_df=(x_train_ibis[gt1_cols], x_valid_ibis[gt1_cols]),
-                                                 pandas_df=(x_train_pandas[gt1_cols], x_valid_pandas[gt1_cols]))
+            compare_result3 = compare_dataframes(ibis_df=[x_ibis[gt1_cols]],
+                                                 pandas_df=[x_pandas[gt1_cols]])
 
-            if not (compare_result1 and compare_result2 and compare_result3) and not args.no_ml:
+            if not args.no_ml:
                 print("Validation of ML queries results ...")
                 if score_mse_ibis == score_mse_pandas:
                     print("Scores mse are equal!")
@@ -806,8 +804,7 @@ def main():
                 else:
                     print("Scores cod are unequal, score cod Ibis =", score_cod_ibis,
                          "score cod Pandas =", score_cod_pandas)
-
-
+                
     except Exception as err:
         print("Failed: ", err)
         sys.exit(1)
