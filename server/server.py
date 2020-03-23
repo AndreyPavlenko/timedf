@@ -17,7 +17,7 @@ class OmnisciServer:
                  omnisci_cwd=None, user="admin", password="HyperInteractive", http_port=62278,
                  calcite_port=62279, max_session_duration=86400,
                  idle_session_duration=120, debug_timer=False, 
-                 columnar_output=True, lazy_fetch=False): # default values of max_session_duration=43200 idle_session_duration=60
+                 columnar_output=True, lazy_fetch=None): # default values of max_session_duration=43200 idle_session_duration=60
         self.omnisci_executable = omnisci_executable
         self.server_port = omnisci_port
         self.user = user
