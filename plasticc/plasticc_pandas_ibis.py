@@ -1,6 +1,8 @@
-import argparse
 import os
 import sys
+import time
+import traceback
+import warnings
 from collections import OrderedDict
 from functools import partial
 from timeit import default_timer as timer
@@ -12,7 +14,12 @@ from sklearn.preprocessing import LabelEncoder
 import xgboost as xgb
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from utils import compare_dataframes
+from utils import (
+    compare_dataframes,
+    import_pandas_into_module_namespace,
+    print_times,
+    get_percentage,
+)
 
 
 def ravel_column_names(cols):
@@ -104,7 +111,6 @@ def etl_cpu_ibis(table, table_meta, etl_times):
         table.flux_min,
         table.flux_max,
         table.flux_mean,
-        table.flux_skew,
         table.flux_err_min,
         table.flux_err_max,
         table.flux_err_mean,
@@ -186,43 +192,14 @@ def load_data_ibis(
     create_new_table,
     skip_rows,
     validation,
+    dtypes,
+    meta_dtypes,
 ):
     omnisci_server_worker.connect_to_server()
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
     omnisci_server_worker.connect_to_server()
-
-    dtypes = OrderedDict(
-        [
-            ("object_id", "int32"),
-            ("mjd", "float32"),
-            ("passband", "int32"),
-            ("flux", "float32"),
-            ("flux_err", "float32"),
-            ("detected", "int32"),
-        ]
-    )
-
-    # load metadata
-    cols = [
-        "object_id",
-        "ra",
-        "decl",
-        "gal_l",
-        "gal_b",
-        "ddf",
-        "hostgal_specz",
-        "hostgal_photoz",
-        "hostgal_photoz_err",
-        "distmod",
-        "mwebv",
-        "target",
-    ]
-    meta_dtypes = ["int32"] + ["float32"] * 4 + ["int32"] + ["float32"] * 5 + ["int32"]
-    meta_dtypes = OrderedDict(
-        [(cols[i], meta_dtypes[i]) for i in range(len(meta_dtypes))]
-    )
 
     t_import_pandas, t_import_ibis = 0.0, 0.0
 
@@ -271,7 +248,7 @@ def load_data_ibis(
             validation=validation,
         )
 
-        del meta_dtypes["target"]
+        target = meta_dtypes.pop("target")
 
         # create table #4
         test_meta_file = "%s/test_set_metadata.csv" % dataset_path
@@ -286,6 +263,7 @@ def load_data_ibis(
             compression_type=None,
             validation=validation,
         )
+        meta_dtypes["target"] = target
 
         t_import_pandas = (
             t_import_pandas_1
@@ -294,7 +272,7 @@ def load_data_ibis(
             + t_import_pandas_4
         )
         t_import_ibis = (
-            t_import_ibis_1 + t_import_ibis_2 + t_import_ibis_3 + t_import_ibis_4
+                t_import_ibis_1 + t_import_ibis_2 + t_import_ibis_3 + t_import_ibis_4
         )
         print(f"import times: pandas - {t_import_pandas}s, ibis - {t_import_ibis}s")
 
@@ -317,50 +295,21 @@ def load_data_ibis(
     )
 
 
-def load_data_pandas(dataset_folder, skip_rows):
-    dtypes = OrderedDict(
-        [
-            ("object_id", "int32"),
-            ("mjd", "float32"),
-            ("passband", "int32"),
-            ("flux", "float32"),
-            ("flux_err", "float32"),
-            ("detected", "int32"),
-        ]
-    )
-
-    train = pd.read_csv("%s/training_set.csv" % dataset_folder, dtype=dtypes)
+def load_data_pandas(dataset_path, skip_rows, dtypes, meta_dtypes):
+    train = pd.read_csv("%s/training_set.csv" % dataset_path, dtype=dtypes)
     test = pd.read_csv(
         # this should be replaced on test_set_skiprows.csv
-        "%s/test_set.csv" % dataset_folder,
-        names=list(dtypes.keys()),
+        "%s/test_set.csv" % dataset_path,
         dtype=dtypes,
         skiprows=skip_rows,
     )
 
-    # load metadata
-    cols = [
-        "object_id",
-        "ra",
-        "decl",
-        "gal_l",
-        "gal_b",
-        "ddf",
-        "hostgal_specz",
-        "hostgal_photoz",
-        "hostgal_photoz_err",
-        "distmod",
-        "mwebv",
-        "target",
-    ]
-    dtypes = ["int32"] + ["float32"] * 4 + ["int32"] + ["float32"] * 5 + ["int32"]
-    dtypes = OrderedDict([(cols[i], dtypes[i]) for i in range(len(dtypes))])
-
     train_meta = pd.read_csv(
-        "%s/training_set_metadata.csv" % dataset_folder, dtype=dtypes
+        "%s/training_set_metadata.csv" % dataset_path, dtype=meta_dtypes
     )
-    del dtypes["target"]
-    test_meta = pd.read_csv("%s/test_set_metadata.csv" % dataset_folder, dtype=dtypes)
+    target = meta_dtypes.pop("target")
+    test_meta = pd.read_csv("%s/test_set_metadata.csv" % dataset_path, dtype=meta_dtypes)
+    meta_dtypes["target"] = target
 
     return train, train_meta, test, test_meta
 
@@ -396,13 +345,15 @@ def split_step(train_final, test_final, etl_times):
 
 
 def etl_all_ibis(
-    filename,
-    database_name,
-    omnisci_server_worker,
-    delete_old_database,
-    create_new_table,
-    skip_rows,
-    validation,
+        dataset_path,
+        database_name,
+        omnisci_server_worker,
+        delete_old_database,
+        create_new_table,
+        skip_rows,
+        validation,
+        dtypes,
+        meta_dtypes,
 ):
     print("ibis version")
     etl_times = {
@@ -416,13 +367,15 @@ def etl_all_ibis(
     }
 
     train, train_meta, test, test_meta, etl_times["t_readcsv"] = load_data_ibis(
-        filename,
-        database_name,
-        omnisci_server_worker,
-        delete_old_database,
-        create_new_table,
-        skip_rows,
-        validation,
+        dataset_path=dataset_path,
+        database_name=database_name,
+        omnisci_server_worker=omnisci_server_worker,
+        delete_old_database=delete_old_database,
+        create_new_table=create_new_table,
+        skip_rows=skip_rows,
+        validation=validation,
+        dtypes=dtypes,
+        meta_dtypes=meta_dtypes,
     )
 
     # update etl_times
@@ -432,7 +385,7 @@ def etl_all_ibis(
     return train_final, test_final, etl_times
 
 
-def etl_all_pandas(dataset_folder, skip_rows):
+def etl_all_pandas(dataset_path, skip_rows, dtypes, meta_dtypes):
     print("pandas version")
     etl_times = {
         "t_readcsv": 0.0,
@@ -445,7 +398,12 @@ def etl_all_pandas(dataset_folder, skip_rows):
     }
 
     t0 = timer()
-    train, train_meta, test, test_meta = load_data_pandas(dataset_folder, skip_rows)
+    train, train_meta, test, test_meta = load_data_pandas(
+        dataset_path=dataset_path,
+        skip_rows=skip_rows,
+        dtypes=dtypes,
+        meta_dtypes=meta_dtypes,
+    )
     etl_times["t_readcsv"] += timer() - t0
 
     # update etl_times
@@ -559,226 +517,120 @@ def compute_skip_rows(gpu_memory):
     return skip_rows
 
 
-def get_args():
-    parser = argparse.ArgumentParser(description="PlasTiCC benchmark")
-    optional = parser._action_groups.pop()
-    required = parser.add_argument_group("required arguments")
-    parser._action_groups.append(optional)
+def run_benchmark(parameters):
+    ignored_parameters = {
+        "q3_full": parameters["q3_full"],
+        "dfiles_num": parameters["dfiles_num"],
+    }
+    if parameters["no_ibis"]:
+        ignored_parameters["dnd"] = parameters["dnd"]
+        ignored_parameters["dni"] = parameters["dni"]
+    warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
 
-    required.add_argument(
-        "-dataset_path",
-        dest="dataset_path",
-        required=True,
-        help="A folder with downloaded dataset' files",
-    )
-    optional.add_argument(
-        "--gpu-memory-g",
-        dest="gpu_memory",
-        type=int,
-        help="specify the memory of your gpu, default 16. (This controls the lines to be used. Also work for CPU version. )",
-        default=16,
-    )
-    optional.add_argument("-dnd", action="store_true", help="Do not delete old table.")
-    optional.add_argument(
-        "-dni",
-        action="store_true",
-        help="Do not create new table and import any data from CSV files.",
-    )
-    optional.add_argument(
-        "-val",
-        action="store_true",
-        help="validate queries results (by comparison with Pandas queries results).",
-    )
-    # MySQL database parameters
-    optional.add_argument(
-        "-db-server",
-        dest="db_server",
-        default="localhost",
-        help="Host name of MySQL server.",
-    )
-    optional.add_argument(
-        "-db-port",
-        dest="db_port",
-        default=3306,
-        type=int,
-        help="Port number of MySQL server.",
-    )
-    optional.add_argument(
-        "-db-user",
-        dest="db_user",
-        default="",
-        help="Username to use to connect to MySQL database. "
-        "If user name is specified, script attempts to store results in MySQL "
-        "database using other -db-* parameters.",
-    )
-    optional.add_argument(
-        "-db-pass",
-        dest="db_password",
-        default="omniscidb",
-        help="Password to use to connect to MySQL database.",
-    )
-    optional.add_argument(
-        "-db-name",
-        dest="db_name",
-        default="omniscidb",
-        help="MySQL database to use to store benchmark results.",
-    )
-    optional.add_argument(
-        "-db-table",
-        dest="db_table",
-        help="Table to use to store results for this benchmark.",
-    )
-    # Omnisci server parameters
-    optional.add_argument(
-        "-e",
-        "--executable",
-        dest="omnisci_executable",
-        required=False,
-        help="Path to omnisci_server executable.",
-    )
-    optional.add_argument(
-        "-w",
-        "--workdir",
-        dest="omnisci_cwd",
-        help="Path to omnisci working directory. "
-        "By default parent directory of executable location is used. "
-        "Data directory is used in this location.",
-    )
-    optional.add_argument(
-        "-port",
-        "--omnisci_port",
-        dest="omnisci_port",
-        default=6274,
-        type=int,
-        help="TCP port number to run omnisci_server on.",
-    )
-    optional.add_argument(
-        "-u",
-        "--user",
-        dest="user",
-        default="admin",
-        help="User name to use on omniscidb server.",
-    )
-    optional.add_argument(
-        "-p",
-        "--password",
-        dest="password",
-        default="HyperInteractive",
-        help="User password to use on omniscidb server.",
-    )
-    optional.add_argument(
-        "-n",
-        "--name",
-        dest="name",
-        default="plasticc_database",
-        help="Database name to use in omniscidb server.",
-    )
-    optional.add_argument(
-        "-commit_omnisci",
-        dest="commit_omnisci",
-        default="1234567890123456789012345678901234567890",
-        help="Omnisci commit hash to use for benchmark.",
-    )
-    optional.add_argument(
-        "-commit_ibis",
-        dest="commit_ibis",
-        default="1234567890123456789012345678901234567890",
-        help="Ibis commit hash to use for benchmark.",
-    )
-    optional.add_argument(
-        "-no_ibis",
-        action="store_true",
-        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
-    )
-    optional.add_argument(
-        "-no_ml",
-        action="store_true",
-        help="Do not run machine learning benchmark, only ETL part",
+    parameters["data_file"] = parameters["data_file"].replace("'", "")
+    skip_rows = compute_skip_rows(parameters["gpu_memory"])
+
+    dtypes = OrderedDict(
+        {
+            "object_id": "int32",
+            "mjd": "float32",
+            "passband": "int32",
+            "flux": "float32",
+            "flux_err": "float32",
+            "detected": "int32",
+        }
     )
 
-    args = parser.parse_args()
-    args.dataset_path = args.dataset_path.replace("'", "")
-
-    return parser, args, compute_skip_rows(args.gpu_memory)
-
-
-def print_times(etl_times, name=None):
-    if name:
-        print(f"{name} times:")
-    for time_name, time in etl_times.items():
-        print("{} = {:.5f} s".format(time_name, time))
-
-
-def main():
-    args = None
-    omnisci_server_worker = None
-    train_final, test_final = None, None
-
-    parser, args, skip_rows = get_args()
+    # load metadata
+    columns_names = [
+        "object_id",
+        "ra",
+        "decl",
+        "gal_l",
+        "gal_b",
+        "ddf",
+        "hostgal_specz",
+        "hostgal_photoz",
+        "hostgal_photoz_err",
+        "distmod",
+        "mwebv",
+        "target",
+    ]
+    meta_dtypes = ["int32"] + ["float32"] * 4 + ["int32"] + ["float32"] * 5 + ["int32"]
+    meta_dtypes = OrderedDict(
+        {columns_names[i]: meta_dtypes[i] for i in range(len(meta_dtypes))}
+    )
 
     try:
-        if not args.no_ibis:
-            sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-            from server import OmnisciServer
 
-            if args.omnisci_executable is None:
-                parser.error(
-                    "Omnisci executable should be specified with -e/--executable"
-                )
-
-            omnisci_server = OmnisciServer(
-                omnisci_executable=args.omnisci_executable,
-                omnisci_port=args.omnisci_port,
-                database_name=args.name,
-                omnisci_cwd=args.omnisci_cwd,
-                user=args.user,
-                password=args.password,
-            )
-            omnisci_server.launch()
-
-            from server_worker import OmnisciServerWorker
-
-            omnisci_server_worker = OmnisciServerWorker(omnisci_server)
-
-            train_final, test_final, etl_times = etl_all_ibis(
-                filename=args.dataset_path,
-                database_name=args.name,
-                omnisci_server_worker=omnisci_server_worker,
-                delete_old_database=not args.dnd,
-                create_new_table=not args.dni,
-                skip_rows=skip_rows,
-                validation=args.val,
-            )
-            ml_data, etl_times = split_step(train_final, test_final, etl_times)
-            print_times(etl_times)
-
-            omnisci_server_worker.terminate()
-            omnisci_server_worker = None
-
-            if not args.no_ml:
-                print("using ml with dataframes from ibis")
-                ml_times = ml(ml_data)
-                print_times(ml_times)
-
-        ptrain_final, ptest_final, petl_times = etl_all_pandas(
-            args.dataset_path, skip_rows
+        import_pandas_into_module_namespace(
+            namespace=run_benchmark.__globals__,
+            mode=parameters["pandas_mode"],
+            ray_tmpdir=parameters["ray_tmpdir"],
+            ray_memory=parameters["ray_memory"],
         )
-        ml_data, petl_times = split_step(ptrain_final, ptest_final, petl_times)
-        print_times(petl_times)
 
-        if not args.no_ml:
-            print("using ml with dataframes from pandas")
-            ml_times = ml(ml_data)
-            print_times(ml_times)
+        etl_times_ibis = None
+        ml_times_ibis = None
+        if not parameters["no_ibis"]:
+            (
+                X_train,
+                y_train,
+                X_test,
+                y_test,
+                Xt,
+                classes,
+                class_weights,
+                etl_times_ibis,
+            ) = etl_all_ibis(
+                dataset_path=parameters["data_file"],
+                database_name=parameters["database_name"],
+                omnisci_server_worker=parameters["omnisci_server_worker"],
+                delete_old_database=not parameters["dnd"],
+                create_new_table=not parameters["dni"],
+                skip_rows=skip_rows,
+                dtypes=dtypes,
+                meta_dtypes=meta_dtypes,
+            )
 
-        if args.val and (not train_final is None) and (not test_final is None):
-            print("validating result ...")
-            compare_dataframes((train_final, test_final), (ptrain_final, ptest_final))
+            print_times(etl_times=etl_times_ibis, backend="Ibis")
+            etl_times_ibis["Backend"] = "Ibis"
 
-    finally:
-        if omnisci_server_worker:
-            omnisci_server_worker.terminate()
+            if not parameters["no_ml"]:
+                print("using ml with dataframes from ibis")
+                ml_times_ibis = ml(X_train, y_train, X_test, y_test, Xt, classes, class_weights)
+                print_times(etl_times=ml_times_ibis, backend="Ibis")
+                ml_times_ibis["Backend"] = "Ibis"
 
+        (
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            Xt,
+            classes,
+            class_weights,
+            etl_times,
+        ) = etl_all_pandas(
+            dataset_path=parameters["data_file"],
+            skip_rows=skip_rows,
+            dtypes=dtypes,
+            meta_dtypes=meta_dtypes,
+        )
 
-if __name__ == "__main__":
-    main()
+        print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
+        etl_times["Backend"] = parameters["pandas_mode"]
+
+        if not parameters["no_ml"]:
+            print("using ml with dataframes from ibis")
+            ml_times = ml(X_train, y_train, X_test, y_test, Xt, classes, class_weights)
+            print_times(etl_times=ml_times, backend=parameters["pandas_mode"])
+            ml_times["Backend"] = parameters["pandas_mode"]
+
+        if parameters["validation"]:
+            pass
+
+        return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
+    except Exception:
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
