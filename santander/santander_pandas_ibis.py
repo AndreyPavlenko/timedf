@@ -204,7 +204,6 @@ def etl_ibis(
     
     time.sleep(2)
     conn = omnisci_server_worker.connect_to_server()
-    conn_ipc = omnisci_server_worker.ipc_connect_to_server()
         
     if run_import_queries:
          # SQL statemnts preparation for data file import queries
@@ -275,13 +274,14 @@ def etl_ibis(
         table_import.read_csv(filename, delimiter=",")
         
     if args.server_conn_type == 'regular':
-        db = conn.database(database_name)
+        conn = omnisci_server_worker.connect_to_server()
     elif args.server_conn_type == 'ipc':
-        db = conn_ipc.database(database_name)
+        conn = omnisci_server_worker.ipc_connect_to_server()
     else:
         print("Wrong connection type is specified!")
         sys.exit(0)
         
+    db = conn.database(database_name)
     table = db.table(table_name)
 
     # group_by/count, merge (join) and filtration queries
@@ -692,119 +692,120 @@ def main():
     columns_types_ibis_val = ["string", "string"] + ["string" for _ in range(200)]
     columns_types_pd_val = ["object", "object"] + ["object" for _ in range(200)]
 
-    try:
-        db_reporter = None
-        if args.db_user is not "":
-            print("Connecting to database")
-            db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user,
-                                         passwd=args.db_pass, db=args.db_name)
-            db_reporter = DbReport(db, args.db_table, {
-                'QueryName': 'VARCHAR(500) NOT NULL',
-                'FirstExecTimeMS': 'BIGINT UNSIGNED',
-                'WorstExecTimeMS': 'BIGINT UNSIGNED',
-                'BestExecTimeMS': 'BIGINT UNSIGNED',
-                'AverageExecTimeMS': 'BIGINT UNSIGNED',
-                'TotalTimeMS': 'BIGINT UNSIGNED',
-                'IbisCommitHash': 'VARCHAR(500) NOT NULL',
-                'BackEnd': 'VARCHAR(100) NOT NULL'
-            }, {
-                'ScriptName': 'santander_pandas_ibis.py',
-                'CommitHash': args.commit_omnisci,
-                'IbisCommitHash': args.commit_ibis
-            })
+    #try:
+    db_reporter = None
+    if args.db_user is not "":
+        print("Connecting to database")
+        db = mysql.connector.connect(host=args.db_server, port=args.db_port, user=args.db_user,
+                                     passwd=args.db_pass, db=args.db_name)
+        db_reporter = DbReport(db, args.db_table, {
+            'QueryName': 'VARCHAR(500) NOT NULL',
+            'FirstExecTimeMS': 'BIGINT UNSIGNED',
+            'WorstExecTimeMS': 'BIGINT UNSIGNED',
+            'BestExecTimeMS': 'BIGINT UNSIGNED',
+            'AverageExecTimeMS': 'BIGINT UNSIGNED',
+            'TotalTimeMS': 'BIGINT UNSIGNED',
+            'IbisCommitHash': 'VARCHAR(500) NOT NULL',
+            'BackEnd': 'VARCHAR(100) NOT NULL'
+        }, {
+            'ScriptName': 'santander_pandas_ibis.py',
+            'CommitHash': args.commit_omnisci,
+            'IbisCommitHash': args.commit_ibis
+        })
 
-        if not args.no_ibis:
-            if args.omnisci_executable is None:
-                parser.error("Omnisci executable should be specified with -e/--executable")
+    if not args.no_ibis:
+        if args.omnisci_executable is None:
+            parser.error("Omnisci executable should be specified with -e/--executable")
 
-            etl_ibis_args = {'args': args, 'run_import_queries': "False",
-                             'columns_names': columns_names, 'columns_types': columns_types_ibis,
-                             'validation': "False"}
-            x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis = query_measurement_etl(etl_ibis,
-                                                                                                           etl_ibis_args,
-                                                                                                           args.iterations,
-                                                                                                           "etl_ibis")
+        etl_ibis_args = {'args': args, 'run_import_queries': "False",
+                         'columns_names': columns_names, 'columns_types': columns_types_ibis,
+                         'validation': "False"}
+        x_train_ibis, y_train_ibis, x_valid_ibis, y_valid_ibis, etl_times_ibis = query_measurement_etl(etl_ibis,
+                                                                                                       etl_ibis_args,
+                                                                                                       args.iterations,
+                                                                                                       "etl_ibis")
 
-            print_times_nested(etl_times_ibis, name='Ibis')
-            if db_reporter is not None:
-                submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_ibis', results=etl_times_ibis)
-
-        import_pandas_into_module_namespace(main.__globals__,
-                                            args.pandas_mode, args.ray_tmpdir, args.ray_memory)
-
-        etl_pandas_args = {'filename': args.file, 'columns_names': columns_names, 'columns_types': columns_types_pd}
-        x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas, etl_times_pandas = query_measurement_etl(etl_pandas,
-                                                                                                                 etl_pandas_args,
-                                                                                                                 args.iterations,
-                                                                                                                 "etl_pandas")
-
-        print_times_nested(etl_times_pandas, name=args.pandas_mode)
-
+        print_times_nested(etl_times_ibis, name='Ibis')
         if db_reporter is not None:
-                submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_pandas', results=etl_times_pandas)
+            submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_ibis', results=etl_times_ibis)
+
+    import_pandas_into_module_namespace(main.__globals__,
+                                        args.pandas_mode, args.ray_tmpdir, args.ray_memory)
+
+    etl_pandas_args = {'filename': args.file, 'columns_names': columns_names, 'columns_types': columns_types_pd}
+    x_train_pandas, y_train_pandas, x_valid_pandas, y_valid_pandas, etl_times_pandas = query_measurement_etl(etl_pandas,
+                                                                                                             etl_pandas_args,
+                                                                                                             args.iterations,
+                                                                                                             "etl_pandas")
+
+    print_times_nested(etl_times_pandas, name=args.pandas_mode)
+
+    if db_reporter is not None:
+            submit_results_to_db(db_reporter=db_reporter, args=args, backend='etl_pandas', results=etl_times_pandas)
+
+    if not args.no_ml:
+        ml_args_pd = {'x_train': x_train_pandas, 'y_train': y_train_pandas,
+                      'x_valid': x_valid_pandas, 'y_valid': y_valid_pandas}
+        score_mse_pandas, score_cod_pandas, ml_times_pandas = query_measurement_ml(ml,
+                                                                                   ml_args_pd,
+                                                                                   args.iterations,
+                                                                                   "ml")
+        print('Scores with etl_pandas ML inputs: ')
+        print('  mse = ', score_mse_pandas)
+        print('  cod = ', score_cod_pandas)
+        print_times_nested(ml_times_pandas)
+        if db_reporter is not None:
+            submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_pandas', results=ml_times_pandas)
+
+        ml_args_ibis = {'x_train': x_train_ibis, 'y_train': y_train_ibis,
+                        'x_valid': x_valid_ibis, 'y_valid': y_valid_ibis}
+        score_mse_ibis, score_cod_ibis, ml_times_ibis = query_measurement_ml(ml,
+                                                                             ml_args_ibis,
+                                                                             args.iterations,
+                                                                             "ml")
+        print('Scores with etl_ibis ML inputs: ')
+        print('  mse = ', score_mse_ibis)
+        print('  cod = ', score_cod_ibis)
+        print_times_nested(ml_times_ibis)
+        if db_reporter is not None:
+            submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_ibis', results=ml_times_pandas)
+
+
+    # Results validation block (comparison of etl_ibis and etl_pandas outputs)
+    if args.val:
+        print("Validation of ETL query results with original input table ...")
+        cols_to_sort = ['var_0', 'var_1', 'var_2', 'var_3', 'var_4']
+
+        x_ibis = pd.concat([x_train_ibis, x_valid_ibis])
+        x_ibis = x_ibis.sort_values(by=cols_to_sort)
+        x_pandas = pd.concat([x_train_pandas, x_valid_pandas])
+        x_pandas = x_pandas.sort_values(by=cols_to_sort)
+
+        print("Validating queries results (var_xx columns) ...")
+        compare_result1 = compare_dataframes(ibis_df=[x_ibis[var_cols]],
+                                             pandas_df=[x_pandas[var_cols]])
+        print("Validating queries results (var_xx_count columns) ...")
+        compare_result2 = compare_dataframes(ibis_df=[x_ibis[count_cols]],
+                                             pandas_df=[x_pandas[count_cols]])
+        print("Validating queries results (var_xx_gt1 columns) ...")
+        compare_result3 = compare_dataframes(ibis_df=[x_ibis[gt1_cols]],
+                                             pandas_df=[x_pandas[gt1_cols]])
 
         if not args.no_ml:
-            ml_args_pd = {'x_train': x_train_pandas, 'y_train': y_train_pandas,
-                          'x_valid': x_valid_pandas, 'y_valid': y_valid_pandas}
-            score_mse_pandas, score_cod_pandas, ml_times_pandas = query_measurement_ml(ml,
-                                                                                       ml_args_pd,
-                                                                                       args.iterations,
-                                                                                       "ml")
-            print('Scores with etl_pandas ML inputs: ')
-            print('  mse = ', score_mse_pandas)
-            print('  cod = ', score_cod_pandas)
-            print_times_nested(ml_times_pandas)
-            if db_reporter is not None:
-                submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_pandas', results=ml_times_pandas)
+            print("Validation of ML queries results ...")
+            if score_mse_ibis == score_mse_pandas:
+                print("Scores mse are equal!")
+            else:
+                print("Scores mse are unequal, score mse Ibis =", score_mse_ibis,
+                     "score mse Pandas =", score_mse_pandas)
 
-            ml_args_ibis = {'x_train': x_train_ibis, 'y_train': y_train_ibis,
-                            'x_valid': x_valid_ibis, 'y_valid': y_valid_ibis}
-            score_mse_ibis, score_cod_ibis, ml_times_ibis = query_measurement_ml(ml,
-                                                                                 ml_args_ibis,
-                                                                                 args.iterations,
-                                                                                 "ml")
-            print('Scores with etl_ibis ML inputs: ')
-            print('  mse = ', score_mse_ibis)
-            print('  cod = ', score_cod_ibis)
-            print_times_nested(ml_times_ibis)
-            if db_reporter is not None:
-                submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_ibis', results=ml_times_pandas)
-
-
-        # Results validation block (comparison of etl_ibis and etl_pandas outputs)
-        if args.val:
-            print("Validation of ETL query results with original input table ...")
-            cols_to_sort = ['var_0', 'var_1', 'var_2', 'var_3', 'var_4']
-
-            x_ibis = pd.concat([x_train_ibis, x_valid_ibis])
-            x_ibis = x_ibis.sort_values(by=cols_to_sort)
-            x_pandas = pd.concat([x_train_pandas, x_valid_pandas])
-            x_pandas = x_pandas.sort_values(by=cols_to_sort)
-
-            print("Validating queries results (var_xx columns) ...")
-            compare_result1 = compare_dataframes(ibis_df=[x_ibis[var_cols]],
-                                                 pandas_df=[x_pandas[var_cols]])
-            print("Validating queries results (var_xx_count columns) ...")
-            compare_result2 = compare_dataframes(ibis_df=[x_ibis[count_cols]],
-                                                 pandas_df=[x_pandas[count_cols]])
-            print("Validating queries results (var_xx_gt1 columns) ...")
-            compare_result3 = compare_dataframes(ibis_df=[x_ibis[gt1_cols]],
-                                                 pandas_df=[x_pandas[gt1_cols]])
-
-            if not args.no_ml:
-                print("Validation of ML queries results ...")
-                if score_mse_ibis == score_mse_pandas:
-                    print("Scores mse are equal!")
-                else:
-                    print("Scores mse are unequal, score mse Ibis =", score_mse_ibis,
-                         "score mse Pandas =", score_mse_pandas)
-
-                if score_mse_ibis == score_mse_pandas:
-                    print("Scores cod are equal!")
-                else:
-                    print("Scores cod are unequal, score cod Ibis =", score_cod_ibis,
-                         "score cod Pandas =", score_cod_pandas)
+            if score_mse_ibis == score_mse_pandas:
+                print("Scores cod are equal!")
+            else:
+                print("Scores cod are unequal, score cod Ibis =", score_cod_ibis,
+                     "score cod Pandas =", score_cod_pandas)
                 
+    '''
     except Exception as err:
         print("Failed: ", err)
         sys.exit(1)
@@ -812,5 +813,6 @@ def main():
         if omnisci_server:
             omnisci_server.terminate()
 
+    '''
 if __name__ == "__main__":
     main()

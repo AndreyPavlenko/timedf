@@ -20,14 +20,7 @@ class OmnisciServerWorker:
                                   "-p", self.omnisci_server.password] + \
                                  ["--port", str(self.omnisci_server.server_port)]
         self._command_2_import_CSV = "COPY %s FROM '%s' WITH (header='%s');"
-        
-        self._conn = ibis.omniscidb.connect(host="localhost", port=self.omnisci_server.server_port,
-                                                user=self.omnisci_server.user,
-                                                password=self.omnisci_server.password)
-        
-        self._conn_ipc = ibis.omniscidb.connect(host="localhost", port=self.omnisci_server.server_port,
-                                                    user=self.omnisci_server.user,
-                                                    password=self.omnisci_server.password, ipc=True)
+        self._conn = None
 
     def _read_csv_datafile(self, file_name, columns_names, columns_types=None, header=None,
                            compression_type='gzip', nrows=None, skiprows=None):
@@ -63,26 +56,23 @@ class OmnisciServerWorker:
             return pd.concat(df_from_each_file, ignore_index=True)
 
     def connect_to_server(self):
-        "Regular connect to Omnisci server using Ibis framework"
+        "Connect to Omnisci server using Ibis framework"
 
-        if self._conn is None:
-            self._conn = ibis.omniscidb.connect(host="localhost", port=self.omnisci_server.server_port,
-                                                user=self.omnisci_server.user,
-                                                password=self.omnisci_server.password)
+        self._conn = ibis.omniscidb.connect(host="localhost", port=self.omnisci_server.server_port,
+                                            user=self.omnisci_server.user,
+                                            password=self.omnisci_server.password)
         return self._conn
 
     def ipc_connect_to_server(self):
         "Connect to Omnisci server using Ibis framework"
 
-        if self._conn_ipc is None:
-            self._conn_ipc = ibis.omniscidb.connect(host="localhost", port=self.omnisci_server.server_port,
-                                                    user=self.omnisci_server.user,
-                                                    password=self.omnisci_server.password, ipc=True)
-        return self._conn_ipc
+        self._conn = ibis.omniscidb.connect(host="localhost", port=self.omnisci_server.server_port,
+                                            user=self.omnisci_server.user,
+                                            password=self.omnisci_server.password, ipc=True)
+        return self._conn
 
     def terminate(self):
-        self._conn.close()
-        self._conn_ipc.close()
+        del self._conn
         self.omnisci_server.terminate()
 
     def import_data(self, table_name, data_files_names, files_limit, columns_names, columns_types,
@@ -125,7 +115,7 @@ class OmnisciServerWorker:
 
     def import_data_by_ibis(self, table_name, data_files_names, files_limit, columns_names,
                             columns_types, cast_dict=None, header=None, nrows=None,
-                            compression_type='gzip', skiprows=None):
+                            compression_type='gzip', skiprows=None, validation=None):
         "Import CSV files using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
         if columns_types:
@@ -147,6 +137,15 @@ class OmnisciServerWorker:
                                                                        compression_type=compression_type,
                                                                        skiprows=skiprows)
         t_import_pandas = time.time() - t0
+
+        if validation:
+            df = self._imported_pd_df[table_name]
+            df["id"] = [x+1 for x in range(df[df.columns[0]].count())]
+            columns_names = columns_names + ["id"]
+            columns_types = columns_types + ["int32"]
+            self._imported_pd_df[table_name] = df
+
+
         if cast_dict is not None:
             pandas_concatenated_df_casted = self._imported_pd_df[table_name].astype(dtype=cast_dict,
                                                                                     copy=True)
@@ -164,35 +163,40 @@ class OmnisciServerWorker:
         return t_import_pandas, t_import_ibis
 
     def drop_table(self, table_name):
-        "Drop table by table_name"
+        "Drop table by table_name using Ibis framework"
 
         print("Deleting ", table_name, " table")
-        drop_table_sql = "DROP TABLE IF EXISTS {0};\n".format(table_name)
-        if self._conn_ipc.exists_table(name=table_name, database=self.omnisci_server.database_name):
-            print("Deleting ", table_name, " table")
-            drop_table_sql = "DROP TABLE IF EXISTS {0};\n".format(table_name)
-            self.execute_sql_query(drop_table_sql)
+        if self._conn.exists_table(name=table_name, database=self.omnisci_server.database_name):
+            db = self._conn.database(self.omnisci_server.database_name)
+            df = db.table(table_name)
+            df.drop()
             if table_name in self._imported_pd_df:
                 del self._imported_pd_df[table_name]
         else:
             print("Table ", table_name, " doesn't exist!")
 
     def drop_database(self, database_name, force=True):
-        "Drop database by database_name"
+        "Drop database by database_name using Ibis framework"
+        
+        if self._conn is None:
+            self.connect_to_server()
 
+        print("Deleting ", database_name, " database")
         try:
-            print("Deleting ", database_name, " database")
-            drop_db_sql = "DROP DATABASE IF EXISTS {0};\n".format(database_name)
-            self.execute_sql_query(drop_db_sql)
+            self._conn.drop_database(database_name, force=force)
             time.sleep(2)
+            self._conn = self.connect_to_server()
         except Exception as err:
             print("Failed to delete ", database_name, "database: ", err)
 
     def create_database(self, database_name, delete_if_exists=True):
         "Create database by database_name using Ibis framework"
+        
+        if self._conn is None:
+            self.connect_to_server()
 
         if delete_if_exists:
-            self.drop_database(database_name)
+            self.drop_database(database_name, force=True)
         print("Creating ", database_name, " database")
         try:
             self._conn.create_database(database_name)
@@ -235,8 +239,7 @@ class OmnisciServerWorker:
             except Exception as err:
                 print("Failed to create table:", err)
 
-        self._conn_ipc.load_data(table_name=table_name, obj=pd_obj,
+        self._conn.load_data(table_name=table_name, obj=pd_obj,
                              database=self.omnisci_server.database_name, method='columnar')
 
-        return self._conn_ipc.database(self.omnisci_server.database_name).table(table_name)
-    
+        return self._conn.database(self.omnisci_server.database_name).table(table_name)
