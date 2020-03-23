@@ -177,6 +177,9 @@ class OmnisciServerWorker:
 
     def drop_database(self, database_name, force=True):
         "Drop database by database_name using Ibis framework"
+        
+        if self._conn is None:
+            self.connect_to_server()
 
         print("Deleting ", database_name, " database")
         try:
@@ -188,6 +191,9 @@ class OmnisciServerWorker:
 
     def create_database(self, database_name, delete_if_exists=True):
         "Create database by database_name using Ibis framework"
+        
+        if self._conn is None:
+            self.connect_to_server()
 
         if delete_if_exists:
             self.drop_database(database_name, force=True)
