@@ -1,12 +1,9 @@
-import argparse
-import json
 import os
 import sys
 import time
 import traceback
 import warnings
 
-import cloudpickle
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -435,6 +432,7 @@ def run_benchmark(parameters):
         "optimizer": parameters["optimizer"],
         "q3_full": parameters["q3_full"],
         "no_ml": parameters["no_ml"],
+        "gpu_memory": parameters["gpu_memory"],
     }
     if parameters["no_ibis"]:
         ignored_parameters["dnd"] = parameters["dnd"]
@@ -592,7 +590,7 @@ def run_benchmark(parameters):
         print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
         etl_times["Backend"] = parameters["pandas_mode"]
 
-        return [etl_times_ibis, etl_times]
+        return {"ETL": [etl_times_ibis, etl_times], "ML": None}
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)

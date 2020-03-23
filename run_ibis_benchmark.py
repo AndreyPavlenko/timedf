@@ -1,7 +1,5 @@
 # coding: utf-8
 import argparse
-import gzip
-import json
 import os
 import sys
 import traceback
@@ -12,8 +10,6 @@ from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
 from utils import (
-    compare_dataframes,
-    import_pandas_into_module_namespace,
     random_if_default
 )
 
@@ -99,6 +95,13 @@ def main():
         "-q3_full",
         default=False,
         help="Execute q3 query correctly (script execution time will be increased).",
+    )
+    optional.add_argument(
+        "-gpu-memory",
+        dest="gpu_memory",
+        type=int,
+        help="specify the memory of your gpu, default 16. (This controls the lines to be used. Also work for CPU version. )",
+        default=16,
     )
     # MySQL database parameters
     optional.add_argument(
@@ -215,8 +218,10 @@ def main():
         args = parser.parse_args()
 
         args.port = random_if_default(value=args.port, least=60000, greater=69999, default=-1)
-        args.http_port = random_if_default(value=args.http_port, least=60000, greater=69999, default=-1)
-        args.calcite_port = random_if_default(value=args.calcite_port, least=60000, greater=69999, default=-1)
+        args.http_port = random_if_default(value=args.http_port, least=60000, greater=69999,
+                                           default=-1)
+        args.calcite_port = random_if_default(value=args.calcite_port, least=60000, greater=69999,
+                                              default=-1)
 
         if args.bench_name == "ny_taxi":
             from taxi import run_benchmark
@@ -237,6 +242,7 @@ def main():
             "pandas_mode": args.pandas_mode,
             "ray_tmpdir": args.ray_tmpdir,
             "ray_memory": args.ray_memory,
+            "gpu_memory": args.gpu_memory,
         }
 
         omnisci_server_worker = None
@@ -261,7 +267,8 @@ def main():
             parameters["dni"] = args.dni
             parameters["validation"] = args.validation
 
-        results = []
+        etl_results = []
+        ml_results = []
         print(parameters)
         for iter_num in range(1, args.iterations + 1):
             print(f"Iteration №{iter_num}")
@@ -276,10 +283,14 @@ def main():
             if not args.no_ibis:
                 omnisci_server.terminate()
 
-            for backend_res in result:
+            for backend_res in result["ETL"]:
                 if backend_res:
                     backend_res["Iteration"] = iter_num
-                    results.append(result)
+                    etl_results.append(backend_res)
+            for backend_res in result["ML"]:
+                if backend_res:
+                    backend_res["Iteration"] = iter_num
+                    ml_results.append(backend_res)
 
         # if args.db_user is not "":
         #     print("Connecting to database")

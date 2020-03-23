@@ -1,7 +1,4 @@
 # coding: utf-8
-import argparse
-import gzip
-import json
 import os
 import sys
 import time
@@ -9,10 +6,7 @@ import traceback
 import warnings
 from timeit import default_timer as timer
 
-import cloudpickle
-
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from server import OmnisciServer
 from utils import (
     compare_dataframes,
     import_pandas_into_module_namespace,
@@ -319,6 +313,7 @@ def run_benchmark(parameters):
     ignored_parameters = {
         "q3_full": parameters["q3_full"],
         "dfiles_num": parameters["dfiles_num"],
+        "gpu_memory": parameters["gpu_memory"],
     }
     if parameters["no_ibis"]:
         ignored_parameters["dnd"] = parameters["dnd"]
@@ -439,6 +434,7 @@ def run_benchmark(parameters):
         )
 
         etl_times_ibis = None
+        ml_times_ibis = None
         if not parameters["no_ibis"]:
 
             X_ibis, y_ibis, etl_times_ibis = etl_ibis(
@@ -456,7 +452,7 @@ def run_benchmark(parameters):
             etl_times_ibis["Backend"] = "Ibis"
 
             if not parameters["no_ml"]:
-                mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
+                mse_mean, cod_mean, mse_dev, cod_dev, ml_times_ibis = ml(
                     X_ibis,
                     y_ibis,
                     RANDOM_STATE,
@@ -464,9 +460,8 @@ def run_benchmark(parameters):
                     TRAIN_SIZE,
                     parameters["optimizer"],
                 )
-                print_times(ml_times, "Ibis")
-                print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
-                print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
+                print_times(etl_times=ml_times_ibis, backend="Ibis")
+                ml_times_ibis["Backend"] = "Ibis"
 
         X, y, etl_times = etl_pandas(
             parameters["data_file"],
@@ -481,9 +476,8 @@ def run_benchmark(parameters):
             mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
                 X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, parameters["optimizer"]
             )
-            print_times(ml_times, parameters["pandas_mode"])
-            print("mean MSE ± deviation: {:.9f} ± {:.9f}".format(mse_mean, mse_dev))
-            print("mean COD ± deviation: {:.9f} ± {:.9f}".format(cod_mean, cod_dev))
+            print_times(etl_times=ml_times, backend=parameters["pandas_mode"])
+            ml_times["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:
             compare_dataframes(
@@ -492,7 +486,7 @@ def run_benchmark(parameters):
                 pd=run_benchmark.__globals__["pd"],
             )
 
-        return [etl_times_ibis, etl_times]
+        return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)

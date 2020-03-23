@@ -4,16 +4,10 @@ import sys
 import traceback
 import re
 
-import mysql.connector
-
 from environment import CondaEnvironment
-from report import DbReport
 from server import OmnisciServer
-from server_worker import OmnisciServerWorker
-from utils import combinate_requirements, compare_dataframes
+from utils import combinate_requirements
 from utils import (
-    import_pandas_into_module_namespace,
-    execute_process,
     str_arg_to_bool,
     random_if_default,
 )
@@ -228,6 +222,13 @@ def main():
         default=False,
         help="Execute q3 query correctly (script execution time will be increased).",
     )
+    optional.add_argument(
+        "-gpu-memory",
+        dest="gpu_memory",
+        type=int,
+        help="specify the memory of your gpu, default 16. (This controls the lines to be used. Also work for CPU version. )",
+        default=16,
+    )
     # MySQL database parameters
     mysql.add_argument(
         "-db-server",
@@ -411,6 +412,7 @@ def main():
                 "ray_memory",
                 "no_ml",
                 "q3_full",
+                "gpu-memory",
                 "db-server",
                 "db-port",
                 "db-user",
