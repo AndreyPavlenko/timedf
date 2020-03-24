@@ -3,6 +3,7 @@ import subprocess
 import re
 import hiyapyco
 import os
+import pandas as pd
 
 def str_arg_to_bool(v):
     if isinstance(v, bool):
@@ -68,3 +69,63 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory)
             raise ValueError(f"Unknown pandas mode {mode}")
         import modin.pandas as pd
     namespace['pd'] = pd
+
+
+def equal_dfs(ibis_dfs, pandas_dfs):
+    for ibis_df, pandas_df in zip(ibis_dfs, pandas_dfs):
+        if not ibis_df.equals(pandas_df):
+            return False
+    return True
+
+
+def get_percentage(error_message):
+    # parsing message like: lalalalal values are different (xxxxx%) lalalalal
+    return float(error_message.split('values are different ')[1].split("%)")[0][1:])
+
+
+def compare_dataframes(ibis_dfs, pandas_dfs):
+    prepared_dfs = []
+    # in percentage - 0.05 %
+    max_error = 0.05
+
+    assert len(ibis_dfs) == len(pandas_dfs)
+
+    # preparing step
+    for idx in range(len(ibis_dfs)):
+        # prepare ibis part
+        ibis_dfs[idx].sort_values(by="id", axis=0, inplace=True)
+        ibis_dfs[idx].reset_index(drop=True, inplace=True)
+        ibis_dfs[idx].drop(["id"], axis=1, inplace=True)
+        # prepare pandas part
+        pandas_dfs[idx].reset_index(drop=True, inplace=True)
+
+    # fast check
+    if equal_dfs(ibis_dfs, pandas_dfs):
+        print("dataframes are equal")
+        return
+
+    # comparing step
+    for ibis_df, pandas_df in zip(ibis_dfs, pandas_dfs):
+        assert ibis_df.shape == pandas_df.shape
+        for column_name in ibis_df.columns:
+            try:
+                pd.testing.assert_frame_equal(
+                    ibis_df[[column_name]],
+                    pandas_df[[column_name]],
+                    check_less_precise=2,
+                    check_dtype=False,
+                )
+            except AssertionError as assert_err:
+                if str(ibis_df.dtypes[column_name]).startswith('float'):
+                    try:
+                        current_error = get_percentage(str(assert_err))
+                        if current_error > max_error:
+                            print(f"Max acceptable difference: {max_error}%; current difference: {current_error}%")
+                            raise assert_err
+                    # for catch exceptions from `get_percentage`
+                    except Exception:
+                        raise assert_err
+                else:
+                    raise assert_err
+
+    print("dataframes are equal")

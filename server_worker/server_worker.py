@@ -31,9 +31,11 @@ class OmnisciServerWorker:
         types = None
         if columns_types:
             types = {columns_names[i]: columns_types[i] for i in range(len(columns_names))}
+            
         if compression_type == 'gzip':
             with gzip.open(file_name) as f:
                 return pd.read_csv(f, names=columns_names, dtype=types, nrows=nrows, header=header)
+
         return pd.read_csv(file_name, compression=compression_type, names=columns_names,
                            dtype=types,
                            nrows=nrows, header=header, skiprows=skiprows)
