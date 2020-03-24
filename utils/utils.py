@@ -4,7 +4,6 @@ import re
 import subprocess
 
 import hiyapyco
-import pandas as pd
 
 
 def str_arg_to_bool(v):
@@ -105,6 +104,8 @@ def get_percentage(error_message):
 
 
 def compare_dataframes(ibis_dfs, pandas_dfs):
+    import pandas as pd
+
     prepared_dfs = []
     # in percentage - 0.05 %
     max_error = 0.05
