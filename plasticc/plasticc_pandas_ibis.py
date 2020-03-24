@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 import traceback
 import warnings
 from collections import OrderedDict
@@ -573,57 +572,43 @@ def run_benchmark(parameters):
         etl_times_ibis = None
         ml_times_ibis = None
         if not parameters["no_ibis"]:
-            (
-                X_train,
-                y_train,
-                X_test,
-                y_test,
-                Xt,
-                classes,
-                class_weights,
-                etl_times_ibis,
-            ) = etl_all_ibis(
+            train_final_ibis, test_final_ibis, etl_times_ibis = etl_all_ibis(
                 dataset_path=parameters["data_file"],
                 database_name=parameters["database_name"],
                 omnisci_server_worker=parameters["omnisci_server_worker"],
                 delete_old_database=not parameters["dnd"],
                 create_new_table=not parameters["dni"],
                 skip_rows=skip_rows,
+                validation=parameters["validation"],
                 dtypes=dtypes,
                 meta_dtypes=meta_dtypes,
             )
 
+            ml_data_ibis, etl_times_ibis = split_step(train_final_ibis, test_final_ibis, etl_times_ibis)
             print_times(etl_times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
+
             if not parameters["no_ml"]:
-                print("using ml with dataframes from ibis")
-                ml_times_ibis = ml(X_train, y_train, X_test, y_test, Xt, classes, class_weights)
+                print("using ml with dataframes from Ibis")
+                ml_times_ibis = ml(ml_data_ibis)
                 print_times(etl_times=ml_times_ibis, backend="Ibis")
                 ml_times_ibis["Backend"] = "Ibis"
 
-        (
-            X_train,
-            y_train,
-            X_test,
-            y_test,
-            Xt,
-            classes,
-            class_weights,
-            etl_times,
-        ) = etl_all_pandas(
+        train_final, test_final, etl_times = etl_all_pandas(
             dataset_path=parameters["data_file"],
             skip_rows=skip_rows,
             dtypes=dtypes,
             meta_dtypes=meta_dtypes,
         )
 
+        ml_data, etl_times = split_step(train_final, test_final, etl_times)
         print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
-            print("using ml with dataframes from ibis")
-            ml_times = ml(X_train, y_train, X_test, y_test, Xt, classes, class_weights)
+            print("using ml with dataframes from Pandas")
+            ml_times = ml(ml_data)
             print_times(etl_times=ml_times, backend=parameters["pandas_mode"])
             ml_times["Backend"] = parameters["pandas_mode"]
 
