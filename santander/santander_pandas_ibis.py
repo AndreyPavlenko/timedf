@@ -758,18 +758,19 @@ def main():
             if db_reporter is not None:
                 submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_pandas', results=ml_times_pandas)
 
-            ml_args_ibis = {'x_train': x_train_ibis, 'y_train': y_train_ibis,
-                            'x_valid': x_valid_ibis, 'y_valid': y_valid_ibis}
-            score_mse_ibis, score_cod_ibis, ml_times_ibis = query_measurement_ml(ml,
-                                                                                 ml_args_ibis,
-                                                                                 args.iterations,
-                                                                                 "ml")
-            print('Scores with etl_ibis ML inputs: ')
-            print('  mse = ', score_mse_ibis)
-            print('  cod = ', score_cod_ibis)
-            print_times_nested(ml_times_ibis)
-            if db_reporter is not None:
-                submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_ibis', results=ml_times_pandas)
+            if not args.no_ibis:
+                ml_args_ibis = {'x_train': x_train_ibis, 'y_train': y_train_ibis,
+                                'x_valid': x_valid_ibis, 'y_valid': y_valid_ibis}
+                score_mse_ibis, score_cod_ibis, ml_times_ibis = query_measurement_ml(ml,
+                                                                                     ml_args_ibis,
+                                                                                     args.iterations,
+                                                                                     "ml")
+                print('Scores with etl_ibis ML inputs: ')
+                print('  mse = ', score_mse_ibis)
+                print('  cod = ', score_cod_ibis)
+                print_times_nested(ml_times_ibis)
+                if db_reporter is not None:
+                    submit_results_to_db(db_reporter=db_reporter, args=args, backend='ml_ibis', results=ml_times_pandas)
 
 
         # Results validation block (comparison of etl_ibis and etl_pandas outputs)
@@ -799,7 +800,7 @@ def main():
             compare_result4 = compare_dataframes(ibis_df=[etl_ibis_res['target0']],
                                                  pandas_df=[etl_pandas_res['target']])
 
-            if not args.no_ml:
+            if (not args.no_ml) and (not args.no_ibis):
                 print("Validation of ML queries results ...")
                 if score_mse_ibis == score_mse_pandas:
                     print("Scores mse are equal!")
@@ -807,7 +808,7 @@ def main():
                     print("Scores mse are unequal, score mse Ibis =", score_mse_ibis,
                          "score mse Pandas =", score_mse_pandas)
 
-                if score_mse_ibis == score_mse_pandas:
+                if score_cod_ibis == score_cod_pandas:
                     print("Scores cod are equal!")
                 else:
                     print("Scores cod are unequal, score cod Ibis =", score_cod_ibis,
