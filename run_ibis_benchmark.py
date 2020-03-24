@@ -9,10 +9,7 @@ import mysql.connector
 from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
-from utils import (
-    str_arg_to_bool,
-    random_if_default
-)
+from utils import random_if_default, str_arg_to_bool
 
 
 def main():
@@ -47,8 +44,9 @@ def main():
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
-    optional.add_argument("-dnd", default=False,
-        type=str_arg_to_bool, help="Do not delete old table.")
+    optional.add_argument(
+        "-dnd", default=False, type=str_arg_to_bool, help="Do not delete old table."
+    )
     optional.add_argument(
         "-dni",
         default=False,
@@ -122,8 +120,8 @@ def main():
         "-db-user",
         dest="db_user",
         help="Username to use to connect to MySQL database. "
-             "If user name is specified, script attempts to store results in MySQL "
-             "database using other -db-* parameters.",
+        "If user name is specified, script attempts to store results in MySQL "
+        "database using other -db-* parameters.",
     )
     optional.add_argument(
         "-db-pass",
@@ -150,8 +148,8 @@ def main():
         "-omnisci_cwd",
         dest="omnisci_cwd",
         help="Path to omnisci working directory. "
-             "By default parent directory of executable location is used. "
-             "Data directory is used in this location.",
+        "By default parent directory of executable location is used. "
+        "Data directory is used in this location.",
     )
     optional.add_argument(
         "-port",
@@ -218,11 +216,15 @@ def main():
 
         args = parser.parse_args()
 
-        args.port = random_if_default(value=args.port, least=60000, greater=69999, default=-1)
-        args.http_port = random_if_default(value=args.http_port, least=60000, greater=69999,
-                                           default=-1)
-        args.calcite_port = random_if_default(value=args.calcite_port, least=60000, greater=69999,
-                                              default=-1)
+        args.port = random_if_default(
+            value=args.port, least=60000, greater=69999, default=-1
+        )
+        args.http_port = random_if_default(
+            value=args.http_port, least=60000, greater=69999, default=-1
+        )
+        args.calcite_port = random_if_default(
+            value=args.calcite_port, least=60000, greater=69999, default=-1
+        )
 
         if args.bench_name == "ny_taxi":
             from taxi import run_benchmark

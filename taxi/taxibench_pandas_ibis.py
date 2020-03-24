@@ -7,13 +7,9 @@ import warnings
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from utils import (
-    compare_dataframes,
-    files_names_from_pattern,
-    import_pandas_into_module_namespace,
-    load_data_pandas,
-    print_times,
-)
+from utils import (compare_dataframes, files_names_from_pattern,
+                   import_pandas_into_module_namespace, load_data_pandas,
+                   print_times)
 
 
 def validation_prereqs(
@@ -64,7 +60,9 @@ def q1_ibis(
         q1_output_pd_df.index = [i for i in range(len(q1_output_pd_df))]
 
         queries_validation_results["q1"] = compare_dataframes(
-            ibis_df=q1_output_pd_df, pandas_df=q1_output_ibis, pd=run_benchmark.__globals__["pd"]
+            ibis_df=q1_output_pd_df,
+            pandas_df=q1_output_ibis,
+            pd=run_benchmark.__globals__["pd"],
         )
         if queries_validation_results["q1"]:
             print("q1 results are validated!")
@@ -96,7 +94,9 @@ def q2_ibis(
         ]
 
         queries_validation_results["q2"] = compare_dataframes(
-            pandas_df=q2_output_pd, ibis_df=q2_output_ibis, pd=run_benchmark.__globals__["pd"]
+            pandas_df=q2_output_pd,
+            ibis_df=q2_output_ibis,
+            pd=run_benchmark.__globals__["pd"],
         )
         if queries_validation_results["q2"]:
             print("q2 results are validated!")
@@ -151,7 +151,9 @@ def q3_ibis(
         q3_output_pd_df.index = [i for i in range(len(q3_output_pd_df))]
 
         queries_validation_results["q3"] = compare_dataframes(
-            pandas_df=q3_output_pd_df, ibis_df=q3_output_ibis, pd=run_benchmark.__globals__["pd"]
+            pandas_df=q3_output_pd_df,
+            ibis_df=q3_output_ibis,
+            pd=run_benchmark.__globals__["pd"],
         )
         if queries_validation_results["q3"]:
             print("q3 results are validated!")
@@ -325,7 +327,9 @@ def etl_ibis(
         "queries_validation_flags": queries_validation_flags,
         "val": val,
     }
-    return run_queries(queries=queries, parameters=queries_parameters, etl_times=etl_times)
+    return run_queries(
+        queries=queries, parameters=queries_parameters, etl_times=etl_times
+    )
 
 
 # SELECT cab_type,
@@ -423,7 +427,9 @@ def etl_pandas(
     etl_times["t_readcsv"] = time.time() - t0
 
     queries_parameters = {"df": concatenated_df}
-    return run_queries(queries=queries, parameters=queries_parameters, etl_times=etl_times)
+    return run_queries(
+        queries=queries, parameters=queries_parameters, etl_times=etl_times
+    )
 
 
 def run_benchmark(parameters):
@@ -575,7 +581,9 @@ def run_benchmark(parameters):
             etl_times_ibis["Backend"] = "Ibis"
 
         pandas_files_limit = 1
-        filename = files_names_from_pattern(parameters["data_file"])[:pandas_files_limit]
+        filename = files_names_from_pattern(parameters["data_file"])[
+            :pandas_files_limit
+        ]
         etl_times = etl_pandas(
             filename=filename,
             files_limit=pandas_files_limit,

@@ -17,7 +17,6 @@ from utils import (
     compare_dataframes,
     import_pandas_into_module_namespace,
     print_times,
-    get_percentage,
 )
 
 
@@ -272,7 +271,7 @@ def load_data_ibis(
             + t_import_pandas_4
         )
         t_import_ibis = (
-                t_import_ibis_1 + t_import_ibis_2 + t_import_ibis_3 + t_import_ibis_4
+            t_import_ibis_1 + t_import_ibis_2 + t_import_ibis_3 + t_import_ibis_4
         )
         print(f"import times: pandas - {t_import_pandas}s, ibis - {t_import_ibis}s")
 
@@ -346,15 +345,15 @@ def split_step(train_final, test_final, etl_times):
 
 
 def etl_all_ibis(
-        dataset_path,
-        database_name,
-        omnisci_server_worker,
-        delete_old_database,
-        create_new_table,
-        skip_rows,
-        validation,
-        dtypes,
-        meta_dtypes,
+    dataset_path,
+    database_name,
+    omnisci_server_worker,
+    delete_old_database,
+    create_new_table,
+    skip_rows,
+    validation,
+    dtypes,
+    meta_dtypes,
 ):
     print("ibis version")
     etl_times = {
@@ -554,7 +553,9 @@ def run_benchmark(parameters):
         "target",
     ]
     meta_dtypes = ["int32"] + ["float32"] * 4 + ["int32"] + ["float32"] * 5 + ["int32"]
-    meta_dtypes = OrderedDict([(columns_names[i], meta_dtypes[i]) for i in range(len(meta_dtypes))])
+    meta_dtypes = OrderedDict(
+        [(columns_names[i], meta_dtypes[i]) for i in range(len(meta_dtypes))]
+    )
 
     try:
 
@@ -580,10 +581,11 @@ def run_benchmark(parameters):
                 meta_dtypes=meta_dtypes,
             )
 
-            ml_data_ibis, etl_times_ibis = split_step(train_final_ibis, test_final_ibis, etl_times_ibis)
+            ml_data_ibis, etl_times_ibis = split_step(
+                train_final_ibis, test_final_ibis, etl_times_ibis
+            )
             print_times(etl_times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
-
 
             if not parameters["no_ml"]:
                 print("using ml with dataframes from Ibis")

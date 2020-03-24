@@ -1,16 +1,12 @@
 import argparse
 import os
+import re
 import sys
 import traceback
-import re
 
 from environment import CondaEnvironment
 from server import OmnisciServer
-from utils import combinate_requirements
-from utils import (
-    str_arg_to_bool,
-    random_if_default,
-)
+from utils import combinate_requirements, random_if_default, str_arg_to_bool
 
 
 def main():
@@ -172,8 +168,9 @@ def main():
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
-    benchmark.add_argument("-dnd", default=False,
-        type=str_arg_to_bool, help="Do not delete old table.")
+    benchmark.add_argument(
+        "-dnd", default=False, type=str_arg_to_bool, help="Do not delete old table."
+    )
     benchmark.add_argument(
         "-dni",
         default=False,
@@ -204,12 +201,14 @@ def main():
         "-pandas_mode",
         choices=["Pandas", "Modin_on_ray", "Modin_on_dask"],
         default="Pandas",
-        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
+        help="Specifies which version of Pandas to use: "
+             "plain Pandas, Modin runing on Ray or on Dask",
     )
     benchmark.add_argument(
         "-ray_tmpdir",
         default="/tmp",
-        help="Location where to keep Ray plasma store. It should have enough space to keep -ray_memory",
+        help="Location where to keep Ray plasma store. "
+             "It should have enough space to keep -ray_memory",
     )
     benchmark.add_argument(
         "-ray_memory",
@@ -226,7 +225,8 @@ def main():
         "-gpu-memory",
         dest="gpu_memory",
         type=int,
-        help="specify the memory of your gpu, default 16. (This controls the lines to be used. Also work for CPU version. )",
+        help="specify the memory of your gpu, default 16. "
+             "(This controls the lines to be used. Also work for CPU version. )",
         default=16,
     )
     # MySQL database parameters
@@ -290,9 +290,15 @@ def main():
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
 
-        args.port = random_if_default(value=args.port, least=60000, greater=69999, default=-1)
-        args.http_port = random_if_default(value=args.http_port, least=60000, greater=69999, default=-1)
-        args.calcite_port = random_if_default(value=args.calcite_port, least=60000, greater=69999, default=-1)
+        args.port = random_if_default(
+            value=args.port, least=60000, greater=69999, default=-1
+        )
+        args.http_port = random_if_default(
+            value=args.http_port, least=60000, greater=69999, default=-1
+        )
+        args.calcite_port = random_if_default(
+            value=args.calcite_port, least=60000, greater=69999, default=-1
+        )
 
         required_tasks = args.task.split(",")
         tasks = {}
