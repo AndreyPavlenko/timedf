@@ -311,13 +311,9 @@ def ml(X, y, random_state, n_runs, train_size, optimizer):
 def run_benchmark(parameters):
 
     ignored_parameters = {
-        "q3_full": parameters["q3_full"],
         "dfiles_num": parameters["dfiles_num"],
         "gpu_memory": parameters["gpu_memory"],
     }
-    if parameters["no_ibis"]:
-        ignored_parameters["dnd"] = parameters["dnd"]
-        ignored_parameters["dni"] = parameters["dni"]
     warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")

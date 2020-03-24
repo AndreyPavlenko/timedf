@@ -10,6 +10,7 @@ from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
 from utils import (
+    str_arg_to_bool,
     random_if_default
 )
 
@@ -46,16 +47,19 @@ def main():
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
-    optional.add_argument("-dnd", default=False, help="Do not delete old table.")
+    optional.add_argument("-dnd", default=False,
+        type=str_arg_to_bool, help="Do not delete old table.")
     optional.add_argument(
         "-dni",
         default=False,
+        type=str_arg_to_bool,
         help="Do not create new table and import any data from CSV files.",
     )
     optional.add_argument(
         "-validation",
         dest="validation",
         default=False,
+        type=str_arg_to_bool,
         help="validate queries results (by comparison with Pandas queries results).",
     )
     optional.add_argument(
@@ -68,6 +72,7 @@ def main():
     optional.add_argument(
         "-no_ibis",
         default=False,
+        type=str_arg_to_bool,
         help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
     )
     optional.add_argument(
@@ -89,12 +94,8 @@ def main():
     optional.add_argument(
         "-no_ml",
         default=False,
+        type=str_arg_to_bool,
         help="Do not run machine learning benchmark, only ETL part",
-    )
-    optional.add_argument(
-        "-q3_full",
-        default=False,
-        help="Execute q3 query correctly (script execution time will be increased).",
     )
     optional.add_argument(
         "-gpu-memory",
@@ -237,7 +238,6 @@ def main():
             "dfiles_num": args.dfiles_num,
             "no_ml": args.no_ml,
             "no_ibis": args.no_ibis,
-            "q3_full": args.q3_full,
             "optimizer": args.optimizer,
             "pandas_mode": args.pandas_mode,
             "ray_tmpdir": args.ray_tmpdir,

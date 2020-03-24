@@ -430,13 +430,9 @@ def run_benchmark(parameters):
 
     ignored_parameters = {
         "optimizer": parameters["optimizer"],
-        "q3_full": parameters["q3_full"],
         "no_ml": parameters["no_ml"],
         "gpu_memory": parameters["gpu_memory"],
     }
-    if parameters["no_ibis"]:
-        ignored_parameters["dnd"] = parameters["dnd"]
-        ignored_parameters["dni"] = parameters["dni"]
     warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")

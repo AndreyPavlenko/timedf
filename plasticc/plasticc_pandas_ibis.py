@@ -520,7 +520,6 @@ def compute_skip_rows(gpu_memory):
 
 def run_benchmark(parameters):
     ignored_parameters = {
-        "q3_full": parameters["q3_full"],
         "dfiles_num": parameters["dfiles_num"],
     }
     warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)

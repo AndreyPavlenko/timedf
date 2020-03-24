@@ -172,16 +172,19 @@ def main():
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
-    benchmark.add_argument("-dnd", default=False, help="Do not delete old table.")
+    benchmark.add_argument("-dnd", default=False,
+        type=str_arg_to_bool, help="Do not delete old table.")
     benchmark.add_argument(
         "-dni",
         default=False,
+        type=str_arg_to_bool,
         help="Do not create new table and import any data from CSV files.",
     )
     benchmark.add_argument(
         "-validation",
         dest="validation",
         default=False,
+        type=str_arg_to_bool,
         help="validate queries results (by comparison with Pandas queries results).",
     )
     benchmark.add_argument(
@@ -194,6 +197,7 @@ def main():
     benchmark.add_argument(
         "-no_ibis",
         default=False,
+        type=str_arg_to_bool,
         help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
     )
     benchmark.add_argument(
@@ -215,12 +219,8 @@ def main():
     benchmark.add_argument(
         "-no_ml",
         default=False,
+        type=str_arg_to_bool,
         help="Do not run machine learning benchmark, only ETL part",
-    )
-    benchmark.add_argument(
-        "-q3_full",
-        default=False,
-        help="Execute q3 query correctly (script execution time will be increased).",
     )
     optional.add_argument(
         "-gpu-memory",
@@ -411,7 +411,6 @@ def main():
                 "ray_tmpdir",
                 "ray_memory",
                 "no_ml",
-                "q3_full",
                 "gpu-memory",
                 "db-server",
                 "db-port",
