@@ -110,6 +110,7 @@ def etl_cpu_ibis(table, table_meta, etl_times):
         table.flux_min,
         table.flux_max,
         table.flux_mean,
+        table.flux_skew,
         table.flux_err_min,
         table.flux_err_max,
         table.flux_err_mean,
@@ -299,6 +300,7 @@ def load_data_pandas(dataset_path, skip_rows, dtypes, meta_dtypes):
     test = pd.read_csv(
         # this should be replaced on test_set_skiprows.csv
         "%s/test_set.csv" % dataset_path,
+        names=list(dtypes.keys()),
         dtype=dtypes,
         skiprows=skip_rows,
     )
@@ -521,23 +523,20 @@ def run_benchmark(parameters):
         "q3_full": parameters["q3_full"],
         "dfiles_num": parameters["dfiles_num"],
     }
-    if parameters["no_ibis"]:
-        ignored_parameters["dnd"] = parameters["dnd"]
-        ignored_parameters["dni"] = parameters["dni"]
     warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
     skip_rows = compute_skip_rows(parameters["gpu_memory"])
 
     dtypes = OrderedDict(
-        {
-            "object_id": "int32",
-            "mjd": "float32",
-            "passband": "int32",
-            "flux": "float32",
-            "flux_err": "float32",
-            "detected": "int32",
-        }
+        [
+            ("object_id", "int32"),
+            ("mjd", "float32"),
+            ("passband", "int32"),
+            ("flux", "float32"),
+            ("flux_err", "float32"),
+            ("detected", "int32"),
+        ]
     )
 
     # load metadata
@@ -556,9 +555,7 @@ def run_benchmark(parameters):
         "target",
     ]
     meta_dtypes = ["int32"] + ["float32"] * 4 + ["int32"] + ["float32"] * 5 + ["int32"]
-    meta_dtypes = OrderedDict(
-        {columns_names[i]: meta_dtypes[i] for i in range(len(meta_dtypes))}
-    )
+    meta_dtypes = OrderedDict([(columns_names[i], meta_dtypes[i]) for i in range(len(meta_dtypes))])
 
     try:
 
