@@ -859,7 +859,7 @@ def main():
             compare_result4 = compare_dataframes(ibis_df=[etl_ibis_res['target0']],
                                                  pandas_df=[etl_pandas_res['target']])
 
-            if (not args.no_ml) and (not args.no_ibis):
+            if not args.no_ml:
                 print("Validation of ML queries results ...")
                 if score_mse_ibis == score_mse_pandas:
                     print("Scores mse are equal!")
