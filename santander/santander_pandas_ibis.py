@@ -7,7 +7,6 @@ import time
 import warnings
 from timeit import default_timer as timer
 
-import ibis
 import mysql.connector
 import pandas as pd
 
@@ -15,7 +14,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from report import DbReport
 from server import OmnisciServer
-from server_worker import OmnisciServerWorker
 from utils import (execute_process, import_pandas_into_module_namespace,
                    str_arg_to_bool)
 
@@ -703,7 +701,7 @@ def main():
     )
     optional.add_argument(
         "-pandas_mode",
-        choices=["pandas", "modin_on_ray", "modin_on_dask"],
+        choices=["pandas", "modin_on_ray", "modin_on_dask", "modin_on_python"],
         default="pandas",
         help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
     )
@@ -774,6 +772,8 @@ def main():
             })
 
         if not args.no_ibis:
+            import ibis
+            from server_worker import OmnisciServerWorker
             if args.omnisci_executable is None:
                 parser.error("Omnisci executable should be specified with -e/--executable")
 
