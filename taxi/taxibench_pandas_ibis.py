@@ -33,7 +33,7 @@ def run_queries(queries, parameters, etl_times):
 
 # Queries definitions
 def q1_ibis(
-    table, df_pandas, queries_validation_results, queries_validation_flags, val
+    table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
     t0 = time.time()
@@ -45,7 +45,7 @@ def q1_ibis(
     )
     t_query += time.time() - t0
 
-    if val and not queries_validation_flags["q1"]:
+    if validation and not queries_validation_flags["q1"]:
         print("Validating query 1 results ...")
 
         queries_validation_flags["q1"] = True
@@ -59,11 +59,11 @@ def q1_ibis(
         q1_output_pd_df["cab_type"] = q1_output_pd_df.index
         q1_output_pd_df.index = [i for i in range(len(q1_output_pd_df))]
 
-        queries_validation_results["q1"] = compare_dataframes(
-            ibis_df=q1_output_pd_df,
-            pandas_df=q1_output_ibis,
-            pd=run_benchmark.__globals__["pd"],
-        )
+        # queries_validation_results["q1"] = compare_dataframes(
+        #     ibis_df=q1_output_pd_df,
+        #     pandas_df=q1_output_ibis,
+        #     pd=run_benchmark.__globals__["pd"],
+        # )
         if queries_validation_results["q1"]:
             print("q1 results are validated!")
 
@@ -71,7 +71,7 @@ def q1_ibis(
 
 
 def q2_ibis(
-    table, df_pandas, queries_validation_results, queries_validation_flags, val
+    table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
     t0 = time.time()
@@ -84,7 +84,7 @@ def q2_ibis(
     )
     t_query += time.time() - t0
 
-    if val and not queries_validation_flags["q2"]:
+    if validation and not queries_validation_flags["q2"]:
         print("Validating query 2 results ...")
 
         queries_validation_flags["q2"] = True
@@ -93,11 +93,11 @@ def q2_ibis(
             ["passenger_count", "total_amount"]
         ]
 
-        queries_validation_results["q2"] = compare_dataframes(
-            pandas_df=q2_output_pd,
-            ibis_df=q2_output_ibis,
-            pd=run_benchmark.__globals__["pd"],
-        )
+        # queries_validation_results["q2"] = compare_dataframes(
+        #     pandas_df=q2_output_pd,
+        #     ibis_df=q2_output_ibis,
+        #     pd=run_benchmark.__globals__["pd"],
+        # )
         if queries_validation_results["q2"]:
             print("q2 results are validated!")
 
@@ -105,7 +105,7 @@ def q2_ibis(
 
 
 def q3_ibis(
-    table, df_pandas, queries_validation_results, queries_validation_flags, val
+    table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
     t0 = time.time()
@@ -121,7 +121,7 @@ def q3_ibis(
     )
     t_query += time.time() - t0
 
-    if val and not queries_validation_flags["q3"]:
+    if validation and not queries_validation_flags["q3"]:
         print("Validating query 3 results ...")
 
         queries_validation_flags["q3"] = True
@@ -150,11 +150,11 @@ def q3_ibis(
         q3_output_pd_df.loc[:, "count"] = count_df
         q3_output_pd_df.index = [i for i in range(len(q3_output_pd_df))]
 
-        queries_validation_results["q3"] = compare_dataframes(
-            pandas_df=q3_output_pd_df,
-            ibis_df=q3_output_ibis,
-            pd=run_benchmark.__globals__["pd"],
-        )
+        # queries_validation_results["q3"] = compare_dataframes(
+        #     pandas_df=q3_output_pd_df,
+        #     ibis_df=q3_output_ibis,
+        #     pd=run_benchmark.__globals__["pd"],
+        # )
         if queries_validation_results["q3"]:
             print("q3 results are validated!")
 
@@ -162,7 +162,7 @@ def q3_ibis(
 
 
 def q4_ibis(
-    table, df_pandas, queries_validation_results, queries_validation_flags, val
+    table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
     t0 = time.time()
@@ -178,7 +178,7 @@ def q4_ibis(
     ).execute()
     t_query += time.time() - t0
 
-    if val and not queries_validation_flags["q4"]:
+    if validation and not queries_validation_flags["q4"]:
         print("Validating query 4 results ...")
 
         queries_validation_flags["q4"] = True
@@ -213,16 +213,16 @@ def q4_ibis(
         q4_output_pd.index = [i for i in range(len(q4_output_pd))]
 
         # compare_result_1 and compare_result_2 are the results of comparison of q4 sorted columns
-        compare_result_1 = compare_dataframes(
-            pandas_df=q4_output_pd["pickup_datetime"],
-            ibis_df=q4_output_ibis["pickup_datetime"],
-            pd=run_benchmark.__globals__["pd"],
-        )
-        compare_result_2 = compare_dataframes(
-            pandas_df=q4_output_pd["count"],
-            ibis_df=q4_output_ibis["count"],
-            pd=run_benchmark.__globals__["pd"],
-        )
+        # compare_result_1 = compare_dataframes(
+        #     pandas_df=q4_output_pd["pickup_datetime"],
+        #     ibis_df=q4_output_ibis["pickup_datetime"],
+        #     pd=run_benchmark.__globals__["pd"],
+        # )
+        # compare_result_2 = compare_dataframes(
+        #     pandas_df=q4_output_pd["count"],
+        #     ibis_df=q4_output_ibis["count"],
+        #     pd=run_benchmark.__globals__["pd"],
+        # )
 
         # compare_result_3 is the result of q4 output table all elements presence check
         q4_output_ibis_validation = q4_ibis_sized.sort_by(
@@ -245,11 +245,11 @@ def q4_ibis(
         ]
         q4_output_pd_valid.index = [i for i in range(len(q4_output_pd))]
 
-        compare_result_3 = compare_dataframes(
-            pandas_df=q4_output_pd_valid,
-            ibis_df=q4_output_ibis_validation,
-            pd=run_benchmark.__globals__["pd"],
-        )
+        # compare_result_3 = compare_dataframes(
+        #     pandas_df=q4_output_pd_valid,
+        #     ibis_df=q4_output_ibis_validation,
+        #     pd=run_benchmark.__globals__["pd"],
+        # )
 
         queries_validation_results["q4"] = (
             compare_result_1 and compare_result_2 and compare_result_3
@@ -271,7 +271,7 @@ def etl_ibis(
     delete_old_database,
     create_new_table,
     connection_func,
-    val,
+    validation,
 ):
 
     queries = {
@@ -316,7 +316,7 @@ def etl_ibis(
     table = db.table(table_name)
 
     df_pandas = None
-    if val:
+    if validation:
         df_pandas = validation_prereqs(
             omnisci_server_worker, data_files_names, files_limit, columns_names
         )
@@ -326,7 +326,7 @@ def etl_ibis(
         "df_pandas": df_pandas,
         "queries_validation_results": queries_validation_results,
         "queries_validation_flags": queries_validation_flags,
-        "val": val,
+        "validation": validation,
     }
     return run_queries(
         queries=queries, parameters=queries_parameters, etl_times=etl_times
@@ -576,7 +576,7 @@ def run_benchmark(parameters):
                 delete_old_database=not parameters["dnd"],
                 connection_func=parameters["connect_to_sever"],
                 create_new_table=not parameters["dni"],
-                val=parameters["validation"],
+                validation=parameters["validation"],
             )
 
             print_times(etl_times=etl_times_ibis, backend="Ibis")
@@ -596,7 +596,7 @@ def run_benchmark(parameters):
         print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
         etl_times["Backend"] = parameters["pandas_mode"]
 
-        return {"ETL": [etl_times_ibis, etl_times], "ML": None}
+        return {"ETL": [etl_times_ibis, etl_times], "ML": []}
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
