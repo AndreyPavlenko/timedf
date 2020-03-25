@@ -77,14 +77,17 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory)
             )
             os.environ["MODIN_ENGINE"] = "ray"
             print(
-                "Running on Ray on Pandas with tmp directory",
+                "Running on Modin on Ray with tmp directory",
                 ray_tmpdir,
                 "and memory",
                 ray_memory,
             )
         elif mode == "modin_on_dask":
             os.environ["MODIN_ENGINE"] = "dask"
-            print("Running on Dask")
+            print("Running on Modin on Dask")
+        elif mode == "modin_on_python":
+            os.environ["MODIN_ENGINE"] = "python"
+            print("Running on Modin on Python")
         else:
             raise ValueError(f"Unknown pandas mode {mode}")
         import modin.pandas as pd

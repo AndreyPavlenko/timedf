@@ -490,7 +490,7 @@ def main():
     )
     optional.add_argument(
         "-pandas_mode",
-        choices=["pandas", "modin_on_ray", "modin_on_dask"],
+        choices=["pandas", "modin_on_ray", "modin_on_dask", "modin_on_python"],
         default="pandas",
         help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
     )
