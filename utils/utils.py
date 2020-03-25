@@ -209,3 +209,13 @@ def random_if_default(value, least, greater, default=-1):
     if value == default:
         return int_random(least, greater)
     return value
+
+def mse(y_test, y_pred):
+    return ((y_test - y_pred) ** 2).mean()
+
+
+def cod(y_test, y_pred):
+    y_bar = y_test.mean()
+    total = ((y_test - y_bar) ** 2).sum()
+    residuals = ((y_test - y_pred) ** 2).sum()
+    return 1 - (residuals / total)
