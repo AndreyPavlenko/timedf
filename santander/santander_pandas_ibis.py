@@ -21,65 +21,13 @@ from utils import (
 
 warnings.filterwarnings("ignore")
 
-
-def compare_tables(table1, table2):
-    if table1.equals(table2):
-        print("Tables are equal")
-        return True
-    else:
-        print("\ntables are not equal, table1:")
-        print(table1.info())
-        print(table1)
-        print("\ntable2:")
-        print(table2.info())
-        print(table2)
-        return False
-
-
-def compare_dataframes(ibis_df, pandas_df):
-    comparison_result = True
-    for i in range(len(ibis_df)):
-        ibis_df[i].index = pandas_df[i].index
-        comparison_result = comparison_result and ibis_df[i].equals(pandas_df[i])
-
-    if comparison_result:
-        print("Tables are equal")
-        return True
-    else:
-        diff = {}
-        for i in range(len(ibis_df)):
-            diff_df = ibis_df[i] - pandas_df[i]
-            if len(diff_df.shape) > 1:
-                diff["DataFrame %s max deviation" % str(i + 1)] = diff_df.max().max()
-                diff["DataFrame %s min deviation" % str(i + 1)] = diff_df.min().min()
-            else:
-                diff["DataFrame %s max deviation" % str(i + 1)] = diff_df.max()
-                diff["DataFrame %s min deviation" % str(i + 1)] = diff_df.min()
-
-        check_res = True
-        lowest_order = 0.0001
-        print("Values check summary:")
-        for dev_type, value in diff.items():
-            print(dev_type, ":", value)
-            check_res = check_res and (abs(value) < lowest_order)
-
-        if check_res == True:
-            print(
-                "Deviation of values is lower, than values smallest order -> tables are equal"
-            )
-        else:
-            print(
-                "Deviation of values is higher, than values smallest order -> tables are unequal"
-            )
-        return check_res
-
-
 # Dataset link
 # https://www.kaggle.com/c/santander-customer-transaction-prediction/data
 
 # Current script prerequisites:
 # 1) Patched OmniSci version (https://github.com/intel-go/omniscidb/tree/ienkovich/santander)
 # 2) Ibis version not older than e60d1af commit (otherwise apply ibis-santander.patch patch)
+
 
 def etl_pandas(filename, columns_names, columns_types, etl_keys):
     etl_times = {key: 0.0 for key in etl_keys}
