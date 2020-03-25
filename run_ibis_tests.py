@@ -147,6 +147,13 @@ def main():
         default="benchmark_table",
         help="Table name name to use in omniscidb server.",
     )
+    omnisci.add_argument(
+        "-ipc_conn",
+        dest="ipc_connection",
+        default=True,
+        type=str_arg_to_bool,
+        help="Table name name to use in omniscidb server.",
+    )
     # Benchmark parameters
     benchmark.add_argument(
         "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.",
@@ -429,6 +436,7 @@ def main():
                 "port",
                 "user",
                 "password",
+                "ipc_connection",
                 "database_name",
                 "table",
                 "commit_omnisci",

@@ -115,6 +115,7 @@ def etl_ibis(
     omnisci_server_worker,
     delete_old_database,
     create_new_table,
+    connection_func,
     validation,
 ):
 
@@ -132,7 +133,7 @@ def etl_ibis(
     import ibis
 
     time.sleep(2)
-    omnisci_server_worker.connect_to_server()
+    connection_func()
 
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
@@ -140,7 +141,7 @@ def etl_ibis(
 
     t0 = timer()
 
-    omnisci_server_worker.connect_to_server(database=database_name)
+    connection_func(database=database_name)
     # Create table and import data
     if create_new_table:
         # Datafiles import
@@ -159,7 +160,7 @@ def etl_ibis(
     etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
 
     # Second connection - this is ibis's ipc connection for DML
-    omnisci_server_worker.ipc_connect_to_server()
+    conn = connection_func()
     db = omnisci_server_worker.database(database_name)
     table = db.table(table_name)
 
@@ -418,8 +419,6 @@ def run_benchmark(parameters):
         "float64",
     ]
 
-    db_reporter = None
-
     try:
 
         import_pandas_into_module_namespace(
@@ -433,7 +432,7 @@ def run_benchmark(parameters):
         ml_times_ibis = None
         if not parameters["no_ibis"]:
 
-            X_ibis, y_ibis, etl_times_ibis = etl_ibis(
+            df_ibis, X_ibis, y_ibis, etl_times_ibis = etl_ibis(
                 filename=parameters["data_file"],
                 columns_names=columns_names,
                 columns_types=columns_types,
@@ -442,6 +441,8 @@ def run_benchmark(parameters):
                 omnisci_server_worker=parameters["omnisci_server_worker"],
                 delete_old_database=not parameters["dnd"],
                 create_new_table=not parameters["dni"],
+                connection_func=parameters["connect_to_sever"],
+                validation=parameters["validation"],
             )
 
             print_times(etl_times=etl_times_ibis, backend="Ibis")
@@ -459,7 +460,7 @@ def run_benchmark(parameters):
                 print_times(etl_times=ml_times_ibis, backend="Ibis")
                 ml_times_ibis["Backend"] = "Ibis"
 
-        X, y, etl_times = etl_pandas(
+        df, X, y, etl_times = etl_pandas(
             parameters["data_file"],
             columns_names=columns_names,
             columns_types=columns_types,
@@ -477,9 +478,8 @@ def run_benchmark(parameters):
 
         if parameters["validation"]:
             compare_dataframes(
-                ibis_df=(X_ibis, y_ibis),
-                pandas_df=(X, y),
-                pd=run_benchmark.__globals__["pd"],
+                ibis_dfs=(X_ibis, y_ibis),
+                pandas_dfs=(X, y),
             )
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}

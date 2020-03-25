@@ -189,16 +189,17 @@ def load_data_ibis(
     omnisci_server_worker,
     delete_old_database,
     create_new_table,
+    connection_func,
     skip_rows,
     validation,
     dtypes,
     meta_dtypes,
 ):
-    omnisci_server_worker.connect_to_server()
+    connection_func()
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
-    omnisci_server_worker.connect_to_server()
+    connection_func()
 
     t_import_pandas, t_import_ibis = 0.0, 0.0
 
@@ -276,7 +277,7 @@ def load_data_ibis(
         print(f"import times: pandas - {t_import_pandas}s, ibis - {t_import_ibis}s")
 
     # Second connection - this is ibis's ipc connection for DML
-    omnisci_server_worker.ipc_connect_to_server()
+    conn = connection_func()
     db = omnisci_server_worker.database(database_name)
 
     training_table = db.table("training")
@@ -350,6 +351,7 @@ def etl_all_ibis(
     omnisci_server_worker,
     delete_old_database,
     create_new_table,
+    connection_func,
     skip_rows,
     validation,
     dtypes,
@@ -372,6 +374,7 @@ def etl_all_ibis(
         omnisci_server_worker=omnisci_server_worker,
         delete_old_database=delete_old_database,
         create_new_table=create_new_table,
+        connection_func=connection_func,
         skip_rows=skip_rows,
         validation=validation,
         dtypes=dtypes,
@@ -575,6 +578,7 @@ def run_benchmark(parameters):
                 omnisci_server_worker=parameters["omnisci_server_worker"],
                 delete_old_database=not parameters["dnd"],
                 create_new_table=not parameters["dni"],
+                connection_func=parameters["connect_to_sever"],
                 skip_rows=skip_rows,
                 validation=parameters["validation"],
                 dtypes=dtypes,

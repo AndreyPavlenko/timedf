@@ -196,6 +196,13 @@ def main():
         default="benchmark_table",
         help="Table name name to use in omniscidb server.",
     )
+    optional.add_argument(
+        "-ipc_conn",
+        dest="ipc_connection",
+        default=True,
+        type=str_arg_to_bool,
+        help="Table name name to use in omniscidb server.",
+    )
     # Additional information
     optional.add_argument(
         "-commit_omnisci",
@@ -278,6 +285,8 @@ def main():
             if not args.no_ibis:
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
                 parameters["omnisci_server_worker"] = omnisci_server_worker
+                parameters["connect_to_sever"] = \
+                    omnisci_server_worker.ipc_connect_to_server() if args.ipc_connection else omnisci_server_worker.connect_to_server()
                 omnisci_server.launch()
 
             result = run_benchmark(parameters)

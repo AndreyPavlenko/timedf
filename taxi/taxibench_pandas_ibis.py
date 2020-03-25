@@ -270,6 +270,7 @@ def etl_ibis(
     omnisci_server_worker,
     delete_old_database,
     create_new_table,
+    connection_func,
     val,
 ):
 
@@ -284,7 +285,7 @@ def etl_ibis(
     queries_validation_results = {"q%s" % i: False for i in range(1, 5)}
     queries_validation_flags = {"q%s" % i: False for i in range(1, 5)}
 
-    conn = omnisci_server_worker.connect_to_server()
+    connection_func()
 
     data_files_names = files_names_from_pattern(filename)
 
@@ -296,7 +297,7 @@ def etl_ibis(
         database_name, delete_if_exists=delete_old_database
     )
 
-    conn = omnisci_server_worker.connect_to_server(database=database_name)
+    conn = connection_func(database=database_name)
     if create_new_table:
         # TODO t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis
         t0 = time.time()
@@ -573,6 +574,7 @@ def run_benchmark(parameters):
                 table_name=parameters["table"],
                 omnisci_server_worker=parameters["omnisci_server_worker"],
                 delete_old_database=not parameters["dnd"],
+                connection_func=parameters["connect_to_sever"],
                 create_new_table=not parameters["dni"],
                 val=parameters["validation"],
             )
