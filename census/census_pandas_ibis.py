@@ -250,7 +250,7 @@ def ml(X, y, random_state, n_runs, train_size, optimizer, ml_keys, ml_score_keys
     ml_scores["mse_mean"] = sum(mse_values) / len(mse_values)
     ml_scores["cod_mean"] = sum(cod_values) / len(cod_values)
     ml_scores["mse_dev"] = pow(
-        sum([(mse_value - mse_mean) ** 2 for mse_value in mse_values])
+        sum([(mse_value - ml_scores["mse_mean"]) ** 2 for mse_value in mse_values])
         / (len(mse_values) - 1),
         0.5,
     )
