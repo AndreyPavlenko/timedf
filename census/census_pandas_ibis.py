@@ -8,9 +8,11 @@ from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import (
+    cod,
     compare_dataframes,
     import_pandas_into_module_namespace,
     load_data_pandas,
+    mse,
     print_times,
 )
 
@@ -133,7 +135,7 @@ def etl_ibis(
     import ibis
 
     time.sleep(2)
-    connection_func()
+    omnisci_server_worker.connect_to_server()
 
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
@@ -141,7 +143,7 @@ def etl_ibis(
 
     t0 = timer()
 
-    connection_func(database=database_name)
+    omnisci_server_worker.connect_to_server(database=database_name)
     # Create table and import data
     if create_new_table:
         # Datafiles import
@@ -238,17 +240,6 @@ def etl_ibis(
     print("DataFrame shape:", X.shape)
 
     return df, X, y, etl_times
-
-
-def mse(y_test, y_pred):
-    return ((y_test - y_pred) ** 2).mean()
-
-
-def cod(y_test, y_pred):
-    y_bar = y_test.mean()
-    total = ((y_test - y_bar) ** 2).sum()
-    residuals = ((y_test - y_pred) ** 2).sum()
-    return 1 - (residuals / total)
 
 
 def ml(X, y, random_state, n_runs, train_size, optimizer):

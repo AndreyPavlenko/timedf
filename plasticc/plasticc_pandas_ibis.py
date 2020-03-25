@@ -195,11 +195,11 @@ def load_data_ibis(
     dtypes,
     meta_dtypes,
 ):
-    connection_func()
+    omnisci_server_worker.connect_to_server()
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
-    connection_func()
+    omnisci_server_worker.connect_to_server()
 
     t_import_pandas, t_import_ibis = 0.0, 0.0
 
