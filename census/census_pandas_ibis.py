@@ -153,7 +153,7 @@ def etl_ibis(
             columns_types=columns_types,
             header=0,
             nrows=None,
-            compression_type=None,
+            compression_type="gzip",
             validation=validation,
         )
 
@@ -270,6 +270,7 @@ def ml(X, y, random_state, n_runs, train_size, optimizer):
 
     mse_values, cod_values = [], []
     ml_times = {"t_split": 0.0, "t_ML": 0.0, "t_train": 0.0, "t_inference": 0.0}
+    ml_scores = {"mse_mean": 0.0, "cod_mean": 0.0, "mse_dev": 0.0, "cod_dev": 0.0}
 
     print("ML runs: ", n_runs)
     for i in range(n_runs):
@@ -293,20 +294,20 @@ def ml(X, y, random_state, n_runs, train_size, optimizer):
 
     ml_times["t_ML"] += ml_times["t_train"] + ml_times["t_inference"]
 
-    mse_mean = sum(mse_values) / len(mse_values)
-    cod_mean = sum(cod_values) / len(cod_values)
-    mse_dev = pow(
+    ml_scores["mse_mean"] = sum(mse_values) / len(mse_values)
+    ml_scores["cod_mean"] = sum(cod_values) / len(cod_values)
+    ml_scores["mse_dev"] = pow(
         sum([(mse_value - mse_mean) ** 2 for mse_value in mse_values])
         / (len(mse_values) - 1),
         0.5,
     )
-    cod_dev = pow(
-        sum([(cod_value - cod_mean) ** 2 for cod_value in cod_values])
+    ml_scores["cod_dev"] = pow(
+        sum([(cod_value - ml_scores["cod_mean"]) ** 2 for cod_value in cod_values])
         / (len(cod_values) - 1),
         0.5,
     )
 
-    return mse_mean, cod_mean, mse_dev, cod_dev, ml_times
+    return ml_scores, ml_times
 
 
 def run_benchmark(parameters):
@@ -449,7 +450,7 @@ def run_benchmark(parameters):
             etl_times_ibis["Backend"] = "Ibis"
 
             if not parameters["no_ml"]:
-                mse_mean, cod_mean, mse_dev, cod_dev, ml_times_ibis = ml(
+                ml_scores_ibis, ml_times_ibis = ml(
                     X_ibis,
                     y_ibis,
                     RANDOM_STATE,
@@ -459,6 +460,8 @@ def run_benchmark(parameters):
                 )
                 print_times(etl_times=ml_times_ibis, backend="Ibis")
                 ml_times_ibis["Backend"] = "Ibis"
+                print_times(etl_times=ml_scores_ibis, backend="Ibis")
+                ml_scores_ibis["Backend"] = "Ibis"
 
         df, X, y, etl_times = etl_pandas(
             parameters["data_file"],
@@ -470,11 +473,13 @@ def run_benchmark(parameters):
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
-            mse_mean, cod_mean, mse_dev, cod_dev, ml_times = ml(
+            ml_scores, ml_times = ml(
                 X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, parameters["optimizer"]
             )
             print_times(etl_times=ml_times, backend=parameters["pandas_mode"])
             ml_times["Backend"] = parameters["pandas_mode"]
+            print_times(etl_times=ml_scores, backend=parameters["pandas_mode"])
+            ml_scores["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:
             compare_dataframes(
