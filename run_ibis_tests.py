@@ -434,6 +434,8 @@ def main():
                 "executable",
                 "omnisci_cwd",
                 "port",
+                "http-port",
+                "calcite-port",
                 "user",
                 "password",
                 "ipc_connection",
