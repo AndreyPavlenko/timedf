@@ -451,10 +451,11 @@ def run_benchmark(parameters):
             ml_scores["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:
-            compare_dataframes(
-                ibis_dfs=(X_ibis, y_ibis),
-                pandas_dfs=(X, y),
-            )
+            pass
+            # compare_dataframes(
+            #     ibis_dfs=(X_ibis, y_ibis),
+            #     pandas_dfs=(X, y),
+            # )
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:
