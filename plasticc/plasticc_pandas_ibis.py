@@ -588,13 +588,13 @@ def run_benchmark(parameters):
             ml_data_ibis, etl_times_ibis = split_step(
                 train_final_ibis, test_final_ibis, etl_times_ibis
             )
-            print_times(etl_times=etl_times_ibis, backend="Ibis")
+            print_times(times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
             if not parameters["no_ml"]:
                 print("using ml with dataframes from Ibis")
                 ml_times_ibis = ml(ml_data_ibis)
-                print_times(etl_times=ml_times_ibis, backend="Ibis")
+                print_times(times=ml_times_ibis, backend="Ibis")
                 ml_times_ibis["Backend"] = "Ibis"
 
         train_final, test_final, etl_times = etl_all_pandas(
@@ -605,13 +605,13 @@ def run_benchmark(parameters):
         )
 
         ml_data, etl_times = split_step(train_final, test_final, etl_times)
-        print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
+        print_times(times=etl_times, backend=parameters["pandas_mode"])
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
             print("using ml with dataframes from Pandas")
             ml_times = ml(ml_data)
-            print_times(etl_times=ml_times, backend=parameters["pandas_mode"])
+            print_times(times=ml_times, backend=parameters["pandas_mode"])
             ml_times["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:

@@ -579,7 +579,7 @@ def run_benchmark(parameters):
                 validation=parameters["validation"],
             )
 
-            print_times(etl_times=etl_times_ibis, backend="Ibis")
+            print_times(times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
         pandas_files_limit = 1
@@ -593,7 +593,7 @@ def run_benchmark(parameters):
             columns_types=columns_types,
         )
 
-        print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
+        print_times(times=etl_times, backend=parameters["pandas_mode"])
         etl_times["Backend"] = parameters["pandas_mode"]
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": []}

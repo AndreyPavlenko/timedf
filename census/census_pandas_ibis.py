@@ -446,7 +446,7 @@ def run_benchmark(parameters):
                 validation=parameters["validation"],
             )
 
-            print_times(etl_times=etl_times_ibis, backend="Ibis")
+            print_times(times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
             if not parameters["no_ml"]:
@@ -458,9 +458,9 @@ def run_benchmark(parameters):
                     TRAIN_SIZE,
                     parameters["optimizer"],
                 )
-                print_times(etl_times=ml_times_ibis, backend="Ibis")
+                print_times(times=ml_times_ibis, backend="Ibis")
                 ml_times_ibis["Backend"] = "Ibis"
-                print_times(etl_times=ml_scores_ibis, backend="Ibis")
+                print_times(times=ml_scores_ibis, backend="Ibis")
                 ml_scores_ibis["Backend"] = "Ibis"
 
         df, X, y, etl_times = etl_pandas(
@@ -469,16 +469,16 @@ def run_benchmark(parameters):
             columns_types=columns_types,
         )
 
-        print_times(etl_times=etl_times, backend=parameters["pandas_mode"])
+        print_times(times=etl_times, backend=parameters["pandas_mode"])
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
             ml_scores, ml_times = ml(
                 X, y, RANDOM_STATE, N_RUNS, TRAIN_SIZE, parameters["optimizer"]
             )
-            print_times(etl_times=ml_times, backend=parameters["pandas_mode"])
+            print_times(times=ml_times, backend=parameters["pandas_mode"])
             ml_times["Backend"] = parameters["pandas_mode"]
-            print_times(etl_times=ml_scores, backend=parameters["pandas_mode"])
+            print_times(times=ml_scores, backend=parameters["pandas_mode"])
             ml_scores["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:

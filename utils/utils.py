@@ -192,10 +192,10 @@ def files_names_from_pattern(filename):
     return data_files_names
 
 
-def print_times(etl_times, backend=None):
+def print_times(times, backend=None):
     if backend:
         print(f"{backend} times:")
-    for time_name, time in etl_times.items():
+    for time_name, time in times.items():
         print("{} = {:.5f} s".format(time_name, time))
 
 
