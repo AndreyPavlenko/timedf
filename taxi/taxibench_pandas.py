@@ -217,9 +217,8 @@ if __name__ == "__main__":
             {"ScriptName": "taxibench_pandas.py", "CommitHash": args.commit},
         )
 
-    dataFileNames = ["trips_xaa_1K.csv"]
-    # dataFileNames = list(braceexpand(args.dp))
-    # dataFileNames = sorted([x for f in dataFileNames for x in glob.glob(f)])
+    dataFileNames = list(braceexpand(args.dp))
+    dataFileNames = sorted([x for f in dataFileNames for x in glob.glob(f)])
     if len(dataFileNames) == 0:
         print("Could not find any data files matching", args.dp)
         sys.exit(2)
