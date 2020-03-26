@@ -217,12 +217,11 @@ def check_port_availability(port_num):
 
 
 def find_free_port():
-    max_attempt = 15000
-    port_num = 49152
-    attempt = 0
-    while attempt < max_attempt:
+    min_port_num = 49152
+    max_port_num = 65535
+    port_num = min_port_num
+    while port_num < max_port_num:
         if check_port_availability(port_num) == 0:
             return port_num
         port_num += 1
-        attempt += 1
     raise Exception("Can't find availible ports")
