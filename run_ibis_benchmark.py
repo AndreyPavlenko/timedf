@@ -284,7 +284,7 @@ def main():
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
                 parameters["omnisci_server_worker"] = omnisci_server_worker
                 parameters["connect_to_sever"] = \
-                    omnisci_server_worker.ipc_connect_to_server() if args.ipc_connection else omnisci_server_worker.connect_to_server()
+                    omnisci_server_worker.ipc_connect_to_server if args.ipc_connection else omnisci_server_worker.connect_to_server
                 omnisci_server.launch()
 
             result = run_benchmark(parameters)
