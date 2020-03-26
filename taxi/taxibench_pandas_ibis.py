@@ -285,7 +285,7 @@ def etl_ibis(
     queries_validation_results = {"q%s" % i: False for i in range(1, 5)}
     queries_validation_flags = {"q%s" % i: False for i in range(1, 5)}
 
-    connection_func()
+    omnisci_server_worker.connect_to_server()
 
     data_files_names = files_names_from_pattern(filename)
 
@@ -297,7 +297,7 @@ def etl_ibis(
         database_name, delete_if_exists=delete_old_database
     )
 
-    conn = connection_func(database=database_name)
+    conn = omnisci_server_worker.connect_to_server(database=database_name)
     if create_new_table:
         # TODO t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis
         t0 = time.time()
