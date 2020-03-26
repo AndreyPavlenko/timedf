@@ -245,7 +245,7 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
         mse_values.append(mse(y_test, y_pred))
         cod_values.append(cod(y_test, y_pred))
 
-    ml_times["t_ML"] += ml_times["t_train"] + ml_times["t_inference"]
+    ml_times["t_ml"] += ml_times["t_train"] + ml_times["t_inference"]
 
     ml_scores["mse_mean"] = sum(mse_values) / len(mse_values)
     ml_scores["cod_mean"] = sum(cod_values) / len(cod_values)
@@ -373,7 +373,7 @@ def run_benchmark(parameters):
         "float64",
     ]
     etl_keys = ["t_readcsv", "t_etl"]
-    ml_keys = ["t_train_test_split", "t_ML", "t_train", "t_inference"]
+    ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference"]
 
     ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
 

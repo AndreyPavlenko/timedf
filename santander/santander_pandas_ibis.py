@@ -286,7 +286,7 @@ def ml(ml_data, ml_keys, ml_score_keys):
     ml_scores["mse"] = mse(y_test, yp)
     ml_scores["cod"] = cod(y_test, yp)
 
-    ml_times["t_ML"] += ml_times["t_train"] + ml_times["t_inference"]
+    ml_times["t_ml"] += ml_times["t_train"] + ml_times["t_inference"]
 
     return ml_scores, ml_times
 
@@ -308,7 +308,7 @@ def run_benchmark(parameters):
     columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
 
     etl_keys = ["t_readcsv", "t_etl"]
-    ml_keys = ["t_train_test_split", "t_ML", "t_train", "t_inference", "t_dmatrix"]
+    ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
     ml_score_keys = ["mse", "cod"]
     try:
 
