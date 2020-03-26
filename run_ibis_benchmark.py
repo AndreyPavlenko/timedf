@@ -76,7 +76,7 @@ def main():
     )
     optional.add_argument(
         "-pandas_mode",
-        choices=["Pandas", "Modin_on_ray", "Modin_on_dask"],
+        choices=["Pandas", "Modin_on_ray", "Modin_on_dask", "Modin_on_python"],
         default="pandas",
         help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
     )
@@ -326,8 +326,8 @@ def main():
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
     finally:
-        if omnisci_server:
-            omnisci_server.terminate()
+        if omnisci_server_worker:
+            omnisci_server_worker.terminate()
 
 
 if __name__ == "__main__":

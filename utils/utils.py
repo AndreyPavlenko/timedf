@@ -87,7 +87,7 @@ def import_pandas_into_module_namespace(
         elif mode == "Modin_on_dask":
             os.environ["MODIN_ENGINE"] = "dask"
             print("Running on Modin on Dask")
-        elif mode == "modin_on_python":
+        elif mode == "Modin_on_python":
             os.environ["MODIN_ENGINE"] = "python"
             print("Running on Modin on Python")
         else:
