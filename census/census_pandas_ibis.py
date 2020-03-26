@@ -98,7 +98,7 @@ def etl_ibis(
     omnisci_server_worker,
     delete_old_database,
     create_new_table,
-    connection_func,
+    ipc_connection,
     validation,
     etl_keys,
 ):
@@ -112,8 +112,6 @@ def etl_ibis(
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
-
-    t0 = timer()
 
     omnisci_server_worker.connect_to_server(database=database_name)
     # Create table and import data
@@ -134,7 +132,7 @@ def etl_ibis(
     etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
 
     # Second connection - this is ibis's ipc connection for DML
-    conn = connection_func()
+    conn = omnisci_server_worker.connect_to_server(ipc=ipc_connection)
     db = omnisci_server_worker.database(database_name)
     table = db.table(table_name)
 
@@ -399,7 +397,7 @@ def run_benchmark(parameters):
                 omnisci_server_worker=parameters["omnisci_server_worker"],
                 delete_old_database=not parameters["dnd"],
                 create_new_table=not parameters["dni"],
-                connection_func=parameters["connect_to_sever"],
+                ipc_connection=parameters["ipc_connection"],
                 validation=parameters["validation"],
                 etl_keys=etl_keys,
             )

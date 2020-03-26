@@ -270,7 +270,7 @@ def etl_ibis(
     omnisci_server_worker,
     delete_old_database,
     create_new_table,
-    connection_func,
+    ipc_connection,
     validation,
 ):
 
@@ -297,7 +297,7 @@ def etl_ibis(
         database_name, delete_if_exists=delete_old_database
     )
 
-    conn = omnisci_server_worker.connect_to_server(database=database_name)
+    omnisci_server_worker.connect_to_server(database=database_name)
     if create_new_table:
         # TODO t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis
         t0 = time.time()
@@ -312,6 +312,7 @@ def etl_ibis(
         etl_times["t_readcsv"] = time.time() - t0
         # etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
 
+    conn = omnisci_server_worker.connect_to_server(database=database_name, ipc=ipc_connection)
     db = conn.database(database_name)
     table = db.table(table_name)
 
@@ -574,7 +575,7 @@ def run_benchmark(parameters):
                 table_name=parameters["table"],
                 omnisci_server_worker=parameters["omnisci_server_worker"],
                 delete_old_database=not parameters["dnd"],
-                connection_func=parameters["connect_to_sever"],
+                ipc_connection=parameters["ipc_connection"],
                 create_new_table=not parameters["dni"],
                 validation=parameters["validation"],
             )
