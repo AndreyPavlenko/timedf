@@ -176,8 +176,8 @@ def etl_ibis(
     etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
 
     # Second connection - this is ibis's ipc connection for DML
-    conn_ipc = omnisci_server_worker.ipc_connect_to_server()
-    db = conn_ipc.database(database_name)
+    omnisci_server_worker.ipc_connect_to_server()
+    db = omnisci_server_worker.database(database_name)
     table = db.table(table_name)
 
     t_etl_start = timer()
@@ -346,7 +346,7 @@ def ml(X, y, random_state, n_runs, train_size, optimizer):
 def main():
     omniscript_path = os.path.dirname(__file__)
     args = None
-    omnisci_server = None
+    omnisci_server_worker = None
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -673,8 +673,10 @@ def main():
                 create_new_table=not args.dni,
                 validation=args.val,
             )
-            omnisci_server.terminate()
-            omnisci_server = None
+
+            omnisci_server_worker.terminate()
+            omnisci_server_worker = None
+
             print_times(etl_times_ibis, "Ibis", db_reporter)
 
             if not args.no_ml:
@@ -707,8 +709,8 @@ def main():
         print("Failed: ", err)
         sys.exit(1)
     finally:
-        if omnisci_server:
-            omnisci_server.terminate()
+        if omnisci_server_worker:
+            omnisci_server_worker.terminate()
 
 
 if __name__ == "__main__":

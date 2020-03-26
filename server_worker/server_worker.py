@@ -100,17 +100,20 @@ class OmnisciServerWorker:
     def connect_to_server(self):
         "Connect to Omnisci server using Ibis framework"
 
+        if self._conn:
+            self._conn.close()
         self._conn = ibis.omniscidb.connect(
             host="localhost",
             port=self.omnisci_server.server_port,
             user=self.omnisci_server.user,
             password=self.omnisci_server.password,
         )
-        return self._conn
 
     def ipc_connect_to_server(self):
         "Connect to Omnisci server using Ibis framework"
 
+        if self._conn:
+            self._conn.close()
         self._conn = ibis.omniscidb.connect(
             host="localhost",
             port=self.omnisci_server.server_port,
@@ -118,10 +121,16 @@ class OmnisciServerWorker:
             password=self.omnisci_server.password,
             ipc=True,
         )
+
+    def get_conn(self):
         return self._conn
 
+    def database(self, name):
+        return self._conn.database(name)
+
     def terminate(self):
-        del self._conn
+        if self._conn:
+            self._conn.close()
         self.omnisci_server.terminate()
 
     def import_data(
@@ -277,7 +286,7 @@ class OmnisciServerWorker:
         try:
             self._conn.drop_database(database_name, force=force)
             time.sleep(2)
-            self._conn = self.connect_to_server()
+            self.connect_to_server()
         except Exception as err:
             print("Failed to delete ", database_name, "database: ", err)
 
