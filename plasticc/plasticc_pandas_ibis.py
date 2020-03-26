@@ -17,6 +17,7 @@ from utils import (
     compare_dataframes,
     import_pandas_into_module_namespace,
     print_times,
+    split,
 )
 
 
@@ -290,8 +291,7 @@ def load_data_pandas(dataset_path, skip_rows, dtypes, meta_dtypes):
     return train, train_meta, test, test_meta
 
 
-def split_step(train_final, test_final, etl_times):
-    t_etl_start = timer()
+def split_step(train_final, test_final):
 
     X = train_final.drop(["object_id", "target"], axis=1).values
     Xt = test_final.drop(["object_id"], axis=1).values
@@ -305,17 +305,10 @@ def split_step(train_final, test_final, etl_times):
 
     lbl = LabelEncoder()
     y = lbl.fit_transform(y)
-    # print(lbl.classes_)
 
-    t0 = timer()
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.1, stratify=y, random_state=126
-    )
-    etl_times["t_train_test_split"] += timer() - t0
+    (X_train, y_train, X_test, y_test), split_time = split(X, y, test_size=0.1, random_state=126)
 
-    etl_times["t_etl"] += timer() - t_etl_start
-
-    return (X_train, y_train, X_test, y_test, Xt, classes, class_weights), etl_times
+    return (X_train, y_train, X_test, y_test, Xt, classes, class_weights), split_time
 
 
 def etl_all_ibis(
@@ -400,11 +393,11 @@ def xgb_multi_weighted_logloss(y_predicted, y_true, classes, class_weights):
     return "wloss", loss
 
 
-def ml(ml_data, ml_keys):
-    # unpacking
-    X_train, y_train, X_test, y_test, Xt, classes, class_weights = ml_data
-
+def ml(train_final, test_final, ml_keys):
     ml_times = {key: 0.0 for key in ml_keys}
+
+    (X_train, y_train, X_test, y_test, Xt, classes, class_weights), ml_times["t_train_test_split"] \
+        = split_step(train_final, test_final)
 
     cpu_params = {
         "objective": "multi:softprob",
@@ -513,8 +506,8 @@ def run_benchmark(parameters):
         [(columns_names[i], meta_dtypes[i]) for i in range(len(meta_dtypes))]
     )
 
-    etl_keys = [ "t_readcsv", "t_train_test_split", "t_etl"]
-    ml_keys = ["t_dmatrix", "t_training", "t_infer", "t_ml"]
+    etl_keys = ["t_readcsv", "t_etl"]
+    ml_keys = ["t_train_test_split", "t_dmatrix", "t_training", "t_infer", "t_ml"]
     try:
 
         import_pandas_into_module_namespace(
@@ -541,15 +534,12 @@ def run_benchmark(parameters):
                 etl_keys=etl_keys,
             )
 
-            ml_data_ibis, etl_times_ibis = split_step(
-                train_final_ibis, test_final_ibis, etl_times_ibis
-            )
             print_times(times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
             if not parameters["no_ml"]:
                 print("using ml with dataframes from Ibis")
-                ml_times_ibis = ml(ml_data_ibis, ml_keys)
+                ml_times_ibis = ml(train_final_ibis, test_final_ibis, ml_keys)
                 print_times(times=ml_times_ibis, backend="Ibis")
                 ml_times_ibis["Backend"] = "Ibis"
 
@@ -561,13 +551,12 @@ def run_benchmark(parameters):
             etl_keys=etl_keys,
         )
 
-        ml_data, etl_times = split_step(train_final, test_final, etl_times)
         print_times(times=etl_times, backend=parameters["pandas_mode"])
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
             print("using ml with dataframes from Pandas")
-            ml_times = ml(ml_data, ml_keys)
+            ml_times = ml(train_final, test_final, ml_keys)
             print_times(times=ml_times, backend=parameters["pandas_mode"])
             ml_times["Backend"] = parameters["pandas_mode"]
 

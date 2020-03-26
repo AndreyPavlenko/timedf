@@ -4,6 +4,7 @@ import os
 import re
 import socket
 import subprocess
+from timeit import default_timer as timer
 
 import hiyapyco
 from braceexpand import braceexpand
@@ -225,3 +226,14 @@ def find_free_port():
             return port_num
         port_num += 1
     raise Exception("Can't find availible ports")
+
+
+def split(X, y, test_size=0.1, random_state=None):
+    from sklearn.model_selection import train_test_split
+    t0 = timer()
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, stratify=y, random_state=random_state
+    )
+    split_time = timer() - t0
+
+    return (X_train, y_train, X_test, y_test), split_time

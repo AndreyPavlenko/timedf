@@ -65,22 +65,9 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
         t0 = timer()
         train_pd.loc[mask, "%s_gt1" % col] = train_pd.loc[mask, col]
 
-    # train, test data split
-    t0 = timer()
-    train, valid = train_pd[:-10000], train_pd[-10000:]
-    etl_times["t_train_test_split"] = timer() - t0
-
-    x_train = train.drop(["target", "ID_code"], axis=1)
-
-    y_train = train["target"]
-
-    x_test = valid.drop(["target", "ID_code"], axis=1)
-
-    y_test = valid["target"]
-
     etl_times["t_etl"] = timer() - t_etl_begin
 
-    return x_train, y_train, x_test, y_test, etl_times
+    return train_pd, etl_times
 
 
 def etl_ibis(
@@ -234,26 +221,33 @@ def etl_ibis(
 
     table_df = table.execute()
 
-    # rows split query
-    t0 = timer()
-    training_part, validation_part = table_df[:-10000], table_df[-10000:]
-    etl_times["t_train_test_split"] = timer() - t0
-
     etl_times["t_etl"] = timer() - t_etl_start
-
-    x_train = training_part.drop(['target0'], axis=1)
-    y_train = training_part['target0']
-    x_test = validation_part.drop(['target0'], axis=1)
-    y_test = validation_part['target0']
-
-    return x_train, y_train, x_test, y_test, etl_times
+    return table_df, etl_times
 
 
-def ml(x_train, y_train, x_test, y_test, ml_keys, ml_score_keys):
+def split_step(data):
+    t0 = timer()
+    train, valid = data[:-10000], data[-10000:]
+    split_time = timer() - t0
+
+    x_train = train.drop(["target", "ID_code"], axis=1)
+
+    y_train = train["target"]
+
+    x_test = valid.drop(["target", "ID_code"], axis=1)
+
+    y_test = valid["target"]
+
+    return (x_train, y_train, x_test, y_test), split_time
+
+
+def ml(ml_data, ml_keys, ml_score_keys):
     import xgboost
 
     ml_times = {key: 0.0 for key in ml_keys}
     ml_scores = {key: 0.0 for key in ml_score_keys}
+
+    (x_train, y_train, x_test, y_test), ml_times["t_train_test_split"] = split_step(ml_data)
 
     t0 = timer()
     training_dmat_part = xgboost.DMatrix(data=x_train, label=y_train)
@@ -313,8 +307,8 @@ def run_benchmark(parameters):
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
     columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
 
-    etl_keys = ["t_readcsv", "t_train_test_split", "t_etl"]
-    ml_keys = ["t_ML", "t_train", "t_inference", "t_dmatrix"]
+    etl_keys = ["t_readcsv", "t_etl"]
+    ml_keys = ["t_train_test_split", "t_ML", "t_train", "t_inference", "t_dmatrix"]
     ml_score_keys = ["mse", "cod"]
     try:
 
@@ -326,7 +320,7 @@ def run_benchmark(parameters):
         )
 
         if not parameters["no_ibis"]:
-            x_train_ibis, y_train_ibis, x_test_ibis, y_test_ibis, etl_times_ibis = etl_ibis(
+            ml_data_ibis, etl_times_ibis = etl_ibis(
                 filename=parameters["data_file"],
                 run_import_queries=False,
                 columns_names=columns_names,
@@ -344,7 +338,7 @@ def run_benchmark(parameters):
             print_times(times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
-        x_train, y_train, x_test, y_test, etl_times = etl_pandas(
+        ml_data, etl_times = etl_pandas(
             filename=parameters["data_file"],
             columns_names=columns_names,
             columns_types=columns_types_pd,
@@ -355,10 +349,7 @@ def run_benchmark(parameters):
 
         if not parameters["no_ml"]:
             ml_scores, ml_times = ml(
-                x_train=x_train,
-                y_train=y_train,
-                x_test=x_test,
-                y_test=y_test,
+                ml_data=ml_data,
                 ml_keys=ml_keys,
                 ml_score_keys=ml_score_keys,
             )
@@ -369,10 +360,7 @@ def run_benchmark(parameters):
 
             if not parameters["no_ibis"]:
                 ml_scores_ibis, ml_times_ibis = ml(
-                    x_train=x_train_ibis,
-                    y_train=y_train_ibis,
-                    x_test=x_test_ibis,
-                    y_test=y_test_ibis,
+                    ml_data=ml_data_ibis,
                     ml_keys=ml_keys,
                     ml_score_keys=ml_score_keys,
                 )
@@ -383,17 +371,17 @@ def run_benchmark(parameters):
 
         # Results validation block (comparison of etl_ibis and etl_pandas outputs)
         if parameters["validation"] and not parameters["no_ibis"]:
-            print("Validation of ETL query results with original input table ...")
-            cols_to_sort = ['var_0', 'var_1', 'var_2', 'var_3', 'var_4']
-
-            x_ibis = pd.concat([x_train_ibis, x_test_ibis])
-            y_ibis = pd.concat([y_train_ibis, y_test_ibis])
-            etl_ibis_res = pd.concat([x_ibis, y_ibis], axis=1)
-            etl_ibis_res = etl_ibis_res.sort_values(by=cols_to_sort)
-            x = pd.concat([x_train, x_test])
-            y = pd.concat([y_train, y_test])
-            etl_pandas_res = pd.concat([x, y], axis=1)
-            etl_pandas_res = etl_pandas_res.sort_values(by=cols_to_sort)
+            # print("Validation of ETL query results with original input table ...")
+            # cols_to_sort = ['var_0', 'var_1', 'var_2', 'var_3', 'var_4']
+            #
+            # x_ibis = pd.concat([x_train_ibis, x_test_ibis])
+            # y_ibis = pd.concat([y_train_ibis, y_test_ibis])
+            # etl_ibis_res = pd.concat([x_ibis, y_ibis], axis=1)
+            # etl_ibis_res = etl_ibis_res.sort_values(by=cols_to_sort)
+            # x = pd.concat([x_train, x_test])
+            # y = pd.concat([y_train, y_test])
+            # etl_pandas_res = pd.concat([x, y], axis=1)
+            # etl_pandas_res = etl_pandas_res.sort_values(by=cols_to_sort)
 
             # print("Validating queries results (var_xx columns) ...")
             # compare_result1 = compare_dataframes(ibis_df=[etl_ibis_res[var_cols]],

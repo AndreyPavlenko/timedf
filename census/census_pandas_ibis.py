@@ -14,6 +14,7 @@ from utils import (
     load_data_pandas,
     mse,
     print_times,
+    split,
 )
 
 warnings.filterwarnings("ignore")
@@ -204,7 +205,7 @@ def etl_ibis(
     return df, X, y, etl_times
 
 
-def ml(X, y, random_state, n_runs, train_size, optimizer, ml_keys, ml_score_keys):
+def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys):
     if optimizer == "intel":
         print("Intel optimized sklearn is used")
         from daal4py.sklearn.model_selection import train_test_split
@@ -227,11 +228,10 @@ def ml(X, y, random_state, n_runs, train_size, optimizer, ml_keys, ml_score_keys
 
     print("ML runs: ", n_runs)
     for i in range(n_runs):
-        t0 = timer()
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, train_size=train_size, random_state=random_state
+        (X_train, X_test, y_train, y_test), split_time = split(
+            X, y, test_size=test_size, random_state=random_state
         )
-        ml_times["t_split"] += timer() - t0
+        ml_times["t_train_test_split"] = split_time
         random_state += 777
 
         t0 = timer()
@@ -275,7 +275,7 @@ def run_benchmark(parameters):
 
     # ML specific
     N_RUNS = 50
-    TRAIN_SIZE = 0.9
+    TEST_SIZE = 0.1
     RANDOM_STATE = 777
 
     columns_names = [
@@ -373,7 +373,7 @@ def run_benchmark(parameters):
         "float64",
     ]
     etl_keys = ["t_readcsv", "t_etl"]
-    ml_keys = ["t_split", "t_ML", "t_train", "t_inference"]
+    ml_keys = ["t_train_test_split", "t_ML", "t_train", "t_inference"]
 
     ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
 
@@ -413,7 +413,7 @@ def run_benchmark(parameters):
                     y=y_ibis,
                     random_state=RANDOM_STATE,
                     n_runs=N_RUNS,
-                    train_size=TRAIN_SIZE,
+                    test_size=TEST_SIZE,
                     optimizer=parameters["optimizer"],
                     ml_keys=ml_keys,
                     ml_score_keys=ml_score_keys,
@@ -439,7 +439,7 @@ def run_benchmark(parameters):
                 y=y,
                 random_state=RANDOM_STATE,
                 n_runs=N_RUNS,
-                train_size=TRAIN_SIZE,
+                test_size=TEST_SIZE,
                 optimizer=parameters["optimizer"],
                 ml_keys=ml_keys,
                 ml_score_keys=ml_score_keys,
