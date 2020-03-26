@@ -1,10 +1,9 @@
 import argparse
 import glob
 import os
-import random
 import re
+import socket
 import subprocess
-from datetime import datetime
 
 import hiyapyco
 from braceexpand import braceexpand
@@ -199,17 +198,6 @@ def print_times(times, backend=None):
         print("{} = {:.5f} s".format(time_name, time))
 
 
-def int_random(least, greatest, seed=True):
-    if seed:
-        random.seed(datetime.now())
-    return random.randint(least, greatest)
-
-
-def random_if_default(value, least, greater, default=-1):
-    if value == default:
-        return int_random(least, greater)
-    return value
-
 def mse(y_test, y_pred):
     return ((y_test - y_pred) ** 2).mean()
 
@@ -219,3 +207,22 @@ def cod(y_test, y_pred):
     total = ((y_test - y_bar) ** 2).sum()
     residuals = ((y_test - y_pred) ** 2).sum()
     return 1 - (residuals / total)
+
+
+def check_port_availability(port_num):
+    sock = socket.socket()
+    result = sock.connect_ex(('127.0.0.1', port_num))
+    sock.close()
+    return result
+
+
+def find_free_port():
+    max_attempt = 15000
+    port_num = 49152
+    attempt = 0
+    while attempt < max_attempt:
+        if check_port_availability(port_num) == 0:
+            return port_num
+        port_num += 1
+        attempt += 1
+    raise Exception("Can't find availible ports")

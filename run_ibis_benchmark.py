@@ -9,13 +9,14 @@ import mysql.connector
 from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
-from utils import random_if_default, str_arg_to_bool
+from utils import find_free_port, str_arg_to_bool
 
 
 def main():
     omniscript_path = os.path.dirname(__file__)
     args = None
     omnisci_server = None
+    port_default_value = -1
 
     benchmarks = ["ny_taxi", "santander", "census", "plasticc"]
 
@@ -154,21 +155,21 @@ def main():
     optional.add_argument(
         "-port",
         dest="port",
-        default=-1,
+        default=port_default_value,
         type=int,
         help="TCP port number to run omnisci_server on.",
     )
     optional.add_argument(
         "-http-port",
         dest="http_port",
-        default=-1,
+        default=port_default_value,
         type=int,
         help="HTTP port number to run omnisci_server on.",
     )
     optional.add_argument(
         "-calcite-port",
         dest="calcite_port",
-        default=-1,
+        default=port_default_value,
         type=int,
         help="Calcite port number to run omnisci_server on.",
     )
@@ -223,15 +224,12 @@ def main():
 
         args = parser.parse_args()
 
-        args.port = random_if_default(
-            value=args.port, least=60000, greater=69999, default=-1
-        )
-        args.http_port = random_if_default(
-            value=args.http_port, least=60000, greater=69999, default=-1
-        )
-        args.calcite_port = random_if_default(
-            value=args.calcite_port, least=60000, greater=69999, default=-1
-        )
+        if args.port == port_default_value:
+            args.port = find_free_port()
+        if args.http_port == port_default_value:
+            args.http_port = find_free_port()
+        if args.calcite_port == port_default_value:
+            args.calcite_port = find_free_port()
 
         if args.bench_name == "ny_taxi":
             from taxi import run_benchmark

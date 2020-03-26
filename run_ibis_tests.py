@@ -6,13 +6,14 @@ import traceback
 
 from environment import CondaEnvironment
 from server import OmnisciServer
-from utils import combinate_requirements, random_if_default, str_arg_to_bool
+from utils import combinate_requirements, find_free_port, str_arg_to_bool
 
 
 def main():
     omniscript_path = os.path.dirname(__file__)
     omnisci_server = None
     args = None
+    port_default_value = -1
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     required = parser._action_groups.pop()
@@ -105,21 +106,21 @@ def main():
     omnisci.add_argument(
         "-port",
         dest="port",
-        default=-1,
+        default=port_default_value,
         type=int,
         help="TCP port number to run omnisci_server on.",
     )
     omnisci.add_argument(
         "-http-port",
         dest="http_port",
-        default=-1,
+        default=port_default_value,
         type=int,
         help="HTTP port number to run omnisci_server on.",
     )
     omnisci.add_argument(
         "-calcite-port",
         dest="calcite_port",
-        default=-1,
+        default=port_default_value,
         type=int,
         help="Calcite port number to run omnisci_server on.",
     )
@@ -297,15 +298,12 @@ def main():
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
 
-        args.port = random_if_default(
-            value=args.port, least=60000, greater=69999, default=-1
-        )
-        args.http_port = random_if_default(
-            value=args.http_port, least=60000, greater=69999, default=-1
-        )
-        args.calcite_port = random_if_default(
-            value=args.calcite_port, least=60000, greater=69999, default=-1
-        )
+        if args.port == port_default_value:
+            args.port = find_free_port()
+        if args.http_port == port_default_value:
+            args.http_port = find_free_port()
+        if args.calcite_port == port_default_value:
+            args.calcite_port = find_free_port()
 
         required_tasks = args.task.split(",")
         tasks = {}
