@@ -278,7 +278,7 @@ def main():
         ml_results = []
         print(parameters)
         for iter_num in range(1, args.iterations + 1):
-            print(f"Iteration №{iter_num}")
+            print(f"Iteration #{iter_num}")
 
             if not args.no_ibis:
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
