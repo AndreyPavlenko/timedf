@@ -111,14 +111,14 @@ def main():
         help="TCP port number to run omnisci_server on.",
     )
     omnisci.add_argument(
-        "-http-port",
+        "-http_port",
         dest="http_port",
         default=port_default_value,
         type=int,
         help="HTTP port number to run omnisci_server on.",
     )
     omnisci.add_argument(
-        "-calcite-port",
+        "-calcite_port",
         dest="calcite_port",
         default=port_default_value,
         type=int,
@@ -230,7 +230,7 @@ def main():
         help="Do not run machine learning benchmark, only ETL part",
     )
     optional.add_argument(
-        "-gpu-memory",
+        "-gpu_memory",
         dest="gpu_memory",
         type=int,
         help="specify the memory of your gpu, default 16. "
@@ -239,39 +239,39 @@ def main():
     )
     # MySQL database parameters
     mysql.add_argument(
-        "-db-server",
+        "-db_server",
         dest="db_server",
         default="localhost",
         help="Host name of MySQL server.",
     )
     mysql.add_argument(
-        "-db-port",
+        "-db_port",
         dest="db_port",
         default=3306,
         type=int,
         help="Port number of MySQL server.",
     )
     mysql.add_argument(
-        "-db-user",
+        "-db_user",
         dest="db_user",
         help="Username to use to connect to MySQL database. "
         "If user name is specified, script attempts to store results in MySQL "
         "database using other -db-* parameters.",
     )
     mysql.add_argument(
-        "-db-pass",
+        "-db_pass",
         dest="db_pass",
         default="omniscidb",
         help="Password to use to connect to MySQL database.",
     )
     mysql.add_argument(
-        "-db-name",
+        "-db_name",
         dest="db_name",
         default="omniscidb",
         help="MySQL database to use to store benchmark results.",
     )
     mysql.add_argument(
-        "-db-table",
+        "-db_table",
         dest="db_table",
         help="Table to use to store results for this benchmark.",
     )
@@ -422,18 +422,18 @@ def main():
                 "ray_tmpdir",
                 "ray_memory",
                 "no_ml",
-                "gpu-memory",
-                "db-server",
-                "db-port",
-                "db-user",
-                "db-pass",
-                "db-name",
-                "db-table",
+                "gpu_memory",
+                "db_server",
+                "db_port",
+                "db_user",
+                "db_pass",
+                "db_name",
+                "db_table",
                 "executable",
                 "omnisci_cwd",
                 "port",
-                "http-port",
-                "calcite-port",
+                "http_port",
+                "calcite_port",
                 "user",
                 "password",
                 "ipc_connection",
@@ -448,7 +448,6 @@ def main():
                 try:
                     pure_arg = re.sub(r"^--*", "", arg_name)
                     if pure_arg in possible_benchmark_args:
-                        pure_arg = pure_arg.replace("-", "_")
                         arg_value = args_dict[pure_arg]
                         if arg_value:
                             benchmark_cmd.extend([arg_name, str(arg_value)])

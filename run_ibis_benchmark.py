@@ -97,7 +97,7 @@ def main():
         help="Do not run machine learning benchmark, only ETL part",
     )
     optional.add_argument(
-        "-gpu-memory",
+        "-gpu_memory",
         dest="gpu_memory",
         type=int,
         help="specify the memory of your gpu, default 16. (This controls the lines to be used. Also work for CPU version. )",
@@ -105,39 +105,39 @@ def main():
     )
     # MySQL database parameters
     optional.add_argument(
-        "-db-server",
+        "-db_server",
         dest="db_server",
         default="localhost",
         help="Host name of MySQL server.",
     )
     optional.add_argument(
-        "-db-port",
+        "-db_port",
         dest="db_port",
         default=3306,
         type=int,
         help="Port number of MySQL server.",
     )
     optional.add_argument(
-        "-db-user",
+        "-db_user",
         dest="db_user",
         help="Username to use to connect to MySQL database. "
         "If user name is specified, script attempts to store results in MySQL "
         "database using other -db-* parameters.",
     )
     optional.add_argument(
-        "-db-pass",
+        "-db_pass",
         dest="db_pass",
         default="omniscidb",
         help="Password to use to connect to MySQL database.",
     )
     optional.add_argument(
-        "-db-name",
+        "-db_name",
         dest="db_name",
         default="omniscidb",
         help="MySQL database to use to store benchmark results.",
     )
     optional.add_argument(
-        "-db-table",
+        "-db_table",
         dest="db_table",
         help="Table to use to store results for this benchmark.",
     )
@@ -160,14 +160,14 @@ def main():
         help="TCP port number to run omnisci_server on.",
     )
     optional.add_argument(
-        "-http-port",
+        "-http_port",
         dest="http_port",
         default=port_default_value,
         type=int,
         help="HTTP port number to run omnisci_server on.",
     )
     optional.add_argument(
-        "-calcite-port",
+        "-calcite_port",
         dest="calcite_port",
         default=port_default_value,
         type=int,
