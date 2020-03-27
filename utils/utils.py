@@ -225,7 +225,7 @@ def find_free_port():
         if check_port_availability(port_num) == 0:
             return port_num
         port_num += 1
-    raise Exception("Can't find availible ports")
+    raise Exception("Can't find available ports")
 
 
 def split(X, y, test_size=0.1, random_state=None):
