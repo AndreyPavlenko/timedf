@@ -7,7 +7,6 @@ import subprocess
 from timeit import default_timer as timer
 
 import hiyapyco
-from braceexpand import braceexpand
 
 
 def str_arg_to_bool(v):
@@ -187,6 +186,7 @@ def load_data_pandas(
 
 
 def files_names_from_pattern(filename):
+    from braceexpand import braceexpand
     data_files_names = list(braceexpand(filename))
     data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
