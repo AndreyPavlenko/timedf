@@ -321,7 +321,6 @@ def main():
         #     )
         #     for result in results:
         #           db_reporter.submit(result)
-        omnisci_server = None
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
