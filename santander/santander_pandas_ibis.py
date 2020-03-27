@@ -65,6 +65,7 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
         t0 = timer()
         train_pd.loc[mask, "%s_gt1" % col] = train_pd.loc[mask, col]
 
+    train_pd = train_pd.drop(["ID_code"], axis=1)
     etl_times["t_etl"] = timer() - t_etl_begin
 
     return train_pd, etl_times
@@ -180,6 +181,7 @@ def etl_ibis(
         )
 
         table_import = omnisci_server_worker.database(database_name).table(table_name)
+        t0 = timer()
         table_import.read_csv(filename, delimiter=",")
         etl_times["t_readcsv"] = timer() - t0
 
@@ -225,29 +227,29 @@ def etl_ibis(
     return table_df, etl_times
 
 
-def split_step(data):
+def split_step(data, target):
     t0 = timer()
     train, valid = data[:-10000], data[-10000:]
     split_time = timer() - t0
 
-    x_train = train.drop(["target", "ID_code"], axis=1)
+    x_train = train.drop([target], axis=1)
 
-    y_train = train["target"]
+    y_train = train[target]
 
-    x_test = valid.drop(["target", "ID_code"], axis=1)
+    x_test = valid.drop([target], axis=1)
 
-    y_test = valid["target"]
+    y_test = valid[target]
 
     return (x_train, y_train, x_test, y_test), split_time
 
 
-def ml(ml_data, ml_keys, ml_score_keys):
+def ml(ml_data, target, ml_keys, ml_score_keys):
     import xgboost
 
     ml_times = {key: 0.0 for key in ml_keys}
     ml_scores = {key: 0.0 for key in ml_score_keys}
 
-    (x_train, y_train, x_test, y_test), ml_times["t_train_test_split"] = split_step(ml_data)
+    (x_train, y_train, x_test, y_test), ml_times["t_train_test_split"] = split_step(ml_data, target)
 
     t0 = timer()
     training_dmat_part = xgboost.DMatrix(data=x_train, label=y_train)
@@ -350,6 +352,7 @@ def run_benchmark(parameters):
         if not parameters["no_ml"]:
             ml_scores, ml_times = ml(
                 ml_data=ml_data,
+                target="target",
                 ml_keys=ml_keys,
                 ml_score_keys=ml_score_keys,
             )
@@ -361,6 +364,7 @@ def run_benchmark(parameters):
             if not parameters["no_ibis"]:
                 ml_scores_ibis, ml_times_ibis = ml(
                     ml_data=ml_data_ibis,
+                    target="target0",
                     ml_keys=ml_keys,
                     ml_score_keys=ml_score_keys,
                 )
@@ -396,12 +400,12 @@ def run_benchmark(parameters):
             # compare_result4 = compare_dataframes(ibis_df=[etl_ibis_res['target0']],
             #                                      pandas_df=[etl_pandas_res['target']])
 
-            for score in ml_scores:
-                if ml_scores[score] == ml_scores_ibis[score]:
-                    print(f"{score} are equal")
-                else:
-                    print(
-                        f"{score} aren't equal: Ibis={ml_scores_ibis[score]}, Pandas={ml_scores[score]}")
+            # for score in ml_scores:
+            #     if ml_scores[score] == ml_scores_ibis[score]:
+            #         print(f"{score} are equal")
+            #     else:
+            #         print(
+            #             f"{score} aren't equal: Ibis={ml_scores_ibis[score]}, Pandas={ml_scores[score]}")
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:
