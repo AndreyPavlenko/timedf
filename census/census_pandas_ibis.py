@@ -226,7 +226,7 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
 
     print("ML runs: ", n_runs)
     for i in range(n_runs):
-        (X_train, X_test, y_train, y_test), split_time = split(
+        (X_train, y_train, X_test, y_test), split_time = split(
             X, y, test_size=test_size, random_state=random_state
         )
         ml_times["t_train_test_split"] = split_time
