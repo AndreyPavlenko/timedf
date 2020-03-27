@@ -203,7 +203,6 @@ try:
                                    '-db-table',
                                    args.db_table if args.db_table else 'santander',
                                    '-val',
-                                   '--enable-columnar-output',
                                    '-commit_omnisci', args.commit_omnisci,
                                    '-commit_ibis', args.commit_ibis]
 
