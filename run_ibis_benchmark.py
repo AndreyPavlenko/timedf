@@ -162,16 +162,14 @@ def main():
     optional.add_argument(
         "-http_port",
         dest="http_port",
-        #default=port_default_value,
-        default=62278,
+        default=port_default_value,
         type=int,
         help="HTTP port number to run omnisci_server on.",
     )
     optional.add_argument(
         "-calcite_port",
         dest="calcite_port",
-        #default=port_default_value,
-        default=62279,
+        default=port_default_value,
         type=int,
         help="Calcite port number to run omnisci_server on.",
     )
