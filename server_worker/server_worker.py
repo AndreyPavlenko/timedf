@@ -97,7 +97,7 @@ class OmnisciServerWorker:
             )
             return pd.concat(df_from_each_file, ignore_index=True)
 
-    def connect_to_server(self):
+    def connect_to_server(self, database=None, ipc=None):
         "Connect to Omnisci server using Ibis framework"
 
         if self._conn:
@@ -107,19 +107,8 @@ class OmnisciServerWorker:
             port=self.omnisci_server.server_port,
             user=self.omnisci_server.user,
             password=self.omnisci_server.password,
-        )
-
-    def ipc_connect_to_server(self):
-        "Connect to Omnisci server using Ibis framework"
-
-        if self._conn:
-            self._conn.close()
-        self._conn = ibis.omniscidb.connect(
-            host="localhost",
-            port=self.omnisci_server.server_port,
-            user=self.omnisci_server.user,
-            password=self.omnisci_server.password,
-            ipc=True,
+            database=database,
+            ipc=ipc,
         )
 
     def get_conn(self):
@@ -128,10 +117,14 @@ class OmnisciServerWorker:
     def database(self, name):
         return self._conn.database(name)
 
+    def create_table(self, *arg, **kwargs):
+        "Wrapper for OmniSciDBClient.create_table"
+        self._conn.create_table(*arg, **kwargs)
+
     def terminate(self):
         if self._conn:
             self._conn.close()
-        self.omnisci_server.terminate()
+            self._conn = None
 
     def import_data(
         self,
@@ -285,10 +278,10 @@ class OmnisciServerWorker:
         print("Deleting ", database_name, " database")
         try:
             self._conn.drop_database(database_name, force=force)
-            time.sleep(2)
-            self.connect_to_server()
         except Exception as err:
             print("Failed to delete ", database_name, "database: ", err)
+
+        self.connect_to_server()
 
     def create_database(self, database_name, delete_if_exists=True):
         "Create database by database_name using Ibis framework"
@@ -301,7 +294,7 @@ class OmnisciServerWorker:
         print("Creating ", database_name, " database")
         try:
             self._conn.create_database(database_name)
-            time.sleep(2)
+            self._conn.set_database(database_name)
         except Exception as err:
             print("Failed to create ", database_name, " database: ", err)
 
@@ -356,3 +349,13 @@ class OmnisciServerWorker:
         )
 
         return self._conn.database(self.omnisci_server.database_name).table(table_name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_val, trace):
+        try:
+            self.terminate()
+        except Exception as err:
+            print('terminate is not successful')
+            raise err

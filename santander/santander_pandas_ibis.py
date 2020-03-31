@@ -215,9 +215,6 @@ def etl_ibis(args, run_import_queries, columns_names, columns_types, validation=
         database_name, delete_if_exists=delete_old_database
     )
 
-    time.sleep(2)
-    omnisci_server_worker.connect_to_server()
-
     if run_import_queries:
         # SQL statemnts preparation for data file import queries
         connect_to_db_sql_template = "\c {0} admin HyperInteractive"
@@ -259,7 +256,7 @@ def etl_ibis(args, run_import_queries, columns_names, columns_types, validation=
         schema_table_import = ibis.Schema(
             names=columns_names, types=columns_types_import_query
         )
-        omnisci_server_worker.get_conn().create_table(
+        omnisci_server_worker.create_table(
             table_name=tmp_table_name,
             schema=schema_table_import,
             database=database_name,
@@ -291,7 +288,7 @@ def etl_ibis(args, run_import_queries, columns_names, columns_types, validation=
     if create_new_table:
         # Create table and import data for ETL queries
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
-        omnisci_server_worker.get_conn().create_table(
+        omnisci_server_worker.create_table(
             table_name=table_name,
             schema=schema_table,
             database=database_name,
@@ -302,22 +299,21 @@ def etl_ibis(args, run_import_queries, columns_names, columns_types, validation=
         table_import.read_csv(filename, delimiter=",")
 
     if args.server_conn_type == "regular":
-        omnisci_server_worker.connect_to_server()
+        omnisci_server_worker.connect_to_server(database_name)
     elif args.server_conn_type == "ipc":
-        omnisci_server_worker.ipc_connect_to_server()
+        omnisci_server_worker.connect_to_server(database_name, ipc=True)
     else:
         print("Wrong connection type is specified!")
         sys.exit(0)
 
-    db = omnisci_server_worker.database(database_name)
-    table = db.table(table_name)
+    table = omnisci_server_worker.database(database_name).table(table_name)
 
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding
     # nested sql requests
     t0 = timer()
     count_cols = []
-    orig_cols = ["ID_code", "target"] + ['var_%s'%i for i in range(200)]
+    orig_cols = ["ID_code", "target"] + ['var_%s' % i for i in range(200)]
     cast_cols = []
     cast_cols.append(table["target"].cast("int64").name("target0"))
     gt1_cols = []
@@ -351,16 +347,16 @@ def etl_ibis(args, run_import_queries, columns_names, columns_types, validation=
     t0 = timer()
     training_part, validation_part = table_df[:-10000], table_df[-10000:]
     etl_times["t_train_test_split"] = timer() - t0
-    
+
     etl_times["t_etl"] = etl_times["t_groupby_merge_where"] + etl_times["t_train_test_split"]
-    
-    x_train = training_part.drop(['target0'],axis=1)
+
+    x_train = training_part.drop(['target0'], axis=1)
     y_train = training_part['target0']
-    x_valid = validation_part.drop(['target0'],axis=1)
+    x_valid = validation_part.drop(['target0'], axis=1)
     y_valid = validation_part['target0']
-    
+
+    omnisci_server_worker.terminate()
     omnisci_server.terminate()
-    omnisci_server = None
 
     return x_train, y_train, x_valid, y_valid, etl_times
 
