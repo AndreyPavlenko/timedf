@@ -4,11 +4,11 @@ import subprocess
 import sys
 import time
 
-import pandas as pd
 import ibis
+import pandas as pd
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from utils import convertTypeIbis2Pandas
+from utils import convert_type_ibis2pandas
 
 
 class OmnisciServerWorker:
@@ -16,19 +16,25 @@ class OmnisciServerWorker:
 
     def __init__(self, omnisci_server):
         self.omnisci_server = omnisci_server
-        self._omnisci_cmd_line = (
-            [self.omnisci_server.omnisci_sql_executable]
-            + [
-                str(self.omnisci_server.database_name),
-                "-u",
-                self.omnisci_server.user,
-                "-p",
-                self.omnisci_server.password,
-            ]
-            + ["--port", str(self.omnisci_server.server_port)]
-        )
         self._command_2_import_CSV = "COPY %s FROM '%s' WITH (header='%s');"
         self._conn = None
+
+    def _get_omnisci_cmd_line(
+        self, database_name=None, user=None, password=None, server_port=None
+    ):
+        if not database_name:
+            database_name = self.omnisci_server.database_name
+        if not user:
+            user = self.omnisci_server.user
+        if not password:
+            password = self.omnisci_server.password
+        if not server_port:
+            server_port = str(self.omnisci_server.server_port)
+        return (
+            [self.omnisci_server.omnisci_sql_executable]
+            + [database_name, "-u", user, "-p", password]
+            + ["--port", server_port]
+        )
 
     def _read_csv_datafile(
         self,
@@ -49,7 +55,6 @@ class OmnisciServerWorker:
             types = {
                 columns_names[i]: columns_types[i] for i in range(len(columns_names))
             }
-
         if compression_type == "gzip":
             with gzip.open(file_name) as f:
                 return pd.read_csv(
@@ -106,10 +111,12 @@ class OmnisciServerWorker:
             host="localhost",
             port=self.omnisci_server.server_port,
             user=self.omnisci_server.user,
-            password=self.omnisci_server.password,
             database=database,
+            password=self.omnisci_server.password,
             ipc=ipc,
         )
+        if database:
+            self.omnisci_server.database_name = database
 
     def get_conn(self):
         return self._conn
@@ -163,16 +170,17 @@ class OmnisciServerWorker:
             print("Importing datafile", f)
             copy_str = self._command_2_import_CSV % (table_name, f, header_value)
 
+            omnisci_cmd_line = self._get_omnisci_cmd_line()
             try:
                 import_process = subprocess.Popen(
-                    self._omnisci_cmd_line,
+                    omnisci_cmd_line,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     stdin=subprocess.PIPE,
                 )
                 output = import_process.communicate(copy_str.encode())
             except OSError as err:
-                print("Failed to start", self._omnisci_cmd_line, err)
+                print(f"Failed to start '{omnisci_cmd_line}'", err)
 
             print(str(output[0].strip().decode()))
             print("Command returned", import_process.returncode)
@@ -194,7 +202,7 @@ class OmnisciServerWorker:
         "Import CSV files using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
         if columns_types:
-            columns_types_pd = convertTypeIbis2Pandas(columns_types)
+            columns_types_pd = convert_type_ibis2pandas(columns_types)
         t0 = time.time()
         if files_limit > 1:
             pandas_df_from_each_file = (
@@ -312,9 +320,10 @@ class OmnisciServerWorker:
     def execute_sql_query(self, query):
         "Execute SQL query directly in the OmniSciDB"
 
+        omnisci_cmd_line = self._get_omnisci_cmd_line()
         try:
             connection_process = subprocess.Popen(
-                self._omnisci_cmd_line,
+                omnisci_cmd_line,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.PIPE,
@@ -322,22 +331,16 @@ class OmnisciServerWorker:
             output = connection_process.communicate(query.encode())
             print(output)
         except OSError as err:
-            print("Failed to start", self._omnisci_cmd_line, err)
+            print("Failed to start", omnisci_cmd_line, err)
 
     def import_data_from_pd_df(self, table_name, pd_obj, columns_names, columns_types):
         "Import table data using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
 
-        if not self._conn.exists_table(
-            name=table_name, database=self.omnisci_server.database_name
-        ):
+        if not self._conn.exists_table(name=table_name):
             try:
-                self._conn.create_table(
-                    table_name=table_name,
-                    schema=schema_table,
-                    database=self.omnisci_server.database_name,
-                )
+                self._conn.create_table(table_name=table_name, schema=schema_table)
             except Exception as err:
                 print("Failed to create table:", err)
 

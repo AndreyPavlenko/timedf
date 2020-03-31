@@ -20,11 +20,11 @@ class OmnisciServer:
         omnisci_executable,
         omnisci_port,
         database_name,
+        http_port,
+        calcite_port,
         omnisci_cwd=None,
         user="admin",
         password="HyperInteractive",
-        http_port=62278,
-        calcite_port=62279,
         max_session_duration=86400,
         idle_session_duration=120,
         debug_timer=False,
@@ -141,6 +141,7 @@ class OmnisciServer:
                 time.sleep(2)
                 self.server_process.kill()
                 time.sleep(1)
+                self.server_process = None
         except Exception as err:
             print("Failed to terminate server, error occured:", err)
             sys.exit(1)

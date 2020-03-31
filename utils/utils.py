@@ -1,7 +1,10 @@
 import argparse
+import glob
 import os
 import re
+import socket
 import subprocess
+from timeit import default_timer as timer
 
 import hiyapyco
 
@@ -48,26 +51,24 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
         print("Failed to start", cmdline, err)
 
 
-def convertTypeIbis2Pandas(types):
+def convert_type_ibis2pandas(types):
     types = ["string_" if (x == "string") else x for x in types]
-    types = [
-        "float64" if (x.startswith("decimal")) else x for x in types
-    ]  # since there is no explicit decimal type in Pandas /
-    # Ibis decimal type should be converted to float64 type
     return types
 
 
-def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory):
-    if mode == "pandas":
+def import_pandas_into_module_namespace(
+    namespace, mode, ray_tmpdir=None, ray_memory=None
+):
+    if mode == "Pandas":
         print("Running on Pandas")
         import pandas as pd
     else:
-        if mode == "modin_on_ray":
+        if mode == "Modin_on_ray":
             import ray
 
-            if ray_tmpdir is None:
+            if not ray_tmpdir:
                 ray_tmpdir = "/tmp"
-            if ray_memory is None:
+            if not ray_memory:
                 ray_memory = 200 * 1024 * 1024 * 1024
             ray.init(
                 huge_pages=False,
@@ -82,10 +83,10 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir, ray_memory)
                 "and memory",
                 ray_memory,
             )
-        elif mode == "modin_on_dask":
+        elif mode == "Modin_on_dask":
             os.environ["MODIN_ENGINE"] = "dask"
             print("Running on Modin on Dask")
-        elif mode == "modin_on_python":
+        elif mode == "Modin_on_python":
             os.environ["MODIN_ENGINE"] = "python"
             print("Running on Modin on Python")
         else:
@@ -156,3 +157,83 @@ def compare_dataframes(ibis_dfs, pandas_dfs):
                     raise assert_err
 
     print("dataframes are equal")
+
+
+def load_data_pandas(
+    filename,
+    columns_names=None,
+    columns_types=None,
+    header=None,
+    nrows=None,
+    use_gzip=False,
+    parse_dates=None,
+    pd=None,
+):
+    if not pd:
+        import_pandas_into_module_namespace(namespace=main.__globals__, mode="Pandas")
+    types = None
+    if columns_types:
+        types = {columns_names[i]: columns_types[i] for i in range(len(columns_names))}
+    return pd.read_csv(
+        filename,
+        names=columns_names,
+        nrows=nrows,
+        header=header,
+        dtype=types,
+        compression="gzip" if use_gzip else None,
+        parse_dates=parse_dates,
+    )
+
+
+def files_names_from_pattern(filename):
+    from braceexpand import braceexpand
+    data_files_names = list(braceexpand(filename))
+    data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
+    return data_files_names
+
+
+def print_times(times, backend=None):
+    if backend:
+        print(f"{backend} times:")
+    for time_name, time in times.items():
+        print("{} = {:.5f} s".format(time_name, time))
+
+
+def mse(y_test, y_pred):
+    return ((y_test - y_pred) ** 2).mean()
+
+
+def cod(y_test, y_pred):
+    y_bar = y_test.mean()
+    total = ((y_test - y_bar) ** 2).sum()
+    residuals = ((y_test - y_pred) ** 2).sum()
+    return 1 - (residuals / total)
+
+
+def check_port_availability(port_num):
+    sock = socket.socket()
+    result = sock.connect_ex(('127.0.0.1', port_num))
+    sock.close()
+    return result
+
+
+def find_free_port():
+    min_port_num = 49152
+    max_port_num = 65535
+    port_num = min_port_num
+    while port_num < max_port_num:
+        if check_port_availability(port_num) == 0:
+            return port_num
+        port_num += 1
+    raise Exception("Can't find available ports")
+
+
+def split(X, y, test_size=0.1, random_state=None):
+    from sklearn.model_selection import train_test_split
+    t0 = timer()
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, stratify=y, random_state=random_state
+    )
+    split_time = timer() - t0
+
+    return (X_train, y_train, X_test, y_test), split_time
