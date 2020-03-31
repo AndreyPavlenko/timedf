@@ -403,7 +403,7 @@ def ml(x_train, y_train, x_valid, y_valid):
     testing_dmat_part = xgboost.DMatrix(data=x_valid, label=y_valid)
     ml_times["t_dmatrix"] = timer() - t0
 
-    watchlist = [(training_dmat_part, "eval"), (testing_dmat_part, "train")]
+    watchlist = [(testing_dmat_part, "eval"), (training_dmat_part, "train")]
     xgb_params = {
         "objective": "binary:logistic",
         "tree_method": "hist",
