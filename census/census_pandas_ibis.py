@@ -386,6 +386,8 @@ def run_benchmark(parameters):
 
         etl_times_ibis = None
         ml_times_ibis = None
+        etl_times = None
+        ml_times = None
         if not parameters["no_ibis"]:
 
             df_ibis, X_ibis, y_ibis, etl_times_ibis = etl_ibis(

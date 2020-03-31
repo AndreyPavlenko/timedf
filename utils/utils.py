@@ -8,6 +8,7 @@ from timeit import default_timer as timer
 
 import hiyapyco
 
+returned_port_numbers = []
 
 def str_arg_to_bool(v):
     if isinstance(v, bool):
@@ -219,17 +220,16 @@ def check_port_availability(port_num):
 def find_free_port():
     min_port_num = 49152
     max_port_num = 65535
-    if len(find_free_port.found_ports) == 0:
+    if len(returned_port_numbers) == 0:
         port_num = min_port_num
     else:
-        port_num = find_free_port.found_ports[-1]
+        port_num = returned_port_numbers[-1]
     while port_num < max_port_num:
-        if check_port_availability(port_num) != 0 and port_num not in find_free_port.found_ports:
-            find_free_port.found_ports.append(port_num)
+        if check_port_availability(port_num) != 0 and port_num not in returned_port_numbers:
+            returned_port_numbers.append(port_num)
             return port_num
         port_num += 1
     raise Exception("Can't find available ports")
-find_free_port.found_ports = []
 
 
 def split(X, y, test_size=0.1, random_state=None):
