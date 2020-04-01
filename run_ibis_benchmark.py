@@ -26,10 +26,10 @@ def main():
     parser._action_groups.append(optional)
 
     required.add_argument(
-        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.",
+        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.", required=True,
     )
     required.add_argument(
-        "-data_file", dest="data_file", help="A datafile that should be loaded.",
+        "-data_file", dest="data_file", help="A datafile that should be loaded.", required=True,
     )
     optional.add_argument(
         "-dfiles_num",
