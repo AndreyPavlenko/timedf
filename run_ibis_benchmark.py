@@ -137,9 +137,14 @@ def main():
         help="MySQL database to use to store benchmark results.",
     )
     optional.add_argument(
-        "-db_table",
-        dest="db_table",
-        help="Table to use to store results for this benchmark.",
+        "-db_table_etl",
+        dest="db_table_etl",
+        help="Table to use to store ETL results for this benchmark.",
+    )
+    optional.add_argument(
+        "-db_table_ml",
+        dest="db_table_ml",
+        help="Table to use to store ML results for this benchmark.",
     )
     # Omnisci server parameters
     optional.add_argument(
@@ -300,27 +305,51 @@ def main():
                     backend_res["Iteration"] = iter_num
                     ml_results.append(backend_res)
 
-        # if args.db_user is not "":
-        #     print("Connecting to database")
-        #     db = mysql.connector.connect(
-        #         host=args.db_server,
-        #         port=args.db_port,
-        #         user=args.db_user,
-        #         passwd=args.db_pass,
-        #         db=args.db_name,
-        #     )
-        #     db_reporter = DbReport(
-        #         db,
-        #         args.db_table,
-        #         {
-        #             "QueryName": "VARCHAR(500) NOT NULL",
-        #             "IbisCommitHash": "VARCHAR(500) NOT NULL",
-        #             "BackEnd": "VARCHAR(100) NOT NULL",
-        #         },
-        #         results[0][0]
-        #     )
-        #     for result in results:
-        #           db_reporter.submit(result)
+           # Reporting to MySQL database
+            if args.db_user is not "":
+                if iter_num == 1:
+                    db = mysql.connector.connect(
+                        host=args.db_server,
+                        port=args.db_port,
+                        user=args.db_user,
+                        passwd=args.db_pass,
+                        db=args.db_name,
+                    )
+
+                    reporting_init_fields = {"OmnisciCommitHash":args.commit_omnisci,
+                                             "IbisCommitHash": args.commit_ibis
+                                            }
+
+                    reporting_fields_benchmark_etl = {x: "VARCHAR(500) NOT NULL" for x in etl_results[0]}
+                    if len(etl_results) is not 1:
+                        reporting_fields_benchmark_etl.update({x: "VARCHAR(500) NOT NULL" for x in etl_results[1]})
+
+                    db_reporter_etl = DbReport(
+                        db,
+                        args.db_table_etl,
+                        reporting_fields_benchmark_etl,
+                        reporting_init_fields
+                    )
+
+                    if len(ml_results) is not 0:
+                        reporting_fields_benchmark_ml = {x: "VARCHAR(500) NOT NULL" for x in ml_results[0]}
+                        if len(ml_results) is not 1:
+                            reporting_fields_benchmark_etl.update({x: "VARCHAR(500) NOT NULL" for x in ml_results[1]})
+
+                        db_reporter_ml = DbReport(
+                            db,
+                            args.db_table_ml,
+                            reporting_fields_benchmark_ml,
+                            reporting_init_fields
+                        )
+
+                for result in etl_results:
+                    db_reporter_etl.submit(result)
+
+                if len(ml_results) is not 0:
+                    for result in ml_results:
+                        db_reporter_ml.submit(result)
+
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)

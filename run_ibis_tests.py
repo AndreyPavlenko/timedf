@@ -270,10 +270,15 @@ def main():
         default="omniscidb",
         help="MySQL database to use to store benchmark results.",
     )
-    mysql.add_argument(
-        "-db_table",
-        dest="db_table",
-        help="Table to use to store results for this benchmark.",
+    optional.add_argument(
+        "-db_table_etl",
+        dest="db_table_etl",
+        help="Table to use to store ETL results for this benchmark.",
+    )
+    optional.add_argument(
+        "-db_table_ml",
+        dest="db_table_ml",
+        help="Table to use to store ML results for this benchmark.",
     )
     # Additional information
     commits.add_argument(
@@ -428,7 +433,8 @@ def main():
                 "db_user",
                 "db_pass",
                 "db_name",
-                "db_table",
+                "db_table_etl",
+                "db_table_ml",
                 "executable",
                 "omnisci_cwd",
                 "port",
