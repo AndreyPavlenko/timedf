@@ -102,7 +102,7 @@ class OmnisciServerWorker:
             )
             return pd.concat(df_from_each_file, ignore_index=True)
 
-    def connect_to_server(self, database=None, ipc=False):
+    def connect_to_server(self, database=None, ipc=None):
         "Connect to Omnisci server using Ibis framework"
 
         if self._conn:
@@ -117,7 +117,6 @@ class OmnisciServerWorker:
         )
         if database:
             self.omnisci_server.database_name = database
-        return self._conn
 
     def get_conn(self):
         return self._conn
@@ -125,10 +124,14 @@ class OmnisciServerWorker:
     def database(self, name):
         return self._conn.database(name)
 
+    def create_table(self, *arg, **kwargs):
+        "Wrapper for OmniSciDBClient.create_table"
+        self._conn.create_table(*arg, **kwargs)
+
     def terminate(self):
         if self._conn:
             self._conn.close()
-        self.omnisci_server.terminate()
+            self._conn = None
 
     def import_data(
         self,
@@ -283,10 +286,10 @@ class OmnisciServerWorker:
         print("Deleting ", database_name, " database")
         try:
             self._conn.drop_database(database_name, force=force)
-            time.sleep(2)
-            self.connect_to_server()
         except Exception as err:
             print("Failed to delete ", database_name, "database: ", err)
+
+        self.connect_to_server()
 
     def create_database(self, database_name, delete_if_exists=True):
         "Create database by database_name using Ibis framework"
@@ -299,7 +302,7 @@ class OmnisciServerWorker:
         print("Creating ", database_name, " database")
         try:
             self._conn.create_database(database_name)
-            time.sleep(2)
+            self._conn.set_database(database_name)
         except Exception as err:
             print("Failed to create ", database_name, " database: ", err)
 
@@ -349,3 +352,13 @@ class OmnisciServerWorker:
         )
 
         return self._conn.database(self.omnisci_server.database_name).table(table_name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_val, trace):
+        try:
+            self.terminate()
+        except Exception as err:
+            print('terminate is not successful')
+            raise err

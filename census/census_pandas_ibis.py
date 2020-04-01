@@ -104,16 +104,12 @@ def etl_ibis(
 ):
     import ibis
 
-    time.sleep(2)
     etl_times = {key: 0.0 for key in etl_keys}
-
-    omnisci_server_worker.connect_to_server()
 
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
 
-    omnisci_server_worker.connect_to_server(database=database_name)
     # Create table and import data
     if create_new_table:
         # Datafiles import
@@ -128,13 +124,11 @@ def etl_ibis(
             compression_type="gzip",
             validation=validation,
         )
-
     etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
 
     # Second connection - this is ibis's ipc connection for DML
-    conn = omnisci_server_worker.connect_to_server(ipc=ipc_connection)
-    db = omnisci_server_worker.database(database_name)
-    table = db.table(table_name)
+    omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
+    table = omnisci_server_worker.database(database_name).table(table_name)
 
     t_etl_start = timer()
 
@@ -376,7 +370,6 @@ def run_benchmark(parameters):
     ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
 
     try:
-
         import_pandas_into_module_namespace(
             namespace=run_benchmark.__globals__,
             mode=parameters["pandas_mode"],
@@ -390,6 +383,10 @@ def run_benchmark(parameters):
         ml_times = None
         if not parameters["no_ibis"]:
 
+        etl_times_ibis = None
+        ml_times_ibis = None
+
+        if not parameters["no_ibis"]:
             df_ibis, X_ibis, y_ibis, etl_times_ibis = etl_ibis(
                 filename=parameters["data_file"],
                 columns_names=columns_names,
@@ -451,11 +448,11 @@ def run_benchmark(parameters):
             ml_scores["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:
-            pass
-            # compare_dataframes(
-            #     ibis_dfs=(X_ibis, y_ibis),
-            #     pandas_dfs=(X, y),
-            # )
+            # this should work
+            compare_dataframes(
+                ibis_dfs=(X_ibis, y_ibis),
+                pandas_dfs=(X, y),
+            )
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:

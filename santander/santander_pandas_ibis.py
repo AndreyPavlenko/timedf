@@ -93,9 +93,6 @@ def etl_ibis(
         database_name, delete_if_exists=delete_old_database
     )
 
-    time.sleep(2)
-    omnisci_server_worker.connect_to_server(database=database_name)
-
     if run_import_queries:
         etl_times_import = {
             "t_readcsv_by_ibis": 0.0,
@@ -142,7 +139,7 @@ def etl_ibis(
         schema_table_import = ibis.Schema(
             names=columns_names, types=columns_types_import_query
         )
-        omnisci_server_worker.get_conn().create_table(
+        omnisci_server_worker.create_table(
             table_name=tmp_table_name,
             schema=schema_table_import,
             database=database_name,
@@ -174,7 +171,7 @@ def etl_ibis(
     if create_new_table:
         # Create table and import data for ETL queries
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
-        omnisci_server_worker.get_conn().create_table(
+        omnisci_server_worker.create_table(
             table_name=table_name,
             schema=schema_table,
             database=database_name,
@@ -185,9 +182,8 @@ def etl_ibis(
         table_import.read_csv(filename, delimiter=",")
         etl_times["t_readcsv"] = timer() - t0
 
-    conn = omnisci_server_worker.connect_to_server(ipc=ipc_connection)
-    db = conn.database(database_name)
-    table = db.table(table_name)
+    omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
+    table = omnisci_server_worker.database(database_name).table(table_name)
 
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding

@@ -171,11 +171,9 @@ def load_data_ibis(
     dtypes,
     meta_dtypes,
 ):
-    omnisci_server_worker.connect_to_server()
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
     )
-    omnisci_server_worker.connect_to_server()
 
     t_import_pandas, t_import_ibis = 0.0, 0.0
 
@@ -253,7 +251,7 @@ def load_data_ibis(
         print(f"import times: pandas - {t_import_pandas}s, ibis - {t_import_ibis}s")
 
     # Second connection - this is ibis's ipc connection for DML
-    omnisci_server_worker.connect_to_server(ipc=ipc_connection)
+    omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     db = omnisci_server_worker.database(database_name)
 
     training_table = db.table("training")
@@ -509,7 +507,6 @@ def run_benchmark(parameters):
     etl_keys = ["t_readcsv", "t_etl"]
     ml_keys = ["t_train_test_split", "t_dmatrix", "t_training", "t_infer", "t_ml"]
     try:
-
         import_pandas_into_module_namespace(
             namespace=run_benchmark.__globals__,
             mode=parameters["pandas_mode"],
@@ -561,7 +558,8 @@ def run_benchmark(parameters):
             ml_times["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:
-            pass
+            #TODO use compare_dataframes
+            exit(1)
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:
