@@ -349,12 +349,10 @@ def main():
                         )
 
                 for result_etl in etl_results:
-                    print("\n\nresult_etl", result_etl)
                     db_reporter_etl.submit(result_etl)
 
                 if len(ml_results) is not 0:
                     for result_ml in ml_results:
-                        print("\n\nresult_ml", result_ml)
                         db_reporter_ml.submit(result_ml)
 
     except Exception:

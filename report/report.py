@@ -107,7 +107,7 @@ class DbReport:
         for field, spec in self.all_fields.items():
             self.sql_statement += field + " " + spec + ","
         self.sql_statement += "PRIMARY KEY (id));"
-        #print("Executing statement", self.sql_statement)
+        print("Executing statement", self.sql_statement)
         database.cursor().execute(self.sql_statement)
         self.__database = database
 
