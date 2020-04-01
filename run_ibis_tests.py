@@ -172,7 +172,7 @@ def main():
     benchmark.add_argument(
         "-iterations",
         dest="iterations",
-        default=5,
+        default=1,
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
@@ -254,6 +254,7 @@ def main():
     mysql.add_argument(
         "-db_user",
         dest="db_user",
+        default="",
         help="Username to use to connect to MySQL database. "
         "If user name is specified, script attempts to store results in MySQL "
         "database using other -db-* parameters.",
