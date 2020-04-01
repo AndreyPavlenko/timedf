@@ -305,8 +305,8 @@ def main():
                     backend_res["Iteration"] = iter_num
                     ml_results.append(backend_res)
 
-           # Reporting to MySQL database
-            if args.db_user is not "":
+            # Reporting to MySQL database
+            if args.db_user is not None:
                 if iter_num == 1:
                     db = mysql.connector.connect(
                         host=args.db_server,
@@ -334,8 +334,9 @@ def main():
                     if len(ml_results) is not 0:
                         reporting_fields_benchmark_ml = {x: "VARCHAR(500) NOT NULL" for x in ml_results[0]}
                         if len(ml_results) is not 1:
-                            reporting_fields_benchmark_etl.update({x: "VARCHAR(500) NOT NULL" for x in ml_results[1]})
+                            reporting_fields_benchmark_ml.update({x: "VARCHAR(500) NOT NULL" for x in ml_results[1]})
 
+                        #print("\n\nreporting_fields_benchmark_ml", reporting_fields_benchmark_ml)
                         db_reporter_ml = DbReport(
                             db,
                             args.db_table_ml,
@@ -343,12 +344,12 @@ def main():
                             reporting_init_fields
                         )
 
-                for result in etl_results:
-                    db_reporter_etl.submit(result)
+                for result_etl in etl_results:
+                    db_reporter_etl.submit(result_etl)
 
                 if len(ml_results) is not 0:
-                    for result in ml_results:
-                        db_reporter_ml.submit(result)
+                    for result_ml in ml_results:
+                        db_reporter_ml.submit(result_ml)
 
     except Exception:
         traceback.print_exc(file=sys.stdout)
