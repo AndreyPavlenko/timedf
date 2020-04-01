@@ -26,10 +26,10 @@ def main():
     parser._action_groups.append(optional)
 
     required.add_argument(
-        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.",
+        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.", required=True,
     )
     required.add_argument(
-        "-data_file", dest="data_file", help="A datafile that should be loaded.",
+        "-data_file", dest="data_file", help="A datafile that should be loaded.", required=True,
     )
     optional.add_argument(
         "-dfiles_num",
@@ -227,6 +227,7 @@ def main():
     try:
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
+        omnisci_server_worker = None
 
         args = parser.parse_args()
 
@@ -258,7 +259,6 @@ def main():
             "gpu_memory": args.gpu_memory,
         }
 
-        omnisci_server_worker = None
         if not args.no_ibis:
             if args.executable is None:
                 parser.error(
@@ -307,7 +307,7 @@ def main():
                     ml_results.append(backend_res)
 
            # Reporting to MySQL database
-            if args.db_user is not "":
+            if args.db_user is not None:
                 if iter_num == 1:
                     db = mysql.connector.connect(
                         host=args.db_server,

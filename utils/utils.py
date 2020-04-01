@@ -171,7 +171,7 @@ def load_data_pandas(
     pd=None,
 ):
     if not pd:
-        import_pandas_into_module_namespace(namespace=main.__globals__, mode="Pandas")
+        import_pandas_into_module_namespace(namespace=load_data_pandas.__globals__, mode="Pandas")
     types = None
     if columns_types:
         types = {columns_names[i]: columns_types[i] for i in range(len(columns_names))}
