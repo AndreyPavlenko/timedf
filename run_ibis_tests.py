@@ -254,7 +254,6 @@ def main():
     mysql.add_argument(
         "-db_user",
         dest="db_user",
-        default="",
         help="Username to use to connect to MySQL database. "
         "If user name is specified, script attempts to store results in MySQL "
         "database using other -db-* parameters.",
