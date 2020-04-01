@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 
 # Current script prerequisites:
 # 1) Patched OmniSci version (https://github.com/intel-go/omniscidb/tree/ienkovich/santander)
-# 2) Ibis version not older than e60d1af commit (otherwise apply ibis-santander.patch patch)
+# 2) Patched Ibis version (https://github.com/intel-go/ibis/tree/develop)
 
 
 def etl_pandas(filename, columns_names, columns_types, etl_keys):
@@ -298,6 +298,11 @@ def run_benchmark(parameters):
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
 
+    etl_times_ibis = None
+    etl_times = None
+    ml_times_ibis = None
+    ml_times = None
+
     var_cols = ["var_%s" % i for i in range(200)]
     count_cols = ["var_%s_count" % i for i in range(200)]
     gt1_cols = ["var_%s_gt1" % i for i in range(200)]
@@ -370,7 +375,7 @@ def run_benchmark(parameters):
                 ml_scores_ibis["Backend"] = "Ibis"
 
         # Results validation block (comparison of etl_ibis and etl_pandas outputs)
-        if parameters["validation"] and not parameters["no_ibis"]:
+        #if parameters["validation"] and not parameters["no_ibis"]:
             # print("Validation of ETL query results with original input table ...")
             # cols_to_sort = ['var_0', 'var_1', 'var_2', 'var_3', 'var_4']
             #
@@ -403,7 +408,8 @@ def run_benchmark(parameters):
             #         print(
             #             f"{score} aren't equal: Ibis={ml_scores_ibis[score]}, Pandas={ml_scores[score]}")
 
-        return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
+
+    return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
