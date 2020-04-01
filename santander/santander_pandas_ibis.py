@@ -5,7 +5,6 @@ import sys
 import time
 import traceback
 import warnings
-from timeit import default_timer as timer
 
 import ibis
 

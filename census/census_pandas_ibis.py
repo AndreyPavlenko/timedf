@@ -4,7 +4,6 @@ import sys
 import time
 import traceback
 import warnings
-from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import (
@@ -13,8 +12,9 @@ from utils import (
     import_pandas_into_module_namespace,
     load_data_pandas,
     mse,
-    print_times,
+    print_results,
     split,
+    timer_ms,
 )
 
 warnings.filterwarnings("ignore")
@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 def etl_pandas(filename, columns_names, columns_types, etl_keys):
     etl_times = {key: 0.0 for key in etl_keys}
 
-    t0 = timer()
+    t0 = timer_ms()
     df = load_data_pandas(
         filename=filename,
         columns_names=columns_names,
@@ -37,9 +37,9 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
         use_gzip=filename.endswith(".gz"),
         pd=run_benchmark.__globals__["pd"],
     )
-    etl_times["t_readcsv"] = timer() - t0
+    etl_times["t_readcsv"] = timer_ms() - t0
 
-    t_etl_start = timer()
+    t_etl_start = timer_ms()
 
     keep_cols = [
         "YEAR0",
@@ -83,7 +83,7 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
     y = df["EDUC"]
     X = df.drop(columns=["EDUC", "CPI99"])
 
-    etl_times["t_etl"] = timer() - t_etl_start
+    etl_times["t_etl"] = timer_ms() - t_etl_start
     print("DataFrame shape:", X.shape)
 
     return df, X, y, etl_times
@@ -130,7 +130,7 @@ def etl_ibis(
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
 
-    t_etl_start = timer()
+    t_etl_start = timer_ms()
 
     keep_cols = [
         "YEAR0",
@@ -191,7 +191,7 @@ def etl_ibis(
     y = df["EDUC"]
     X = df.drop(["EDUC", "CPI99"], axis=1)
 
-    etl_times["t_etl"] = timer() - t_etl_start
+    etl_times["t_etl"] = timer_ms() - t_etl_start
     print("DataFrame shape:", X.shape)
 
     return df, X, y, etl_times
@@ -226,13 +226,13 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
         ml_times["t_train_test_split"] = split_time
         random_state += 777
 
-        t0 = timer()
+        t0 = timer_ms()
         model = clf.fit(X_train, y_train)
-        ml_times["t_train"] += timer() - t0
+        ml_times["t_train"] += timer_ms() - t0
 
-        t0 = timer()
+        t0 = timer_ms()
         y_pred = model.predict(X_test)
-        ml_times["t_inference"] += timer() - t0
+        ml_times["t_inference"] += timer_ms() - t0
 
         mse_values.append(mse(y_test, y_pred))
         cod_values.append(cod(y_test, y_pred))
@@ -381,10 +381,6 @@ def run_benchmark(parameters):
         ml_times_ibis = None
         etl_times = None
         ml_times = None
-        if not parameters["no_ibis"]:
-
-        etl_times_ibis = None
-        ml_times_ibis = None
 
         if not parameters["no_ibis"]:
             df_ibis, X_ibis, y_ibis, etl_times_ibis = etl_ibis(
@@ -401,7 +397,7 @@ def run_benchmark(parameters):
                 etl_keys=etl_keys,
             )
 
-            print_times(times=etl_times_ibis, backend="Ibis")
+            print_results(results=etl_times_ibis, backend="Ibis", unit='ms')
             etl_times_ibis["Backend"] = "Ibis"
 
             if not parameters["no_ml"]:
@@ -415,9 +411,9 @@ def run_benchmark(parameters):
                     ml_keys=ml_keys,
                     ml_score_keys=ml_score_keys,
                 )
-                print_times(times=ml_times_ibis, backend="Ibis")
+                print_results(results=ml_times_ibis, backend="Ibis", unit='ms')
                 ml_times_ibis["Backend"] = "Ibis"
-                print_times(times=ml_scores_ibis, backend="Ibis")
+                print_results(results=ml_scores_ibis, backend="Ibis")
                 ml_scores_ibis["Backend"] = "Ibis"
 
         df, X, y, etl_times = etl_pandas(
@@ -427,7 +423,7 @@ def run_benchmark(parameters):
             etl_keys=etl_keys,
         )
 
-        print_times(times=etl_times, backend=parameters["pandas_mode"])
+        print_results(results=etl_times, backend=parameters["pandas_mode"], unit='ms')
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
@@ -442,9 +438,9 @@ def run_benchmark(parameters):
                 ml_score_keys=ml_score_keys,
 
             )
-            print_times(times=ml_times, backend=parameters["pandas_mode"])
+            print_results(results=ml_times, backend=parameters["pandas_mode"], unit='ms')
             ml_times["Backend"] = parameters["pandas_mode"]
-            print_times(times=ml_scores, backend=parameters["pandas_mode"])
+            print_results(results=ml_scores, backend=parameters["pandas_mode"])
             ml_scores["Backend"] = parameters["pandas_mode"]
 
         if parameters["validation"]:
