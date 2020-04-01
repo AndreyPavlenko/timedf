@@ -441,7 +441,7 @@ def run_benchmark(parameters):
         "no_ml": parameters["no_ml"],
         "gpu_memory": parameters["gpu_memory"],
     }
-    warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
+    warnings.warn(f"Parameters {ignored_parameters} are ignored", RuntimeWarning)
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
 
