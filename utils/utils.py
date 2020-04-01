@@ -71,12 +71,13 @@ def import_pandas_into_module_namespace(
                 ray_tmpdir = "/tmp"
             if not ray_memory:
                 ray_memory = 200 * 1024 * 1024 * 1024
-            ray.init(
-                huge_pages=False,
-                plasma_directory=ray_tmpdir,
-                memory=ray_memory,
-                object_store_memory=ray_memory,
-            )
+            if not ray.is_initialized():
+                ray.init(
+                    huge_pages=False,
+                    plasma_directory=ray_tmpdir,
+                    memory=ray_memory,
+                    object_store_memory=ray_memory,
+                )
             os.environ["MODIN_ENGINE"] = "ray"
             print(
                 "Running on Modin on Ray with tmp directory",
