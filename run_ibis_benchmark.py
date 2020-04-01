@@ -226,6 +226,7 @@ def main():
     try:
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
+        omnisci_server_worker = None
 
         args = parser.parse_args()
 
@@ -257,7 +258,6 @@ def main():
             "gpu_memory": args.gpu_memory,
         }
 
-        omnisci_server_worker = None
         if not args.no_ibis:
             if args.executable is None:
                 parser.error(
