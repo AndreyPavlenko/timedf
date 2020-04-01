@@ -418,7 +418,7 @@ def etl_pandas(
             filename=f,
             columns_names=columns_names,
             header=0,
-            nrows=1000,
+            nrows=None,
             use_gzip=f.endswith(".gz"),
             parse_dates=["pickup_datetime", "dropoff_datetime",],
             pd=run_benchmark.__globals__["pd"],
