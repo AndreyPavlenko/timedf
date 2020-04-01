@@ -27,10 +27,10 @@ def main():
     parser._action_groups.append(optional)
 
     required.add_argument(
-        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.",
+        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.", required=True,
     )
     required.add_argument(
-        "-data_file", dest="data_file", help="A datafile that should be loaded.",
+        "-data_file", dest="data_file", help="A datafile that should be loaded.", required=True,
     )
     optional.add_argument(
         "-dfiles_num",
@@ -42,7 +42,7 @@ def main():
     optional.add_argument(
         "-iterations",
         dest="iterations",
-        default=5,
+        default=1,
         type=int,
         help="Number of iterations to run every query. Best result is selected.",
     )
@@ -121,6 +121,7 @@ def main():
     optional.add_argument(
         "-db_user",
         dest="db_user",
+        default="",
         help="Username to use to connect to MySQL database. "
         "If user name is specified, script attempts to store results in MySQL "
         "database using other -db-* parameters.",
@@ -227,6 +228,7 @@ def main():
     try:
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
+        omnisci_server_worker = None
 
         args = parser.parse_args()
 
@@ -258,7 +260,6 @@ def main():
             "gpu_memory": args.gpu_memory,
         }
 
-        omnisci_server_worker = None
         if not args.no_ibis:
             if args.executable is None:
                 parser.error(

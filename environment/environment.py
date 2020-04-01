@@ -71,7 +71,7 @@ class CondaEnvironment:
         cmd_res.extend(cmdline)
         return cmd_res
 
-    def run(self, cmdline, name=None, cwd=None, print_output=True):
+    def run(self, cmdline, name=None, cwd=None, print_output=False):
         env_name = name if name else self.name
 
         if print_output:
