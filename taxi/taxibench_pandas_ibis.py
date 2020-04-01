@@ -583,7 +583,7 @@ def run_benchmark(parameters):
             print_times(times=etl_times_ibis, backend="Ibis")
             etl_times_ibis["Backend"] = "Ibis"
 
-        pandas_files_limit = 1
+        pandas_files_limit = parameters["dfiles_num"]
         filename = files_names_from_pattern(parameters["data_file"])[
             :pandas_files_limit
         ]
