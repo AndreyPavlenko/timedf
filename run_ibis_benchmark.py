@@ -348,7 +348,7 @@ def main():
 
                 if len(ml_results) is not 0:
                     for result in ml_results:
-                        db_reporter_etl.submit(result)
+                        db_reporter_ml.submit(result)
 
     except Exception:
         traceback.print_exc(file=sys.stdout)
