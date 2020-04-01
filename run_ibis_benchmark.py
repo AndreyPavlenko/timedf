@@ -306,7 +306,7 @@ def main():
                     ml_results.append(backend_res)
 
            # Reporting to MySQL database
-            if args.db_user is not "":
+            if args.db_user is not None:
                 if iter_num == 1:
                     db = mysql.connector.connect(
                         host=args.db_server,
