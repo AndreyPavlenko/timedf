@@ -258,6 +258,7 @@ def main():
             "ray_tmpdir": args.ray_tmpdir,
             "ray_memory": args.ray_memory,
             "gpu_memory": args.gpu_memory,
+            "validation": False if args.no_ibis else args.validation,
         }
 
         if not args.no_ibis:
@@ -279,7 +280,6 @@ def main():
             parameters["table"] = args.table
             parameters["dnd"] = args.dnd
             parameters["dni"] = args.dni
-            parameters["validation"] = args.validation
 
         etl_results = []
         ml_results = []
