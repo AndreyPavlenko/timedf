@@ -228,6 +228,7 @@ def main():
         os.environ["PYTHONIOENCODING"] = "UTF-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
         omnisci_server_worker = None
+        omnisci_server = None
 
         args = parser.parse_args()
 
@@ -360,6 +361,8 @@ def main():
     finally:
         if omnisci_server_worker:
             omnisci_server_worker.terminate()
+        if omnisci_server:
+            omnisci_server.terminate()
 
 
 if __name__ == "__main__":
