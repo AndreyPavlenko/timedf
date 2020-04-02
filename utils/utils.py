@@ -200,6 +200,11 @@ def print_times(times, backend=None):
     for time_name, time in times.items():
         print("{} = {:.5f} s".format(time_name, time))
 
+def print_results(results, backend=None, unit=''):
+    if backend:
+        print(f"{backend} results:")
+    for result_name, result in results.items():
+        print("    {} = {} {}".format(result_name, result, unit))
 
 def mse(y_test, y_pred):
     return ((y_test - y_pred) ** 2).mean()
@@ -242,3 +247,6 @@ def split(X, y, test_size=0.1, random_state=None):
     split_time = timer() - t0
 
     return (X_train, y_train, X_test, y_test), split_time
+
+def timer_ms():
+    return round(timer() * 1000)
