@@ -4,6 +4,7 @@ import traceback
 import warnings
 from collections import OrderedDict
 from functools import partial
+from timeit import default_timer as timer
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,6 @@ from utils import (
     import_pandas_into_module_namespace,
     print_results,
     split,
-    timer_ms
 )
 
 
@@ -48,7 +48,7 @@ def skew_workaround(table):
 
 
 def etl_cpu_ibis(table, table_meta, etl_times):
-    t_etl_start = timer_ms()
+    t_etl_start = timer()
 
     table = table.mutate(flux_ratio_sq=(table["flux"] / table["flux_err"]) ** 2)
     table = table.mutate(flux_by_flux_ratio_sq=table["flux"] * table["flux_ratio_sq"])
@@ -114,13 +114,13 @@ def etl_cpu_ibis(table, table_meta, etl_times):
 
     df = table_meta.execute()
 
-    etl_times["t_etl"] += timer_ms() - t_etl_start
+    etl_times["t_etl"] += round((timer() - t_etl_start) * 1000)
 
     return df
 
 
 def etl_cpu_pandas(df, df_meta, etl_times):
-    t_etl_start = timer_ms()
+    t_etl_start = timer()
 
     df["flux_ratio_sq"] = np.power(df["flux"] / df["flux_err"], 2.0)
     df["flux_by_flux_ratio_sq"] = df["flux"] * df["flux_ratio_sq"]
@@ -154,7 +154,7 @@ def etl_cpu_pandas(df, df_meta, etl_times):
 
     df_meta = df_meta.merge(agg_df, on="object_id", how="left")
 
-    etl_times["t_etl"] += timer_ms() - t_etl_start
+    etl_times["t_etl"] += round((timer() - t_etl_start) * 1000)
 
     return df_meta
 
@@ -349,14 +349,14 @@ def etl_all_pandas(dataset_path, skip_rows, dtypes, meta_dtypes, etl_keys):
     print("Pandas version")
     etl_times = {key: 0.0 for key in etl_keys}
 
-    t0 = timer_ms()
+    t0 = timer()
     train, train_meta, test, test_meta = load_data_pandas(
         dataset_path=dataset_path,
         skip_rows=skip_rows,
         dtypes=dtypes,
         meta_dtypes=meta_dtypes,
     )
-    etl_times["t_readcsv"] += timer_ms() - t0
+    etl_times["t_readcsv"] += round((timer() - t0) * 1000)
 
     # update etl_times
     train_final = etl_cpu_pandas(train, train_meta, etl_times)
@@ -412,15 +412,15 @@ def ml(train_final, test_final, ml_keys):
         xgb_multi_weighted_logloss, classes=classes, class_weights=class_weights
     )
 
-    t_ml_start = timer_ms()
+    t_ml_start = timer()
     dtrain = xgb.DMatrix(data=X_train, label=y_train)
     dvalid = xgb.DMatrix(data=X_test, label=y_test)
     dtest = xgb.DMatrix(data=Xt)
-    ml_times["t_dmatrix"] += timer_ms() - t_ml_start
+    ml_times["t_dmatrix"] += timer() - t_ml_start
 
     watchlist = [(dvalid, "eval"), (dtrain, "train")]
 
-    t0 = timer_ms()
+    t0 = timer()
     clf = xgb.train(
         cpu_params,
         dtrain=dtrain,
@@ -430,19 +430,19 @@ def ml(train_final, test_final, ml_keys):
         early_stopping_rounds=10,
         verbose_eval=1000,
     )
-    ml_times["t_training"] += timer_ms() - t0
+    ml_times["t_training"] += round((timer() - t0) * 1000)
 
-    t0 = timer_ms()
+    t0 = timer()
     yp = clf.predict(dvalid)
-    ml_times["t_infer"] += timer_ms() - t0
+    ml_times["t_infer"] += round((timer() - t0) * 1000)
 
     cpu_loss = multi_weighted_logloss(y_test, yp, classes, class_weights)
 
-    t0 = timer_ms()
+    t0 = timer()
     ysub = clf.predict(dtest)
-    ml_times["t_infer"] += timer_ms() - t0
+    ml_times["t_infer"] += round((timer() - t0) * 1000)
 
-    ml_times["t_ml"] = timer_ms() - t_ml_start
+    ml_times["t_ml"] = round((timer() - t_ml_start) * 1000)
 
     print("validation cpu_loss:", cpu_loss)
 

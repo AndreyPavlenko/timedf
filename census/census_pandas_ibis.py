@@ -4,6 +4,7 @@ import sys
 import time
 import traceback
 import warnings
+from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import (
@@ -14,7 +15,6 @@ from utils import (
     mse,
     print_results,
     split,
-    timer_ms,
 )
 
 warnings.filterwarnings("ignore")
@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 def etl_pandas(filename, columns_names, columns_types, etl_keys):
     etl_times = {key: 0.0 for key in etl_keys}
 
-    t0 = timer_ms()
+    t0 = timer()
     df = load_data_pandas(
         filename=filename,
         columns_names=columns_names,
@@ -37,9 +37,9 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
         use_gzip=filename.endswith(".gz"),
         pd=run_benchmark.__globals__["pd"],
     )
-    etl_times["t_readcsv"] = timer_ms() - t0
+    etl_times["t_readcsv"] = round((timer() - t0) * 1000)
 
-    t_etl_start = timer_ms()
+    t_etl_start = timer()
 
     keep_cols = [
         "YEAR0",
@@ -83,7 +83,7 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
     y = df["EDUC"]
     X = df.drop(columns=["EDUC", "CPI99"])
 
-    etl_times["t_etl"] = timer_ms() - t_etl_start
+    etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
     print("DataFrame shape:", X.shape)
 
     return df, X, y, etl_times
@@ -130,7 +130,7 @@ def etl_ibis(
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
 
-    t_etl_start = timer_ms()
+    t_etl_start = timer()
 
     keep_cols = [
         "YEAR0",
@@ -191,7 +191,7 @@ def etl_ibis(
     y = df["EDUC"]
     X = df.drop(["EDUC", "CPI99"], axis=1)
 
-    etl_times["t_etl"] = timer_ms() - t_etl_start
+    etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
     print("DataFrame shape:", X.shape)
 
     return df, X, y, etl_times
@@ -226,13 +226,13 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
         ml_times["t_train_test_split"] = split_time
         random_state += 777
 
-        t0 = timer_ms()
+        t0 = timer()
         model = clf.fit(X_train, y_train)
-        ml_times["t_train"] += timer_ms() - t0
+        ml_times["t_train"] += round((timer() - t0) * 1000)
 
-        t0 = timer_ms()
+        t0 = timer()
         y_pred = model.predict(X_test)
-        ml_times["t_inference"] += timer_ms() - t0
+        ml_times["t_inference"] += round((timer() - t0) * 1000)
 
         mse_values.append(mse(y_test, y_pred))
         cod_values.append(cod(y_test, y_pred))
