@@ -200,11 +200,9 @@ def etl_ibis(
 def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys):
     if optimizer == "intel":
         print("Intel optimized sklearn is used")
-        from daal4py.sklearn.model_selection import train_test_split
         import daal4py.sklearn.linear_model as lm
-    if optimizer == "stock":
+    elif optimizer == "stock":
         print("Stock sklearn is used")
-        from sklearn.model_selection import train_test_split
         import sklearn.linear_model as lm
     else:
         print(
