@@ -170,6 +170,7 @@ def load_data_ibis(
     validation,
     dtypes,
     meta_dtypes,
+    import_mode,
 ):
     omnisci_server_worker.create_database(
         database_name, delete_if_exists=delete_old_database
@@ -358,6 +359,7 @@ def etl_all_ibis(
     dtypes,
     meta_dtypes,
     etl_keys,
+    import_mode,
 ):
     print("Ibis version")
     etl_times = {key: 0.0 for key in etl_keys}
@@ -373,6 +375,7 @@ def etl_all_ibis(
         validation=validation,
         dtypes=dtypes,
         meta_dtypes=meta_dtypes,
+        import_mode=import_mode,
     )
 
     # update etl_times
@@ -571,6 +574,7 @@ def run_benchmark(parameters):
                 dtypes=dtypes,
                 meta_dtypes=meta_dtypes,
                 etl_keys=etl_keys,
+                import_mode=parameters["import_mode"],
             )
 
             print_results(results=etl_times_ibis, backend="Ibis", unit='ms')
