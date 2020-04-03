@@ -109,7 +109,7 @@ def get_percentage(error_message):
     return float(error_message.split("values are different ")[1].split("%)")[0][1:])
 
 
-def compare_dataframes(ibis_dfs, pandas_dfs):
+def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"]):
     import pandas as pd
 
     prepared_dfs = []
@@ -126,8 +126,10 @@ def compare_dataframes(ibis_dfs, pandas_dfs):
             # as 'id' column in source dataframe
             ibis_dfs[idx].sort_index(axis=0, inplace=True)
         else:
-            ibis_dfs[idx].sort_values(by="id", axis=0, inplace=True)
-            ibis_dfs[idx].drop(["id"], axis=1, inplace=True)
+            if len(sort_cols):
+                ibis_dfs[idx].sort_values(by=sort_cols, axis=0, inplace=True)
+            if len(drop_cols):
+                ibis_dfs[idx].drop(drop_cols, axis=1, inplace=True)
         
         ibis_dfs[idx].reset_index(drop=True, inplace=True)
         # prepare pandas part
