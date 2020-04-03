@@ -225,6 +225,9 @@ def etl_ibis(
 
     df = table.execute()
 
+    if import_mode == "pandas" and validation:
+        df.index = df['id'].values
+
     # here we use pandas to split table
     y = df["EDUC"]
     X = df.drop(["EDUC", "CPI99"], axis=1)
@@ -486,12 +489,11 @@ def run_benchmark(parameters):
 
         if parameters["pandas_mode"] and parameters["validation"]:
             # this should work only for pandas mode
-            # TODO fix validation
-            # compare_dataframes(
-            #     ibis_dfs=(X_ibis, y_ibis),
-            #     pandas_dfs=(X, y),
-            # )
-            pass
+            compare_dataframes(
+                ibis_dfs=(X_ibis, y_ibis),
+                pandas_dfs=(X, y),
+            )
+            
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:
