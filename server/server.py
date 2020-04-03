@@ -90,6 +90,8 @@ class OmnisciServer:
             "--enable-watchdog=false",
             "--allow-cpu-retry",
             "--max-session-duration",
+            #TODO: put this under external option
+            "--enable-columnar-output=true", # this flag speeds up ipc connection
             str(self._max_session_duration),
             "--idle-session-duration",
             str(self._idle_session_duration),
