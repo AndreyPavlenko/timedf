@@ -176,7 +176,7 @@ def load_data_ibis(
         database_name, delete_if_exists=delete_old_database
     )
 
-    t_import_pandas, t_import_ibis = 0.0, 0.0
+    t_readcsv = 0.0
 
     # Create tables and import data
     if create_new_table:
@@ -185,7 +185,7 @@ def load_data_ibis(
         training_file = "%s/training_set.csv" % dataset_path
         test_file = "%s/test_set.csv" % dataset_path
         training_meta_file = "%s/training_set_metadata.csv" % dataset_path
-        test_meta_table = "%s/test_set_metadata.csv" % dataset_path
+        test_meta_file = "%s/test_set_metadata.csv" % dataset_path
 
         schema = ibis.Schema(names=dtypes.keys(), types=dtypes.values())
         meta_schema = ibis.Schema(names=meta_dtypes.keys(), types=meta_dtypes.values())
@@ -208,7 +208,7 @@ def load_data_ibis(
             omnisci_server_worker.create_table(
                 table_name="test_meta", schema=meta_schema_without_target, database=database_name
             )
- 
+
             # get tables
             db = omnisci_server_worker.database(database_name)
             training_table = db.table("training")
@@ -222,7 +222,7 @@ def load_data_ibis(
             test_table.read_csv(test_file, header=True, quotechar="", delimiter=',')
             training_meta_table.read_csv(training_meta_file, header=True, quotechar="", delimiter=',')
             test_meta_table.read_csv(test_meta_file, header=True, quotechar="", delimiter=',')
-            etl_times["t_readcsv"] = timer() - t0
+            t_readcsv = timer() - t0
 
         elif import_mode == "pandas":
             general_options = {
@@ -299,7 +299,7 @@ def load_data_ibis(
         training_meta_table,
         test_table,
         test_meta_table,
-        t_import_pandas + t_import_ibis,
+        t_readcsv,
     )
 
 
