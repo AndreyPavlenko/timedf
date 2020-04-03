@@ -223,7 +223,7 @@ def load_data_ibis(
             test_table.read_csv(test_file, header=True, quotechar="", delimiter=',')
             training_meta_table.read_csv(training_meta_file, header=True, quotechar="", delimiter=',')
             test_meta_table.read_csv(test_meta_file, header=True, quotechar="", delimiter=',')
-            t_readcsv = timer() - t0
+            t_readcsv = round((timer() - t0) * 1000)
 
         elif import_mode == "pandas":
             general_options = {
@@ -280,6 +280,7 @@ def load_data_ibis(
                 t_import_ibis_1 + t_import_ibis_2 + t_import_ibis_3 + t_import_ibis_4
             )
             print(f"import times: pandas - {t_import_pandas}s, ibis - {t_import_ibis}s")
+            t_readcsv = round((t_import_pandas + t_import_ibis) * 1000)
 
         elif import_mode == "fsi":
             t0 = timer()
@@ -295,7 +296,7 @@ def load_data_ibis(
             omnisci_server_worker._conn.create_table_from_csv(
                 "test_meta", test_meta_file, meta_schema_without_target
             )
-            t_readcsv = timer() - t0
+            t_readcsv = round((timer() - t0) * 1000)
 
     # Second connection - this is ibis's ipc connection for DML
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
