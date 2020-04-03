@@ -282,8 +282,20 @@ def load_data_ibis(
             print(f"import times: pandas - {t_import_pandas}s, ibis - {t_import_ibis}s")
 
         elif import_mode == "fsi":
-            # TODO - add fsi read
-            exit(1)
+            t0 = timer()
+            omnisci_server_worker._conn.create_table_from_csv(
+                "training", training_file, schema
+            )
+            omnisci_server_worker._conn.create_table_from_csv(
+                "test", test_file, schema
+            )
+            omnisci_server_worker._conn.create_table_from_csv(
+                "training_meta", training_meta_file, meta_schema
+            )
+            omnisci_server_worker._conn.create_table_from_csv(
+                "test_meta", test_meta_file, meta_schema_without_target
+            )
+            etl_times["t_readcsv"] = timer() - t0
 
     # Second connection - this is ibis's ipc connection for DML
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
