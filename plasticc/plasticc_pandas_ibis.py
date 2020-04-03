@@ -187,7 +187,7 @@ def load_data_ibis(
         training_meta_file = "%s/training_set_metadata.csv" % dataset_path
         test_meta_table = "%s/test_set_metadata.csv" % dataset_path
 
-        schema_table = ibis.Schema(names=dtypes.keys(), types=dtypes.values())
+        schema = ibis.Schema(names=dtypes.keys(), types=dtypes.values())
         meta_schema = ibis.Schema(names=meta_dtypes.keys(), types=meta_dtypes.values())
 
         target = meta_dtypes.pop("target")
