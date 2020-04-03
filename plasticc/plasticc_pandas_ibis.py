@@ -377,6 +377,7 @@ def etl_all_ibis(
     print("Ibis version")
     etl_times = {key: 0.0 for key in etl_keys}
 
+    print("importing data ...")
     train, train_meta, test, test_meta, etl_times["t_readcsv"] = load_data_ibis(
         dataset_path=dataset_path,
         database_name=database_name,
@@ -392,7 +393,9 @@ def etl_all_ibis(
     )
 
     # update etl_times
+    print("preprocessing train data ...")
     train_final = etl_cpu_ibis(train, train_meta, etl_times)
+    print("preprocessing test data ...")
     test_final = etl_cpu_ibis(test, test_meta, etl_times)
 
     return train_final, test_final, etl_times
