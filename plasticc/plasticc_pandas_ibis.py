@@ -182,7 +182,7 @@ def load_data_ibis(
     if create_new_table:
         import ibis
 
-        training_file = "%s/training_set.csv" % dataset_path,
+        training_file = "%s/training_set.csv" % dataset_path
         test_file = "%s/test_set.csv" % dataset_path
         training_meta_file = "%s/training_set_metadata.csv" % dataset_path
         test_meta_table = "%s/test_set_metadata.csv" % dataset_path
