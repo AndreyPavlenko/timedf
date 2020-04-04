@@ -89,8 +89,10 @@ class OmnisciServer:
             "omnisci.conf",
             "--enable-watchdog=false",
             "--allow-cpu-retry",
-            #TODO: put this under external option
+            #TODO: put these enable flags under external option
             "--enable-columnar-output=true", # this flag speeds up ipc connection
+            #"--enable-multifrag-rs=true", # uncomment only if omnisci on develop branch
+            #"--enable-lazy-fetch=false", # uncomment only if omnisci on develop branch
             "--max-session-duration",
             str(self._max_session_duration),
             "--idle-session-duration",

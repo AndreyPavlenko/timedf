@@ -195,19 +195,26 @@ def load_data_ibis(
         meta_schema_without_target = ibis.Schema(names=meta_dtypes.keys(), types=meta_dtypes.values())
         meta_dtypes["target"] = target
 
+        #TODO we should specify this through external command line option
+        fragment_size=32000000
+
         if import_mode == "copy-from":
             # create tables
             omnisci_server_worker.create_table(
-                table_name="training", schema=schema, database=database_name
+                table_name="training", schema=schema, database=database_name,
+                fragment_size=fragment_size
             )
             omnisci_server_worker.create_table(
-                table_name="test", schema=schema, database=database_name
+                table_name="test", schema=schema, database=database_name,
+                fragment_size=fragment_size
             )
             omnisci_server_worker.create_table(
-                table_name="training_meta", schema=meta_schema, database=database_name
+                table_name="training_meta", schema=meta_schema, database=database_name,
+                fragment_size=fragment_size
             )
             omnisci_server_worker.create_table(
-                table_name="test_meta", schema=meta_schema_without_target, database=database_name
+                table_name="test_meta", schema=meta_schema_without_target, database=database_name,
+                fragment_size=fragment_size
             )
 
             # get tables
