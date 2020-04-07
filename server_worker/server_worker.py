@@ -198,11 +198,14 @@ class OmnisciServerWorker:
         compression_type="gzip",
         skiprows=None,
         validation=None,
+        use_types_for_pd=True,
     ):
         "Import CSV files using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
-        if columns_types:
-            columns_types_pd = convert_type_ibis2pandas(columns_types)
+        columns_types_pd = None
+        if use_types_for_pd:
+            if columns_types:
+                columns_types_pd = convert_type_ibis2pandas(columns_types)
         t0 = time.time()
         if files_limit > 1 or (files_limit is 1 and len(data_files_names) is not 1):
             pandas_df_from_each_file = (

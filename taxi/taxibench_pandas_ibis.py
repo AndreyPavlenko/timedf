@@ -313,7 +313,7 @@ def etl_ibis(
 
             for file_to_import in data_files_names[:files_limit]:
                 t0 = timer()
-                table_import.read_csv(filename, header=True, quotechar="", delimiter=",")
+                table_import.read_csv(file_to_import, header=False, quotechar="", delimiter=",")
                 etl_times["t_readcsv"] += round((timer() - t0) * 1000)
 
         elif import_mode == "pandas":
@@ -328,28 +328,12 @@ def etl_ibis(
                 nrows=None,
                 compression_type="gzip" if filename.endswith("gz") else None,
                 validation=validation,
+                use_types_for_pd=False,
             )
 
             etl_times["t_readcsv"] = round((t_import_pandas + t_import_ibis) * 1000)
 
-            # t0 = timer()
-            # df_from_each_file = [
-            # load_data_pandas(
-            #     filename=f,
-            #     columns_names=columns_names,
-            #     header=0,
-            #     nrows=None,
-            #     use_gzip=f.endswith(".gz"),
-            #     parse_dates=["pickup_datetime", "dropoff_datetime",],
-            #     pd=run_benchmark.__globals__["pd"],
-            # )
-            # for f in filename
-            # ]
-            # concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
-
-            #etl_times["t_readcsv"] = round((timer() - t0) * 1000)
-
-        elif import_mode == "fsi":
+        elif import_mode == "fsi": # Currently work for single file
             unzip_name = None
             if data_files_names[0].endswith("gz"):
                 import gzip
@@ -368,37 +352,12 @@ def etl_ibis(
                             etl_times["t_readcsv"] += round((timer() - t0) * 1000)
 
                 finally:
-                    if filename.endswith("gz"):
+                    if file_to_import.endswith("gz"):
                         import os
                         os.remove(unzip_name)
 
-            omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
-            table = omnisci_server_worker.database(database_name).table(table_name)
-            #print("\n\n\ntable['trip_id'].execute().info() \n", table['trip_id'].execute()['trip_id'].info())
-
-
     # Second connection - this is ibis's ipc connection for DML
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
-    table = omnisci_server_worker.database(database_name).table(table_name)
-
-    print("table['trip_id', 'vendor_id'].execute()", table['trip_id', 'vendor_id'].execute())
-    print("table['trip_id', 'vendor_id'].execute().info()", table['trip_id', 'vendor_id'].execute().info())
-
-    # if create_new_table:
-    #     # TODO t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis
-    #     t0 = timer()
-    #     omnisci_server_worker.import_data(
-    #         table_name=table_name,
-    #         data_files_names=data_files_names,
-    #         files_limit=files_limit,
-    #         columns_names=columns_names,
-    #         columns_types=columns_types,
-    #         header=False,
-    #     )
-    #     etl_times["t_readcsv"] = timer() - t0
-    #     # etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
-
-    omnisci_server_worker.connect_to_server(database=database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
 
     df_pandas = None
@@ -635,60 +594,6 @@ def run_benchmark(parameters):
         "category",
         "category",
         "category",
-        "float64",
-    ]
-
-    columns_types_old = [
-        "int64",
-        "int64",
-        "timestamp",
-        "timestamp",
-        "string",
-        "int64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "int64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "int64",
-        "float64",
-        "string",
-        "string",
-        "string",
-        "float64",
-        "int64",
-        "float64",
-        "int64",
-        "int64",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "string",
-        "float64",
-        "float64",
-        "string",
-        "string",
-        "string",
-        "float64",
-        "float64",
-        "float64",
-        "float64",
-        "string",
-        "float64",
-        "float64",
-        "string",
-        "string",
-        "string",
         "float64",
     ]
 

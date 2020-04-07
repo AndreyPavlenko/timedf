@@ -154,8 +154,9 @@ def main():
     )
     omnisci.add_argument(
         "-ipc_conn",
+        "--ipc_connection",
         dest="ipc_connection",
-        default=True,
+        default=False,
         type=str_arg_to_bool,
         help="Table name name to use in omniscidb server.",
     )
@@ -467,7 +468,7 @@ def main():
                     pure_arg = re.sub(r"^--*", "", arg_name)
                     if pure_arg in possible_benchmark_args:
                         arg_value = args_dict[pure_arg]
-                        if arg_value:
+                        if arg_value is not None:
                             benchmark_cmd.extend([arg_name, str(arg_value)])
                 except KeyError:
                     pass

@@ -211,6 +211,7 @@ def main():
     )
     optional.add_argument(
         "-ipc_conn",
+        "--ipc_connection",
         dest="ipc_connection",
         default=True,
         type=str_arg_to_bool,
@@ -290,7 +291,8 @@ def main():
 
         etl_results = []
         ml_results = []
-        print(parameters)
+        #print(parameters)
+        print("args.ipc_connection", args.ipc_connection)
         run_id = int(round(time.time()))
         for iter_num in range(1, args.iterations + 1):
             print(f"Iteration #{iter_num}")
@@ -301,6 +303,7 @@ def main():
                 parameters["ipc_connection"] = args.ipc_connection
                 omnisci_server.launch()
 
+            print("parameters['ipc_connection'] new", parameters["ipc_connection"])
             result = run_benchmark(parameters)
 
             if not args.no_ibis:
