@@ -1,8 +1,8 @@
 import os
 import sys
-import time
 import traceback
 import warnings
+from timeit import default_timer as timer
 
 import numpy as np
 
@@ -36,14 +36,14 @@ def q1_ibis(
     table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
-    t0 = time.time()
+    t0 = timer()
     q1_output_ibis = (
         table.groupby("cab_type")
         .count()
         .sort_by("cab_type")["cab_type", "count"]
         .execute()
     )
-    t_query += time.time() - t0
+    t_query += timer() - t0
 
     if validation and not queries_validation_flags["q1"]:
         print("Validating query 1 results ...")
@@ -74,7 +74,7 @@ def q2_ibis(
     table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
-    t0 = time.time()
+    t0 = timer()
     q2_output_ibis = (
         table.groupby("passenger_count")
         .aggregate(total_amount=table.total_amount.mean())[
@@ -82,7 +82,7 @@ def q2_ibis(
         ]
         .execute()
     )
-    t_query += time.time() - t0
+    t_query += timer() - t0
 
     if validation and not queries_validation_flags["q2"]:
         print("Validating query 2 results ...")
@@ -108,7 +108,7 @@ def q3_ibis(
     table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
-    t0 = time.time()
+    t0 = timer()
     q3_output_ibis = (
         table.groupby(
             [
@@ -119,7 +119,7 @@ def q3_ibis(
         .aggregate(count=table.passenger_count.count())
         .execute()
     )
-    t_query += time.time() - t0
+    t_query += timer() - t0
 
     if validation and not queries_validation_flags["q3"]:
         print("Validating query 3 results ...")
@@ -165,7 +165,7 @@ def q4_ibis(
     table, df_pandas, queries_validation_results, queries_validation_flags, validation
 ):
     t_query = 0
-    t0 = time.time()
+    t0 = timer()
     q4_ibis_sized = table.groupby(
         [
             table.passenger_count,
@@ -176,7 +176,7 @@ def q4_ibis(
     q4_output_ibis = q4_ibis_sized.sort_by(
         [("pickup_datetime", True), ("count", False)]
     ).execute()
-    t_query += time.time() - t0
+    t_query += timer() - t0
 
     if validation and not queries_validation_flags["q4"]:
         print("Validating query 4 results ...")
@@ -272,7 +272,9 @@ def etl_ibis(
     create_new_table,
     ipc_connection,
     validation,
+    import_mode,
 ):
+    import ibis
 
     queries = {
         "Query1": q1_ibis,
@@ -298,18 +300,103 @@ def etl_ibis(
     )
 
     if create_new_table:
-        # TODO t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis
-        t0 = time.time()
-        omnisci_server_worker.import_data(
-            table_name=table_name,
-            data_files_names=data_files_names,
-            files_limit=files_limit,
-            columns_names=columns_names,
-            columns_types=columns_types,
-            header=False,
-        )
-        etl_times["t_readcsv"] = time.time() - t0
-        # etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
+        etl_times["t_readcsv"] = 0
+        schema_table = ibis.Schema(names=columns_names, types=columns_types)
+        if import_mode == "copy-from":
+            # Create table and import data for ETL queries
+            omnisci_server_worker.create_table(
+                table_name=table_name,
+                schema=schema_table,
+                database=database_name,
+            )
+            table_import = omnisci_server_worker.database(database_name).table(table_name)
+
+            for file_to_import in data_files_names[:files_limit]:
+                t0 = timer()
+                table_import.read_csv(filename, header=True, quotechar="", delimiter=",")
+                etl_times["t_readcsv"] += round((timer() - t0) * 1000)
+
+        elif import_mode == "pandas":
+            # Datafiles import
+            t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
+                table_name=table_name,
+                data_files_names=data_files_names,
+                files_limit=files_limit,
+                columns_names=columns_names,
+                columns_types=columns_types,
+                header=0,
+                nrows=None,
+                compression_type="gzip" if filename.endswith("gz") else None,
+                validation=validation,
+            )
+
+            etl_times["t_readcsv"] = round((t_import_pandas + t_import_ibis) * 1000)
+
+            # t0 = timer()
+            # df_from_each_file = [
+            # load_data_pandas(
+            #     filename=f,
+            #     columns_names=columns_names,
+            #     header=0,
+            #     nrows=None,
+            #     use_gzip=f.endswith(".gz"),
+            #     parse_dates=["pickup_datetime", "dropoff_datetime",],
+            #     pd=run_benchmark.__globals__["pd"],
+            # )
+            # for f in filename
+            # ]
+            # concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
+
+            #etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+
+        elif import_mode == "fsi":
+            unzip_name = None
+            if data_files_names[0].endswith("gz"):
+                import gzip
+                unzip_name = '/tmp/taxibench-fsi.csv'
+
+            for file_to_import in data_files_names[:files_limit]:
+                try:
+                    with gzip.open(file_to_import, "rb") as gz_input:
+                        with open(unzip_name, 'wb') as output:
+                            output.write(gz_input.read())
+
+                            t0 = timer()
+                            omnisci_server_worker._conn.create_table_from_csv(
+                                table_name, unzip_name or file_to_import, schema_table
+                            )
+                            etl_times["t_readcsv"] += round((timer() - t0) * 1000)
+
+                finally:
+                    if filename.endswith("gz"):
+                        import os
+                        os.remove(unzip_name)
+
+            omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
+            table = omnisci_server_worker.database(database_name).table(table_name)
+            #print("\n\n\ntable['trip_id'].execute().info() \n", table['trip_id'].execute()['trip_id'].info())
+
+
+    # Second connection - this is ibis's ipc connection for DML
+    omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
+    table = omnisci_server_worker.database(database_name).table(table_name)
+
+    print("table['trip_id', 'vendor_id'].execute()", table['trip_id', 'vendor_id'].execute())
+    print("table['trip_id', 'vendor_id'].execute().info()", table['trip_id', 'vendor_id'].execute().info())
+
+    # if create_new_table:
+    #     # TODO t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis
+    #     t0 = timer()
+    #     omnisci_server_worker.import_data(
+    #         table_name=table_name,
+    #         data_files_names=data_files_names,
+    #         files_limit=files_limit,
+    #         columns_names=columns_names,
+    #         columns_types=columns_types,
+    #         header=False,
+    #     )
+    #     etl_times["t_readcsv"] = timer() - t0
+    #     # etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
 
     omnisci_server_worker.connect_to_server(database=database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
@@ -338,9 +425,9 @@ def etl_ibis(
 # GROUP BY cab_type;
 # @hpat.jit fails with Invalid use of Function(<ufunc 'isnan'>) with argument(s) of type(s): (StringType), even when dtype is provided
 def q1_pandas(df):
-    t0 = time.time()
+    t0 = timer()
     df.groupby("cab_type").count()
-    return time.time() - t0
+    return timer() - t0
 
 
 # SELECT passenger_count,
@@ -348,11 +435,11 @@ def q1_pandas(df):
 # FROM trips
 # GROUP BY passenger_count;
 def q2_pandas(df):
-    t0 = time.time()
+    t0 = timer()
     df.groupby("passenger_count", as_index=False).count()[
         ["passenger_count", "total_amount"]
     ]
-    return time.time() - t0
+    return timer() - t0
 
 
 # SELECT passenger_count,
@@ -362,12 +449,12 @@ def q2_pandas(df):
 # GROUP BY passenger_count,
 #         year;
 def q3_pandas(df):
-    t0 = time.time()
+    t0 = timer()
     transformed = df.applymap(lambda x: x.year if hasattr(x, "year") else x)
     transformed.groupby(["pickup_datetime", "passenger_count"], as_index=False).count()[
         "passenger_count"
     ]
-    return time.time() - t0
+    return timer() - t0
 
 
 # SELECT passenger_count,
@@ -381,7 +468,7 @@ def q3_pandas(df):
 # ORDER BY year,
 #         trips desc;
 def q4_pandas(df):
-    t0 = time.time()
+    t0 = timer()
     transformed = df.applymap(
         lambda x: x.year
         if hasattr(x, "year")
@@ -396,7 +483,7 @@ def q4_pandas(df):
         .reset_index()
         .sort_values(by=["pickup_datetime", "trip_distance"], ascending=[True, False])
     )
-    return time.time() - t0
+    return timer() - t0
 
 
 def etl_pandas(
@@ -410,7 +497,7 @@ def etl_pandas(
     }
     etl_times = {x: 0.0 for x in queries.keys()}
 
-    t0 = time.time()
+    t0 = timer()
     df_from_each_file = [
         load_data_pandas(
             filename=f,
@@ -424,7 +511,7 @@ def etl_pandas(
         for f in filename
     ]
     concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
-    etl_times["t_readcsv"] = time.time() - t0
+    etl_times["t_readcsv"] = timer() - t0
 
     queries_parameters = {"df": concatenated_df}
     return run_queries(
@@ -498,6 +585,60 @@ def run_benchmark(parameters):
     ]
 
     columns_types = [
+        "int64",
+        "int64",
+        "timestamp",
+        "timestamp",
+        "category",
+        "int64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "int64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "int64",
+        "float64",
+        "category",
+        "category",
+        "category",
+        "float64",
+        "int64",
+        "float64",
+        "int64",
+        "int64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "category",
+        "float64",
+        "float64",
+        "category",
+        "category",
+        "category",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "category",
+        "float64",
+        "float64",
+        "category",
+        "category",
+        "category",
+        "float64",
+    ]
+
+    columns_types_old = [
         "int64",
         "int64",
         "timestamp",
@@ -576,6 +717,7 @@ def run_benchmark(parameters):
                 ipc_connection=parameters["ipc_connection"],
                 create_new_table=not parameters["dni"],
                 validation=parameters["validation"],
+                import_mode=parameters["import_mode"],
             )
 
             print_results(results=etl_times_ibis, backend="Ibis", unit='ms')
