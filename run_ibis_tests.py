@@ -146,7 +146,7 @@ def main():
         "-ipc_conn",
         "--ipc_connection",
         dest="ipc_connection",
-        default=False,
+        default=True,
         type=str_arg_to_bool,
         help="Table name name to use in omniscidb server.",
     )
