@@ -189,7 +189,6 @@ class OmnisciServerWorker:
         compression_type="gzip",
         skiprows=None,
         validation=None,
-        use_types_for_pd=True,
     ):
         "Import CSV files using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
