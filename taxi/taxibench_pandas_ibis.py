@@ -279,9 +279,7 @@ def etl_ibis(
         if import_mode == "copy-from":
             # Create table and import data for ETL queries
             omnisci_server_worker.create_table(
-                table_name=table_name,
-                schema=schema_table,
-                database=database_name,
+                table_name=table_name, schema=schema_table, database=database_name,
             )
             table_import = omnisci_server_worker.database(database_name).table(table_name)
 
@@ -306,16 +304,17 @@ def etl_ibis(
 
             etl_times["t_readcsv"] = round((t_import_pandas + t_import_ibis) * 1000)
 
-        elif import_mode == "fsi": # Currently work for single file
+        elif import_mode == "fsi":  # Currently work for single file
             unzip_name = None
             if data_files_names[0].endswith("gz"):
                 import gzip
-                unzip_name = '/tmp/taxibench-fsi.csv'
+
+                unzip_name = "/tmp/taxibench-fsi.csv"
 
             for file_to_import in data_files_names[:files_limit]:
                 try:
                     with gzip.open(file_to_import, "rb") as gz_input:
-                        with open(unzip_name, 'wb') as output:
+                        with open(unzip_name, "wb") as output:
                             output.write(gz_input.read())
 
                             t0 = timer()
@@ -327,6 +326,7 @@ def etl_ibis(
                 finally:
                     if file_to_import.endswith("gz"):
                         import os
+
                         os.remove(unzip_name)
 
     # Second connection - this is ibis's ipc connection for DML
