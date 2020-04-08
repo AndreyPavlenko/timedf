@@ -302,7 +302,6 @@ def etl_ibis(
                 nrows=None,
                 compression_type="gzip" if filename.endswith("gz") else None,
                 validation=validation,
-                use_types_for_pd=False,
             )
 
             etl_times["t_readcsv"] = round((t_import_pandas + t_import_ibis) * 1000)
