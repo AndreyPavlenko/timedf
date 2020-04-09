@@ -12,6 +12,7 @@ from utils import (
     split,
 )
 from .mortgage_ibis import etl_ibis
+from .mortgage_pandas import etl_pandas, ml
 
 warnings.filterwarnings("ignore")
 
@@ -19,27 +20,21 @@ warnings.filterwarnings("ignore")
 # Dataset link
 # https://rapidsai.github.io/demos/datasets/mortgage-data
 
+def _run_ml(x, y, mb, ml_keys, ml_score_keys, backend):
+    ml_scores, ml_times = ml(
+        x=x,
+        y=y,
+        mb=mb,
+        ml_keys=ml_keys,
+        ml_score_keys=ml_score_keys,
+    )
+    print_results(results=ml_times, backend=backend, unit='ms')
+    ml_times['Backend'] = backend
+    print_results(results=ml_scores, backend=backend)
+    ml_scores['Backend'] = backend
+    return ml_times
 
 def run_benchmark(parameters):
-    '''
-        parameters = {
-            "data_file": args.data_file,
-            "dfiles_num": args.dfiles_num,
-            "no_ml": args.no_ml,
-            "no_ibis": args.no_ibis,
-            "optimizer": args.optimizer,
-            "pandas_mode": args.pandas_mode,
-            "ray_tmpdir": args.ray_tmpdir,
-            "ray_memory": args.ray_memory,
-            "gpu_memory": args.gpu_memory,
-            "validation": False if args.no_ibis else args.validation,
-        }
-        parameters["database_name"] = args.database_name
-        parameters["table"] = args.table
-        parameters["dnd"] = args.dnd
-        parameters["dni"] = args.dni
-        parameters["import_mode"] = args.import_mode
-    '''
     parameters["data_file"] = parameters["data_file"].replace("'", "")
     ignored_parameters = {
         "gpu_memory": parameters["gpu_memory"],
@@ -54,7 +49,7 @@ def run_benchmark(parameters):
     
 
     import_pandas_into_module_namespace(
-        namespace=run_benchmark.__globals__,
+        namespace=[run_benchmark.__globals__, etl_pandas.__globals__],
         mode=parameters["pandas_mode"],
         ray_tmpdir=parameters["ray_tmpdir"],
         ray_memory=parameters["ray_memory"],
@@ -93,12 +88,14 @@ def run_benchmark(parameters):
                'float64', 'category')
     )
     etl_keys = ["t_readcsv", "t_etl"]
+    ml_keys = ["t_train_test_split", "t_ml", "t_train"]
+    ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
 
 
     result = {'ETL': [], 'ML': []}
 
     if not parameters['no_ibis']:
-        df_ibis, x_ibis, y_ibis, etl_times_ibis = etl_ibis(
+        df_ibis, x_ibis, y_ibis, mb_ibis, etl_times_ibis = etl_ibis(
             dataset_path=parameters['data_file'],
             dfiles_num=parameters['dfiles_num'],
             acq_schema=acq_schema,
@@ -115,5 +112,21 @@ def run_benchmark(parameters):
         print_results(results=etl_times_ibis, backend='Ibis', unit='ms')
         etl_times_ibis['Backend'] = 'Ibis'
         result['ETL'].append(etl_times_ibis)
+        if not parameters['no_ml']:
+            result['ML'].append(_run_ml(x_ibis, y_ibis, mb_ibis, ml_keys, ml_score_keys, 'Ibis'))
+    
+    df_pd, x_pd, y_pd, mb_pd, etl_times_pd = etl_pandas(
+        dataset_path=parameters['data_file'],
+        dfiles_num=parameters['dfiles_num'],
+        acq_schema=acq_schema,
+        perf_schema=perf_schema,
+        etl_keys=etl_keys,
+    )
+    print_results(results=etl_times_pd, backend=parameters["pandas_mode"], unit='ms')
+    etl_times_pd['Backend'] = parameters["pandas_mode"]
+    result['ETL'].append(etl_times_pd)
+
+    if not parameters['no_ml']:
+        result['ML'].append(_run_ml(x_pd, y_pd, mb_pd, ml_keys, ml_score_keys, parameters["pandas_mode"]))
 
     return result

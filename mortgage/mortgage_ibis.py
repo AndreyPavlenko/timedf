@@ -4,7 +4,6 @@ import time
 from collections import OrderedDict
 from timeit import default_timer as timer
 
-import pandas as pd
 import numpy as np
 import ibis
 
@@ -97,9 +96,6 @@ def run_ibis_workflow(acq_table, perf_table):
         result = final_gdf.execute()
     return result
 
-def _split_year_quarter(num):
-    return 2000 + num // 4, num % 4 + 1
-
 def etl_ibis(
     dataset_path,
     dfiles_num,
@@ -117,7 +113,7 @@ def etl_ibis(
     etl_times = {key: 0.0 for key in etl_keys}
 
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
-    pdBench = MortgagePandasBenchmark(dataset_path, 'xgb') # used for loading
+    mb = MortgagePandasBenchmark(dataset_path, 'xgb') # used for loading
 
     # Create table and import data
     if create_new_table:
@@ -127,15 +123,16 @@ def etl_ibis(
         elif import_mode == "pandas":
             raise NotImplementedError("Loading mortgage for ibis by Pandas not implemented yet")
         elif import_mode == "fsi":
-            year, quarter = _split_year_quarter(dfiles_num)
+            year, quarter = MortgagePandasBenchmark.split_year_quarter(dfiles_num)
             omnisci_server_worker._conn.create_table_from_csv(
                 f'{table_prefix}_acq',
-                f'{pdBench.acq_data_path}/Acquisition_{year}Q{quarter}.txt',
+                f'{mb.acq_data_path}/Acquisition_{year}Q{quarter}.txt',
                 acq_schema, database_name, delimiter=',', header='true', fragment_size=2000000
             )
+            # FIXME: handle cases when quarter perf is split in two files
             omnisci_server_worker._conn.create_table_from_csv(
                 f'{table_prefix}_perf', 
-                f'{pdBench.perf_data_path}/Performance_{year}Q{quarter}.txt',
+                f'{mb.perf_data_path}/Performance_{year}Q{quarter}.txt',
                 perf_schema, database_name, delimiter=',', header=True, fragment_size=2000000
             )
         etl_times["t_readcsv"] = round((timer() - t0) * 1000)
@@ -153,4 +150,4 @@ def etl_ibis(
 
     etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
 
-    return ibis_df, x, y, etl_times
+    return ibis_df, x, y, mb, etl_times
