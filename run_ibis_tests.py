@@ -94,7 +94,7 @@ def main():
         "-executable", dest="executable", required=True, help="Path to omnisci_server executable.",
     )
     omnisci.add_argument(
-        "--omnisci_cwd",
+        "-omnisci_cwd",
         dest="omnisci_cwd",
         help="Path to omnisci working directory. "
         "By default parent directory of executable location is used. "
