@@ -31,6 +31,7 @@ class OmnisciServer:
         columnar_output=True,
         lazy_fetch=None,
         multifrag_rs=None,
+        omnisci_run_kwargs={},
     ):
         if not os.path.isdir(omnisci_executable) and not os.access(omnisci_executable, os.X_OK):
             raise ValueError("Invalid omnisci executable given: " + omnisci_executable)
@@ -101,6 +102,9 @@ class OmnisciServer:
             self._server_start_cmdline.append(
                 "--enable-multifrag-rs=%s" % ("true" if multifrag_rs else "false")
             )
+
+        for key, value in omnisci_run_kwargs.items():
+            self._server_start_cmdline.append(f"--{key}={value}")
 
     def launch(self):
         "Launch OmniSciDB server"

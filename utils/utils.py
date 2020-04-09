@@ -256,3 +256,12 @@ def split(X, y, test_size=0.1, random_state=None):
 
 def timer_ms():
     return round(timer() * 1000)
+
+
+class KeyValueListParser(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        kwargs = {}
+        for kv in values.split(","):
+            k, v = kv.split("=")
+            kwargs[k] = v
+        setattr(namespace, self.dest, kwargs)
