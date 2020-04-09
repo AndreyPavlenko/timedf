@@ -42,10 +42,11 @@ def run_benchmark(parameters):
     warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
     if parameters['validation']:
         print('WARNING: Validation not yet supported')
-    if parameters['import_mode'] not in ('fsi', 'pandas'):
-        raise ValueError('Unsupported import mode: %s' % parameters['import_mode'])
-    if parameters['dfiles_num'] != 1:
-        raise NotImplementedError('Loading more than 1 file not implemented yet')
+    if not parameters['no_ibis']:
+        if parameters['import_mode'] not in ('fsi',):
+            raise ValueError('Unsupported import mode: %s' % parameters['import_mode'])
+        if parameters['dfiles_num'] != 1:
+            raise NotImplementedError('Loading more than 1 file not implemented yet')
     
 
     import_pandas_into_module_namespace(
