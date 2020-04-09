@@ -203,7 +203,7 @@ def create_joined_df(perf_table):
 
 def create_12_mon_features(joined_df):
     delinq_df = None
-    n_months = 1 # should be 12 but we don't have UNION yet :(
+    n_months = 12 # should be 12 but we don't have UNION yet :(
     for y in range(1, n_months + 1):
         year_dec = ibis.case().when(joined_df['timestamp_month'] < ibis.literal(y), 1).else_(0).end()
         tmp_df = joined_df['loan_id', 'delinquency_12', 'upb_12',
@@ -346,6 +346,8 @@ def run_ibis_workflow(acq_table, perf_table):
 
     with Timer('ibis compilation'):
         tmp = final_gdf.compile()
+        #print(tmp)
+        tmp = final_gdf.materialize()
 
     with Timer('execute queries'):
         result = final_gdf.execute()
@@ -521,13 +523,13 @@ def main():
             #    acq_table, perf_table = import_data(con, db, acq_table, perf_table, year=year, quarter=(quarter % 4 + 1), perf_file=str(f))
             else:
                 with Timer('load acquisition'):
-                    socketCon.create_table_from_csv('tmp_acq', '%s/Acquisition_%sQ%s.txt' % (acq_data_path, year, quarter % 4 + 1), ACQ_SCHEMA, DB_NAME)#, fragment_size=None)
+                    socketCon.create_table_from_csv('tmp_acq', '%s/Acquisition_%sQ%s.txt' % (acq_data_path, year, quarter % 4 + 1), ACQ_SCHEMA, DB_NAME, delimiter=',', header='true', fragment_size=2000000)
                 #    acq_table = socketCon.table('tmp_acq')
                 #with Timer('transform acquisition'):
                 #    socketCon.create_table('acq', acq_table, database=DB_NAME)
                 #    socketCon.drop_table('tmp_acq')
                 with Timer('load performance'):
-                    socketCon.create_table_from_csv('tmp_perf', f, PERF_SCHEMA, DB_NAME)#, fragment_size=100000)
+                    socketCon.create_table_from_csv('tmp_perf', f, PERF_SCHEMA, DB_NAME, delimiter=',', header=True, fragment_size=2000000)
                 #    perf_table = socketCon.table('tmp_perf')
                 #with Timer('transform performance'):
                 #    socketCon.create_table('perf', perf_table, database=DB_NAME)
@@ -540,9 +542,9 @@ def main():
             pd_dfs.append(
                 run_ibis_workflow(acq_table, perf_table)
             )
-            if not usePandas:
-                socketCon.drop_table('tmp_acq')
-                socketCon.drop_table('tmp_perf')
+            #if not usePandas:
+            #    socketCon.drop_table('tmp_acq')
+            #    socketCon.drop_table('tmp_perf')
             # print('finish f = ', f)
 
     time_ETL_end = time.time()
@@ -551,6 +553,7 @@ def main():
 
     ##########################################################################
     print('pd_dfs.len = ', len(pd_dfs))
+    #return
 
     #pd_df = pd_dfs[0]
 
