@@ -441,12 +441,12 @@ def ml(df, n_runs, mb, ml_keys, ml_score_keys):
     print("ML runs: ", n_runs)
     for i in range(n_runs):
         mb.train_xgb(df)
-        ml_times['t_train_test_split'] += mb.t_dmatrix
+        ml_times['t_dmatrix'] += mb.t_dmatrix
         ml_times['t_train'] += mb.t_train
         mse_values.append(mb.score_mse)
         cod_values.append(mb.score_cod)
 
-    ml_times["t_ml"] += ml_times["t_train"] + ml_times["t_inference"]
+    ml_times["t_ml"] += ml_times["t_train"] + ml_times["t_dmatrix"]
 
     ml_scores["mse_mean"] = sum(mse_values) / len(mse_values)
     ml_scores["cod_mean"] = sum(cod_values) / len(cod_values)
