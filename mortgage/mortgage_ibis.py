@@ -144,10 +144,6 @@ def etl_ibis(
 
     t_etl_start = timer()
     ibis_df = run_ibis_workflow(acq_table, perf_table)
-    with Timer('splitting columns by Pandas for ML'):
-            y = ibis_df['delinquency_12']
-            x = ibis_df.drop(['delinquency_12'], axis=1)
-
     etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
 
-    return ibis_df, x, y, mb, etl_times
+    return ibis_df, mb, etl_times

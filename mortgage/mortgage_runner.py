@@ -20,10 +20,10 @@ warnings.filterwarnings("ignore")
 # Dataset link
 # https://rapidsai.github.io/demos/datasets/mortgage-data
 
-def _run_ml(x, y, mb, ml_keys, ml_score_keys, backend):
+def _run_ml(df, n_runs, mb, ml_keys, ml_score_keys, backend):
     ml_scores, ml_times = ml(
-        x=x,
-        y=y,
+        df=df,
+        n_runs=n_runs,
         mb=mb,
         ml_keys=ml_keys,
         ml_score_keys=ml_score_keys,
@@ -88,15 +88,16 @@ def run_benchmark(parameters):
                'float64', 'float64', 'category',
                'float64', 'category')
     )
+
     etl_keys = ["t_readcsv", "t_etl"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train"]
     ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
-
+    N_RUNS = 1
 
     result = {'ETL': [], 'ML': []}
 
     if not parameters['no_ibis']:
-        df_ibis, x_ibis, y_ibis, mb_ibis, etl_times_ibis = etl_ibis(
+        df_ibis, mb_ibis, etl_times_ibis = etl_ibis(
             dataset_path=parameters['data_file'],
             dfiles_num=parameters['dfiles_num'],
             acq_schema=acq_schema,
@@ -114,7 +115,7 @@ def run_benchmark(parameters):
         etl_times_ibis['Backend'] = 'Ibis'
         result['ETL'].append(etl_times_ibis)
         if not parameters['no_ml']:
-            result['ML'].append(_run_ml(x_ibis, y_ibis, mb_ibis, ml_keys, ml_score_keys, 'Ibis'))
+            result['ML'].append(_run_ml(df_ibis, N_RUNS, mb_ibis, ml_keys, ml_score_keys, 'Ibis'))
     
     df_pd, x_pd, y_pd, mb_pd, etl_times_pd = etl_pandas(
         dataset_path=parameters['data_file'],
@@ -128,6 +129,6 @@ def run_benchmark(parameters):
     result['ETL'].append(etl_times_pd)
 
     if not parameters['no_ml']:
-        result['ML'].append(_run_ml(x_pd, y_pd, mb_pd, ml_keys, ml_score_keys, parameters["pandas_mode"]))
+        result['ML'].append(_run_ml(df_pd, N_RUNS, mb_pd, ml_keys, ml_score_keys, parameters["pandas_mode"]))
 
     return result

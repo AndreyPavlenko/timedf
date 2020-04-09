@@ -322,7 +322,7 @@ class MortgagePandasBenchmark:
 
         return df
 
-    def train_daal(self, x, y):
+    def train_daal(self, pd_df):
         import daal4py
 
         dxgb_daal_params = {
@@ -341,8 +341,8 @@ class MortgagePandasBenchmark:
         }
 
         t0 = timer()
-        y = np.ascontiguousarray(y, dtype=np.float32).reshape(len(pd_df), 1)
-        x = np.ascontiguousarray(x, dtype=np.float32)
+        y = np.ascontiguousarray(pd_df["delinquency_12"], dtype=np.float32).reshape(len(pd_df), 1)
+        x = np.ascontiguousarray(pd_df.drop(["delinquency_12"], axis=1), dtype=np.float32)
         t1 = timer()
         self.t_dmatrix = t1 - t0
         # print("Convert x,y from 64 to 32:", t1-t0)
@@ -354,7 +354,7 @@ class MortgagePandasBenchmark:
         # print("TRAINING TIME:", timer()-t0)
         return train_result
 
-    def train_xgb(self, x, y):
+    def train_xgb(self, pd_df):
         import xgboost as xgb
 
         dxgb_cpu_params = {
@@ -374,6 +374,8 @@ class MortgagePandasBenchmark:
         }
 
         t1 = timer()
+        y = pd_df["delinquency_12"]
+        x = pd_df.drop(["delinquency_12"], axis=1)
         dtrain = xgb.DMatrix(x, y)
         self.t_dmatrix = timer() - t1
 
@@ -388,14 +390,6 @@ class MortgagePandasBenchmark:
         self.score_cod = self.cod(y, y_pred)
 
         return model_xgb
-
-    def split_cols(self, pd_df):
-        t0 = timer()
-        y = pd_df["delinquency_12"]
-        x = pd_df.drop(["delinquency_12"], axis=1)
-        t1 = timer()
-        self.t_drop_cols += t1 - t0
-        return x, y
 
     @staticmethod
     def mse(y_test, y_pred):
@@ -437,16 +431,16 @@ def etl_pandas(
     x, y = mb.split_cols(pd_df)
     etl_times["t_etl"] = round((mb.t_one_hot_encoding + mb.t_fillna + mb.t_drop_cols + mb.t_merge + mb.t_conv_dates) * 1000)
 
-    return pd_df, x, y, mb, etl_times
+    return pd_df, mb, etl_times
 
-def ml(x, y, mb, ml_keys, ml_score_keys):
+def ml(df, n_runs, mb, ml_keys, ml_score_keys):
     mse_values, cod_values = [], []
     ml_times = {key: 0.0 for key in ml_keys}
     ml_scores = {key: 0.0 for key in ml_score_keys}
 
     print("ML runs: ", n_runs)
     for i in range(n_runs):
-        mb.train_xgb(x, y)
+        mb.train_xgb(df)
         ml_times['t_train_test_split'] += mb.t_dmatrix
         ml_times['t_train'] += mb.t_train
         mse_values.append(mb.score_mse)
