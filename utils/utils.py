@@ -205,8 +205,8 @@ def print_times(times, backend=None):
 def print_results(results, backend=None, unit=""):
     conversions = {
         "ms": 1,
-        "s": 1/1000,
-        "m": 1/(1000*60),
+        "s": 1 / 1000,
+        "m": 1 / (1000 * 60),
     }
     multiplier = conversions[unit] if unit in conversions.keys() else 1
     if backend:
