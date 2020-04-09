@@ -365,8 +365,7 @@ def run_benchmark(parameters):
                 import_mode=parameters["import_mode"],
             )
 
-            etl_times_ibis_secs = {key: value / 1000 for key, value in etl_times_ibis.items()}
-            print_results(results=etl_times_ibis_secs, backend="Ibis", unit="s")
+            print_results(results=etl_times_ibis, backend="Ibis", unit="s")
             etl_times_ibis["Backend"] = "Ibis"
 
         ml_data, etl_times = etl_pandas(
@@ -375,16 +374,14 @@ def run_benchmark(parameters):
             columns_types=columns_types_pd,
             etl_keys=etl_keys,
         )
-        etl_times_secs = {key: value / 1000 for key, value in etl_times.items()}
-        print_results(results=etl_times_secs, backend=parameters["pandas_mode"], unit="s")
+        print_results(results=etl_times, backend=parameters["pandas_mode"], unit="s")
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
             ml_scores, ml_times = ml(
                 ml_data=ml_data, target="target", ml_keys=ml_keys, ml_score_keys=ml_score_keys,
             )
-            ml_times_secs = {key: value / 1000 for key, value in ml_times.items()}
-            print_results(results=ml_times_secs, backend=parameters["pandas_mode"], unit="s")
+            print_results(results=ml_times, backend=parameters["pandas_mode"], unit="s")
             ml_times["Backend"] = parameters["pandas_mode"]
             print_results(results=ml_scores, backend=parameters["pandas_mode"])
             ml_scores["Backend"] = parameters["pandas_mode"]
@@ -396,8 +393,7 @@ def run_benchmark(parameters):
                     ml_keys=ml_keys,
                     ml_score_keys=ml_score_keys,
                 )
-                ml_times_ibis_secs = {key: value / 1000 for key, value in ml_times_ibis.items()}
-                print_results(results=ml_times_ibis_secs, backend="Ibis", unit="s")
+                print_results(results=ml_times_ibis, backend="Ibis", unit="s")
                 ml_times_ibis["Backend"] = "Ibis"
                 print_results(results=ml_scores_ibis, backend="Ibis")
                 ml_scores_ibis["Backend"] = "Ibis"
