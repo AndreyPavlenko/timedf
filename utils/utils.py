@@ -51,7 +51,10 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
 
 def convert_type_ibis2pandas(types):
     types = ["string_" if (x == "string") else x for x in types]
+    # Pandas object type is default import type for timestamp data
     types = ["object" if (x == "timestamp") else x for x in types]
+    # Ibis category type corresponds to TEXT ENCODING DICT omnisci type,
+    # so Pandas object type is most suitable replacement
     types = ["object" if (x == "category") else x for x in types]
     return types
 

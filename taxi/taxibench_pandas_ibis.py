@@ -308,25 +308,25 @@ def etl_ibis(
             unzip_name = None
             if data_files_names[0].endswith("gz"):
                 import gzip
+                import os
 
                 unzip_name = "/tmp/taxibench-fsi.csv"
 
             for file_to_import in data_files_names[:files_limit]:
                 try:
-                    with gzip.open(file_to_import, "rb") as gz_input:
-                        with open(unzip_name, "wb") as output:
-                            output.write(gz_input.read())
+                    if file_to_import.endswith("gz"):
+                        with gzip.open(file_to_import, "rb") as gz_input:
+                            with open(unzip_name, "wb") as output:
+                                output.write(gz_input.read())
 
-                            t0 = timer()
-                            omnisci_server_worker._conn.create_table_from_csv(
-                                table_name, unzip_name or file_to_import, schema_table
-                            )
-                            etl_times["t_readcsv"] += round((timer() - t0) * 1000)
+                    t0 = timer()
+                    omnisci_server_worker._conn.create_table_from_csv(
+                        table_name, unzip_name or file_to_import, schema_table
+                    )
+                    etl_times["t_readcsv"] += round((timer() - t0) * 1000)
 
                 finally:
                     if file_to_import.endswith("gz"):
-                        import os
-
                         os.remove(unzip_name)
 
     # Second connection - this is ibis's ipc connection for DML
