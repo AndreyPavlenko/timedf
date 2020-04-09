@@ -99,7 +99,7 @@ class MortgagePandasBenchmark:
         }
         dates_only = [col for (col, valtype) in dtypes.items() if valtype.name == 'datetime64[ns]']
         t0 = timer()
-        df = pd.read_csv(fname, dtype=all_but_dates, parse_dates=dates_only, **kw)
+        df = pd.read_csv(fname, dtype=all_but_dates, parse_dates=dates_only, skiprows=1, delimiter=',', **kw)
         t1 = timer()
         self.t_read_csv += t1 - t0
         return df
@@ -108,14 +108,14 @@ class MortgagePandasBenchmark:
         cols = [name for (name, dtype) in perf_fields]
         dtypes = OrderedDict(perf_fields)
         print(performance_path)
-        return self._parse_dtyped_csv(performance_path, dtypes, names=cols, delimiter="|")
+        return self._parse_dtyped_csv(performance_path, dtypes, names=cols)
 
     def cpu_load_acquisition_csv(self, acquisition_path, acq_fields, **kwargs):
         cols = [name for (name, dtype) in acq_fields]
         dtypes = OrderedDict(acq_fields)
         print(acquisition_path)
         return self._parse_dtyped_csv(
-            acquisition_path, dtypes, names=cols, delimiter="|", index_col=False
+            acquisition_path, dtypes, names=cols, index_col=False
         )
 
     def pd_load_names(self, **kwargs):
