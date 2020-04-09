@@ -404,7 +404,8 @@ class MortgagePandasBenchmark:
 
     @staticmethod
     def split_year_quarter(num):
-        return 2000 + num // 4, num % 4 + 1
+        # num starts with 1 for 2000Q1
+        return 2000 + num // 4, num % 4
 
 def etl_pandas(
     dataset_path,
@@ -428,7 +429,6 @@ def etl_pandas(
     print("  t_drop_cols = ", mb.t_drop_cols)
     print("  t_merge = ", mb.t_merge)
     print("  t_conv_dates = ", mb.t_conv_dates)
-    x, y = mb.split_cols(pd_df)
     etl_times["t_etl"] = round((mb.t_one_hot_encoding + mb.t_fillna + mb.t_drop_cols + mb.t_merge + mb.t_conv_dates) * 1000)
 
     return pd_df, mb, etl_times
