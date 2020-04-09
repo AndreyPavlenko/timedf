@@ -117,7 +117,7 @@ def run_benchmark(parameters):
         if not parameters['no_ml']:
             result['ML'].append(_run_ml(df_ibis, N_RUNS, mb_ibis, ml_keys, ml_score_keys, 'Ibis'))
     
-    df_pd, x_pd, y_pd, mb_pd, etl_times_pd = etl_pandas(
+    df_pd, mb_pd, etl_times_pd = etl_pandas(
         dataset_path=parameters['data_file'],
         dfiles_num=parameters['dfiles_num'],
         acq_schema=acq_schema,
