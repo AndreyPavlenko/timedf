@@ -443,7 +443,7 @@ class MortgagePandasBenchmark:
 
         return df
 
-    def train_daal(pd_df):
+    def train_daal(self, pd_df):
         import daal4py
 
         dxgb_daal_params = {
@@ -475,7 +475,7 @@ class MortgagePandasBenchmark:
         # print("TRAINING TIME:", default_timer()-t0)
         return train_result
 
-    def train_xgb(pd_df):
+    def train_xgb(self, pd_df):
         import xgboost as xgb
 
         dxgb_cpu_params = {
@@ -515,9 +515,11 @@ class MortgagePandasBenchmark:
 
         return model_xgb
 
+    @staticmethod
     def mse(y_test, y_pred):
         return ((y_test - y_pred) ** 2).mean()
 
+    @staticmethod
     def cod(y_test, y_pred):
         y_bar = y_test.mean()
         total = ((y_test - y_bar) ** 2).sum()
