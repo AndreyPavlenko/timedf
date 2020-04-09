@@ -16,7 +16,7 @@ def main():
     port_default_value = -1
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
-    required = parser._action_groups.pop()
+    required = parser.add_argument_group("common")
     optional = parser.add_argument_group("optional arguments")
     omnisci = parser.add_argument_group("omnisci")
     benchmark = parser.add_argument_group("benchmark")
@@ -24,7 +24,7 @@ def main():
     commits = parser.add_argument_group("commits")
 
     possible_tasks = ["build", "test", "benchmark"]
-    benchmarks = ["ny_taxi", "santander", "census", "plasticc"]
+    benchmarks = ["ny_taxi", "santander", "census", "plasticc", "mortgage"]
 
     # Task
     required.add_argument(
