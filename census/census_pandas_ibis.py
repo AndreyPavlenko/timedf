@@ -436,7 +436,8 @@ def run_benchmark(parameters):
                 import_mode=parameters["import_mode"],
             )
 
-            print_results(results=etl_times_ibis, backend="Ibis", unit="ms")
+            etl_times_ibis_secs = {key: value / 1000 for key, value in etl_times_ibis.items()}
+            print_results(results=etl_times_ibis_secs, backend="Ibis", unit="s")
             etl_times_ibis["Backend"] = "Ibis"
 
             if not parameters["no_ml"]:
@@ -450,7 +451,8 @@ def run_benchmark(parameters):
                     ml_keys=ml_keys,
                     ml_score_keys=ml_score_keys,
                 )
-                print_results(results=ml_times_ibis, backend="Ibis", unit="ms")
+                ml_times_ibis_secs = {key: value / 1000 for key, value in ml_times_ibis.items()}
+                print_results(results=ml_times_ibis_secs, backend="Ibis", unit="s")
                 ml_times_ibis["Backend"] = "Ibis"
                 print_results(results=ml_scores_ibis, backend="Ibis")
                 ml_scores_ibis["Backend"] = "Ibis"
@@ -462,7 +464,8 @@ def run_benchmark(parameters):
             etl_keys=etl_keys,
         )
 
-        print_results(results=etl_times, backend=parameters["pandas_mode"], unit="ms")
+        etl_times_secs = {key: value / 1000 for key, value in etl_times.items()}
+        print_results(results=etl_times_secs, backend=parameters["pandas_mode"], unit="s")
         etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
@@ -476,7 +479,8 @@ def run_benchmark(parameters):
                 ml_keys=ml_keys,
                 ml_score_keys=ml_score_keys,
             )
-            print_results(results=ml_times, backend=parameters["pandas_mode"], unit="ms")
+            ml_times_secs = {key: value / 1000 for key, value in ml_times.items()}
+            print_results(results=ml_times_secs, backend=parameters["pandas_mode"], unit="s")
             ml_times["Backend"] = parameters["pandas_mode"]
             print_results(results=ml_scores, backend=parameters["pandas_mode"])
             ml_scores["Backend"] = parameters["pandas_mode"]
