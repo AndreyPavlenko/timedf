@@ -308,6 +308,7 @@ def main():
                 http_port=args.http_port,
                 calcite_port=args.calcite_port,
                 database_name=args.database_name,
+                omnisci_cwd=args.omnisci_cwd,
                 user=args.user,
                 password=args.password,
                 debug_timer=args.debug_timer,

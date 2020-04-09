@@ -1,6 +1,6 @@
 import warnings
 
-from ..utils import (
+from utils import (
     cod,
     compare_dataframes,
     import_pandas_into_module_namespace,
