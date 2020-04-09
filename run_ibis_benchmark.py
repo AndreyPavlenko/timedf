@@ -69,7 +69,7 @@ def main():
     optional.add_argument(
         "-import_mode",
         dest="import_mode",
-        default="copy-from",
+        default="fsi",
         help="measure 'COPY FROM' import, FSI import, import through pandas",
     )
     optional.add_argument(

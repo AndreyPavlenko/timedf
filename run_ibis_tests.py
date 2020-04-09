@@ -227,7 +227,7 @@ def main():
     benchmark.add_argument(
         "-import_mode",
         dest="import_mode",
-        default="copy-from",
+        default="fsi",
         help="you can choose: {copy-from, pandas, fsi}",
     )
     benchmark.add_argument(
