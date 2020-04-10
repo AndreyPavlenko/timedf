@@ -109,6 +109,9 @@ def etl_ibis(
 
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
 
+    # TODO: thiw will be specified through command line parameter
+    fragment_size = 1000000
+
     # Create table and import data
     if create_new_table:
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
@@ -116,6 +119,7 @@ def etl_ibis(
             # Create table and import data for ETL queries
             omnisci_server_worker.create_table(
                 table_name=table_name, schema=schema_table, database=database_name,
+                fragmnet_size=fragmnet_size
             )
             table_import = omnisci_server_worker.database(database_name).table(table_name)
 
@@ -152,7 +156,8 @@ def etl_ibis(
 
                 t0 = timer()
                 omnisci_server_worker._conn.create_table_from_csv(
-                    table_name, unzip_name or filename, schema_table
+                    table_name, unzip_name or filename, schema_table,
+                    fragment_size=fragment_size
                 )
                 etl_times["t_readcsv"] = round((timer() - t0) * 1000)
 
