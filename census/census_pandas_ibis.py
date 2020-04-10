@@ -109,7 +109,7 @@ def etl_ibis(
 
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
 
-    # TODO: thiw will be specified through command line parameter
+    # TODO: this will be specified through command line parameter
     fragment_size = 1000000
 
     # Create table and import data
