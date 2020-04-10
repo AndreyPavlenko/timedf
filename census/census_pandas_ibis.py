@@ -118,8 +118,10 @@ def etl_ibis(
         if import_mode == "copy-from":
             # Create table and import data for ETL queries
             omnisci_server_worker.create_table(
-                table_name=table_name, schema=schema_table, database=database_name,
-                fragmnet_size=fragmnet_size
+                table_name=table_name,
+                schema=schema_table,
+                database=database_name,
+                fragmnet_size=fragmnet_size,
             )
             table_import = omnisci_server_worker.database(database_name).table(table_name)
 
@@ -156,8 +158,7 @@ def etl_ibis(
 
                 t0 = timer()
                 omnisci_server_worker._conn.create_table_from_csv(
-                    table_name, unzip_name or filename, schema_table,
-                    fragment_size=fragment_size
+                    table_name, unzip_name or filename, schema_table, fragment_size=fragment_size
                 )
                 etl_times["t_readcsv"] = round((timer() - t0) * 1000)
 
@@ -488,9 +489,7 @@ def run_benchmark(parameters):
 
         if parameters["pandas_mode"] and parameters["validation"]:
             # this should work only for pandas mode
-            compare_dataframes(
-                ibis_dfs=(X_ibis, y_ibis), pandas_dfs=(X, y),
-            )
+            compare_dataframes(ibis_dfs=(X_ibis, y_ibis), pandas_dfs=(X, y))
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:
