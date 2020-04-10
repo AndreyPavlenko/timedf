@@ -208,7 +208,7 @@ def print_results(results, backend=None, unit=""):
         "s": 1 / 1000,
         "m": 1 / (1000 * 60),
     }
-    multiplier = conversions[unit] if unit in conversions.keys() else 1
+    multiplier = conversions.get(unit, 1)
     if backend:
         print(f"{backend} results:")
     for result_name, result in results.items():
