@@ -86,7 +86,10 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir=None, ray_me
         else:
             raise ValueError(f"Unknown pandas mode {mode}")
         import modin.pandas as pd
-    namespace["pd"] = pd
+    if not isinstance(namespace, (list, tuple)):
+        namespace = [namespace]
+    for space in namespace:
+        space["pd"] = pd
 
 
 def equal_dfs(ibis_dfs, pandas_dfs):
