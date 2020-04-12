@@ -491,6 +491,7 @@ def main():
                     pure_arg = re.sub(r"^--*", "", arg_name)
                     if pure_arg in possible_benchmark_args:
                         arg_value = args_dict[pure_arg]
+                        # correct filling of arguments with default values
                         if arg_value is not None:
                             if type(arg_value) != dict:
                                 benchmark_cmd.extend([arg_name, str(arg_value)])
