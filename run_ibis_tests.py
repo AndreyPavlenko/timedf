@@ -494,7 +494,7 @@ def main():
                         if arg_value is not None:
                             if type(arg_value) != dict:
                                 benchmark_cmd.extend([arg_name, str(arg_value)])
-                            else:
+                            elif arg_value:
                                 benchmark_cmd.extend(
                                     [
                                         arg_name,
