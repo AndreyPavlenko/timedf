@@ -42,14 +42,7 @@ class MortgagePandasBenchmark:
             self.t_one_hot_encoding += t1 - t0
 
             t0 = timer()
-            if str(data_type) in [
-                "int8",
-                "int16",
-                "int32",
-                "int64",
-                "float32",
-                "float64",
-            ]:
+            if str(data_type) in ["int8", "int16", "int32", "int64", "float32", "float64"]:
                 df[column] = df[column].fillna(np.dtype(data_type).type(-1))
             t1 = timer()
             self.t_fillna += t1 - t0
@@ -57,13 +50,14 @@ class MortgagePandasBenchmark:
         return df
 
     def list_perf_files(self, quarter=1, year=2000):
-        return glob.glob(f'{self.perf_data_path}/Performance_{year}Q{quarter}.txt*')
+        return glob.glob(f"{self.perf_data_path}/Performance_{year}Q{quarter}.txt*")
 
     def run_cpu_workflow(self, quarter=1, year=2000, perf_file="", **kwargs):
         names = self.pd_load_names()
         acq_gdf = self.cpu_load_acquisition_csv(
-            acquisition_path=f'{self.acq_data_path}/Acquisition_{year}Q{quarter}.txt',
-            acq_fields=self.acq_fields)
+            acquisition_path=f"{self.acq_data_path}/Acquisition_{year}Q{quarter}.txt",
+            acq_fields=self.acq_fields,
+        )
         t0 = timer()
         acq_gdf = acq_gdf.merge(names, how="left", on=["seller_name"])
         t1 = timer()
@@ -95,11 +89,13 @@ class MortgagePandasBenchmark:
 
     def _parse_dtyped_csv(self, fname, dtypes, **kw):
         all_but_dates = {
-            col: valtype for (col, valtype) in dtypes.items() if valtype.name != 'datetime64[ns]'
+            col: valtype for (col, valtype) in dtypes.items() if valtype.name != "datetime64[ns]"
         }
-        dates_only = [col for (col, valtype) in dtypes.items() if valtype.name == 'datetime64[ns]']
+        dates_only = [col for (col, valtype) in dtypes.items() if valtype.name == "datetime64[ns]"]
         t0 = timer()
-        df = pd.read_csv(fname, dtype=all_but_dates, parse_dates=dates_only, skiprows=1, delimiter=',', **kw)
+        df = pd.read_csv(
+            fname, dtype=all_but_dates, parse_dates=dates_only, skiprows=1, delimiter=",", **kw
+        )
         t1 = timer()
         self.t_read_csv += t1 - t0
         return df
@@ -114,9 +110,7 @@ class MortgagePandasBenchmark:
         cols = [name for (name, dtype) in acq_fields]
         dtypes = OrderedDict(acq_fields)
         print(acquisition_path)
-        return self._parse_dtyped_csv(
-            acquisition_path, dtypes, names=cols, index_col=False
-        )
+        return self._parse_dtyped_csv(acquisition_path, dtypes, names=cols, index_col=False)
 
     def pd_load_names(self, **kwargs):
         cols = ["seller_name", "new"]
@@ -186,7 +180,7 @@ class MortgagePandasBenchmark:
         n_months = 12
         for y in range(1, n_months + 1):
             tmpdf = joined_df.loc[
-                :, ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12",],
+                :, ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12"]
             ]
 
             t0 = timer()
@@ -407,16 +401,13 @@ class MortgagePandasBenchmark:
         # num starts with 1 for 2000Q1
         return 2000 + num // 4, num % 4
 
-def etl_pandas(
-    dataset_path,
-    dfiles_num,
-    acq_schema,
-    perf_schema,
-    etl_keys
-):
+
+def etl_pandas(dataset_path, dfiles_num, acq_schema, perf_schema, etl_keys):
     etl_times = {key: 0.0 for key in etl_keys}
 
-    mb = MortgagePandasBenchmark(dataset_path, 'xgb', acq_schema.to_pandas(), perf_schema.to_pandas())
+    mb = MortgagePandasBenchmark(
+        dataset_path, "xgb", acq_schema.to_pandas(), perf_schema.to_pandas()
+    )
     year, quarter = MortgagePandasBenchmark.split_year_quarter(dfiles_num)
     pd_dfs = []
     for fname in mb.list_perf_files(quarter=quarter, year=year):
@@ -429,9 +420,13 @@ def etl_pandas(
     print("  t_drop_cols = ", mb.t_drop_cols)
     print("  t_merge = ", mb.t_merge)
     print("  t_conv_dates = ", mb.t_conv_dates)
-    etl_times["t_etl"] = round((mb.t_one_hot_encoding + mb.t_fillna + mb.t_drop_cols + mb.t_merge + mb.t_conv_dates) * 1000)
+    etl_times["t_etl"] = round(
+        (mb.t_one_hot_encoding + mb.t_fillna + mb.t_drop_cols + mb.t_merge + mb.t_conv_dates)
+        * 1000
+    )
 
     return pd_df, mb, etl_times
+
 
 def ml(df, n_runs, mb, ml_keys, ml_score_keys):
     mse_values, cod_values = [], []
@@ -441,8 +436,8 @@ def ml(df, n_runs, mb, ml_keys, ml_score_keys):
     print("ML runs: ", n_runs)
     for i in range(n_runs):
         mb.train_xgb(df)
-        ml_times['t_dmatrix'] += mb.t_dmatrix * 1000
-        ml_times['t_train'] += mb.t_train * 1000
+        ml_times["t_dmatrix"] += mb.t_dmatrix * 1000
+        ml_times["t_train"] += mb.t_train * 1000
         mse_values.append(mb.score_mse)
         cod_values.append(mb.score_cod)
 
@@ -511,7 +506,7 @@ def main():
         help="Size of memory to allocate for Ray plasma store",
     )
     parser.add_argument(
-        "-no_ml", action="store_true", help="Do not run machine learning benchmark, only ETL part",
+        "-no_ml", action="store_true", help="Do not run machine learning benchmark, only ETL part"
     )
 
     parser.add_argument("-db-server", default="localhost", help="Host name of MySQL server")
@@ -522,10 +517,10 @@ def main():
         help="Username to use to connect to MySQL database. If user name is specified, script attempts to store results in MySQL database using other -db-* parameters.",
     )
     parser.add_argument(
-        "-db-pass", default="omniscidb", help="Password to use to connect to MySQL database",
+        "-db-pass", default="omniscidb", help="Password to use to connect to MySQL database"
     )
     parser.add_argument(
-        "-db-name", default="omniscidb", help="MySQL database to use to store benchmark results",
+        "-db-name", default="omniscidb", help="MySQL database to use to store benchmark results"
     )
     parser.add_argument("-db-table", help="Table to use to store results for this benchmark.")
 
@@ -644,9 +639,7 @@ def main():
 
     try:
         with open(args.r, "w") as report:
-            print(
-                "BENCHMARK", benchName, "EXEC TIME", bestExecTime, "TOTAL TIME", bestTotalTime,
-            )
+            print("BENCHMARK", benchName, "EXEC TIME", bestExecTime, "TOTAL TIME", bestTotalTime)
             print(
                 "datafiles,fragment_size,query,query_exec_min,query_total_min,query_exec_max,query_total_max,query_exec_avg,query_total_avg,query_error_info",
                 file=report,
