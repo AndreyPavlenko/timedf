@@ -270,12 +270,12 @@ def split(X, y, test_size=0.1, random_state=None):
 def timer_ms():
     return round(timer() * 1000)
 
-<<<<<<< HEAD
+
 def remove_fields_from_dict(dictonary, fields_to_remove):
     for key in fields_to_remove:
         if key in dictonary:
             dictonary.pop(key)
-=======
+
 
 class KeyValueListParser(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -284,4 +284,3 @@ class KeyValueListParser(argparse.Action):
             k, v = kv.split("=")
             kwargs[k] = v
         setattr(namespace, self.dest, kwargs)
->>>>>>> master

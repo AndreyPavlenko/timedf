@@ -26,7 +26,7 @@ def main():
         "plasticc": "plasticc",
         "mortgage": "mortgage",
     }
-    
+
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
 

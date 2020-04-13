@@ -377,7 +377,14 @@ def etl_all_ibis(
     etl_times = {key: 0.0 for key in etl_keys}
 
     print("importing data ...")
-    train, train_meta, test, test_meta, etl_times["t_readcsv"], etl_times["t_connect"] = load_data_ibis(
+    (
+        train,
+        train_meta,
+        test,
+        test_meta,
+        etl_times["t_readcsv"],
+        etl_times["t_connect"],
+    ) = load_data_ibis(
         dataset_path=dataset_path,
         database_name=database_name,
         omnisci_server_worker=omnisci_server_worker,
