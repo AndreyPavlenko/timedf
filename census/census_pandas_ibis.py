@@ -303,7 +303,7 @@ def run_benchmark(parameters):
     parameters["data_file"] = parameters["data_file"].replace("'", "")
 
     # ML specific
-    N_RUNS = 2
+    N_RUNS = 50
     TEST_SIZE = 0.1
     RANDOM_STATE = 777
 
