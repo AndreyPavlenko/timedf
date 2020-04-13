@@ -10,7 +10,7 @@ import mysql.connector
 from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
-from utils import find_free_port, str_arg_to_bool, remove_fields_from_dict
+from utils import find_free_port, KeyValueListParser, str_arg_to_bool, remove_fields_from_dict
 
 
 def main():
@@ -19,7 +19,14 @@ def main():
     omnisci_server = None
     port_default_value = -1
 
-    benchmarks = ["ny_taxi", "santander", "census", "plasticc"]
+    benchmarks = {
+        "ny_taxi": "taxi",
+        "santander": "santander",
+        "census": "census",
+        "plasticc": "plasticc",
+        "mortgage": "mortgage",
+    }
+    
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
 
@@ -31,7 +38,7 @@ def main():
     required.add_argument(
         "-bench_name",
         dest="bench_name",
-        choices=benchmarks,
+        choices=sorted(benchmarks.keys()),
         help="Benchmark name.",
         required=True,
     )
@@ -71,7 +78,7 @@ def main():
     optional.add_argument(
         "-import_mode",
         dest="import_mode",
-        default="copy-from",
+        default="fsi",
         help="measure 'COPY FROM' import, FSI import, import through pandas",
     )
     optional.add_argument(
@@ -241,6 +248,14 @@ def main():
         type=str_arg_to_bool,
         help="[multifrag_rs help message]",
     )
+    optional.add_argument(
+        "-omnisci_run_kwargs",
+        dest="omnisci_run_kwargs",
+        default={},
+        metavar="KEY1=VAL1,KEY2=VAL2...",
+        action=KeyValueListParser,
+        help="options to start omnisci server",
+    )
     # Additional information
     optional.add_argument(
         "-commit_omnisci",
@@ -270,14 +285,7 @@ def main():
         if args.calcite_port == port_default_value:
             args.calcite_port = find_free_port()
 
-        if args.bench_name == "ny_taxi":
-            from taxi import run_benchmark
-        elif args.bench_name == "santander":
-            from santander import run_benchmark
-        elif args.bench_name == "census":
-            from census import run_benchmark
-        elif args.bench_name == "plasticc":
-            from plasticc import run_benchmark
+        run_benchmark = __import__(benchmarks[args.bench_name]).run_benchmark
 
         parameters = {
             "data_file": args.data_file,
@@ -303,12 +311,14 @@ def main():
                 http_port=args.http_port,
                 calcite_port=args.calcite_port,
                 database_name=args.database_name,
+                omnisci_cwd=args.omnisci_cwd,
                 user=args.user,
                 password=args.password,
                 debug_timer=args.debug_timer,
                 columnar_output=args.columnar_output,
                 lazy_fetch=args.lazy_fetch,
                 multifrag_rs=args.multifrag_rs,
+                omnisci_run_kwargs=args.omnisci_run_kwargs,
             )
 
             parameters["database_name"] = args.database_name
