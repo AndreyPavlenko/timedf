@@ -76,7 +76,7 @@ def main():
 
     # Ibis
     required.add_argument(
-        "-i", "--ibis_path", dest="ibis_path", required=True, help="Path to ibis directory.",
+        "-i", "--ibis_path", dest="ibis_path", required=True, help="Path to ibis directory."
     )
 
     # Ibis tests
@@ -91,7 +91,7 @@ def main():
 
     # Omnisci server parameters
     omnisci.add_argument(
-        "-executable", dest="executable", required=True, help="Path to omnisci_server executable.",
+        "-executable", dest="executable", required=True, help="Path to omnisci_server executable."
     )
     omnisci.add_argument(
         "-omnisci_cwd",
@@ -122,7 +122,7 @@ def main():
         help="Calcite port number to run omnisci_server on.",
     )
     omnisci.add_argument(
-        "-user", dest="user", default="admin", help="User name to use on omniscidb server.",
+        "-user", dest="user", default="admin", help="User name to use on omniscidb server."
     )
     omnisci.add_argument(
         "-password",
@@ -189,10 +189,10 @@ def main():
 
     # Benchmark parameters
     benchmark.add_argument(
-        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name.",
+        "-bench_name", dest="bench_name", choices=benchmarks, help="Benchmark name."
     )
     benchmark.add_argument(
-        "-data_file", dest="data_file", help="A datafile that should be loaded.",
+        "-data_file", dest="data_file", help="A datafile that should be loaded."
     )
     benchmark.add_argument(
         "-dfiles_num",
@@ -277,10 +277,10 @@ def main():
     )
     # MySQL database parameters
     mysql.add_argument(
-        "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server.",
+        "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server."
     )
     mysql.add_argument(
-        "-db_port", dest="db_port", default=3306, type=int, help="Port number of MySQL server.",
+        "-db_port", dest="db_port", default=3306, type=int, help="Port number of MySQL server."
     )
     mysql.add_argument(
         "-db_user",
@@ -491,10 +491,11 @@ def main():
                     pure_arg = re.sub(r"^--*", "", arg_name)
                     if pure_arg in possible_benchmark_args:
                         arg_value = args_dict[pure_arg]
+                        # correct filling of arguments with default values
                         if arg_value is not None:
                             if type(arg_value) != dict:
                                 benchmark_cmd.extend([arg_name, str(arg_value)])
-                            else:
+                            elif arg_value:
                                 benchmark_cmd.extend(
                                     [
                                         arg_name,
