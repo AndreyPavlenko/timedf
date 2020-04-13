@@ -272,7 +272,7 @@ def timer_ms():
 
 
 def remove_fields_from_dict(dictonary, fields_to_remove):
-    for key in fields_to_remove:
+    for key in (fields_to_remove or ()):
         if key in dictonary:
             dictonary.pop(key)
 
