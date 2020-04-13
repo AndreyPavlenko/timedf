@@ -163,8 +163,10 @@ def etl_ibis(
                     os.remove(unzip_name)
 
     # Second connection - this is ibis's ipc connection for DML
+    t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
+    etl_times["t_connect"] = round((timer() - t0) * 1000)
 
     t_etl_start = timer()
 
@@ -301,7 +303,7 @@ def run_benchmark(parameters):
     parameters["data_file"] = parameters["data_file"].replace("'", "")
 
     # ML specific
-    N_RUNS = 50
+    N_RUNS = 2
     TEST_SIZE = 0.1
     RANDOM_STATE = 777
 
@@ -400,6 +402,7 @@ def run_benchmark(parameters):
         "float64",
     ]
     etl_keys = ["t_readcsv", "t_etl"]
+    etl_keys_ibis = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference"]
 
     ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
@@ -432,7 +435,7 @@ def run_benchmark(parameters):
                 create_new_table=not parameters["dni"],
                 ipc_connection=parameters["ipc_connection"],
                 validation=parameters["validation"],
-                etl_keys=etl_keys,
+                etl_keys=etl_keys_ibis,
                 import_mode=parameters["import_mode"],
             )
 

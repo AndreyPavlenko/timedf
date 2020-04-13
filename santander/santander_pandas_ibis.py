@@ -209,8 +209,10 @@ def etl_ibis(
                     os.remove(unzip_name)
 
     # Second connection - this is ibis's ipc connection for DML
+    t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
+    etl_times["t_connect"] = round((timer() - t0) * 1000)
 
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding
@@ -337,6 +339,7 @@ def run_benchmark(parameters):
     columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
 
     etl_keys = ["t_readcsv", "t_etl"]
+    etl_keys_ibis = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
     ml_score_keys = ["mse", "cod"]
     try:
@@ -361,7 +364,7 @@ def run_benchmark(parameters):
                 create_new_table=not parameters["dni"],
                 ipc_connection=parameters["ipc_connection"],
                 validation=parameters["validation"],
-                etl_keys=etl_keys,
+                etl_keys=etl_keys_ibis,
                 import_mode=parameters["import_mode"],
             )
 

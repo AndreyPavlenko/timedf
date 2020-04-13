@@ -262,3 +262,8 @@ def split(X, y, test_size=0.1, random_state=None):
 
 def timer_ms():
     return round(timer() * 1000)
+
+def remove_fields_from_dict(dictonary, fields_to_remove):
+    for key in fields_to_remove:
+        if key in dictonary:
+            dictonary.pop(key)

@@ -167,6 +167,7 @@ def load_data_ibis(
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
 
     t_readcsv = 0.0
+    t_connect = 0.0
 
     # Create tables and import data
     if create_new_table:
@@ -299,8 +300,10 @@ def load_data_ibis(
             t_readcsv = round((timer() - t0) * 1000)
 
     # Second connection - this is ibis's ipc connection for DML
+    t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     db = omnisci_server_worker.database(database_name)
+    t_connect = round((timer() - t0) * 1000)
 
     training_table = db.table("training")
     test_table = db.table("test")
@@ -314,6 +317,7 @@ def load_data_ibis(
         test_table,
         test_meta_table,
         t_readcsv,
+        t_connect,
     )
 
 
@@ -373,7 +377,7 @@ def etl_all_ibis(
     etl_times = {key: 0.0 for key in etl_keys}
 
     print("importing data ...")
-    train, train_meta, test, test_meta, etl_times["t_readcsv"] = load_data_ibis(
+    train, train_meta, test, test_meta, etl_times["t_readcsv"], etl_times["t_connect"] = load_data_ibis(
         dataset_path=dataset_path,
         database_name=database_name,
         omnisci_server_worker=omnisci_server_worker,
@@ -551,6 +555,7 @@ def run_benchmark(parameters):
     )
 
     etl_keys = ["t_readcsv", "t_etl"]
+    etl_keys_ibis = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_train_test_split", "t_dmatrix", "t_training", "t_infer", "t_ml"]
     try:
         import_pandas_into_module_namespace(
@@ -577,7 +582,7 @@ def run_benchmark(parameters):
                 validation=parameters["validation"],
                 dtypes=dtypes,
                 meta_dtypes=meta_dtypes,
-                etl_keys=etl_keys,
+                etl_keys=etl_keys_ibis,
                 import_mode=parameters["import_mode"],
             )
 

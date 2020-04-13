@@ -10,7 +10,7 @@ import mysql.connector
 from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
-from utils import find_free_port, str_arg_to_bool
+from utils import find_free_port, str_arg_to_bool, remove_fields_from_dict
 
 
 def main():
@@ -20,6 +20,8 @@ def main():
     port_default_value = -1
 
     benchmarks = ["ny_taxi", "santander", "census", "plasticc"]
+    ignore_fields_for_bd_report_etl = ["t_connect"]
+    ignore_fields_for_bd_report_ml = []
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -393,10 +395,14 @@ def main():
                         )
 
                 for result_etl in etl_results:
+                    if ignore_fields_for_bd_report_etl:
+                        remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
                     db_reporter_etl.submit(result_etl)
 
                 if len(ml_results) is not 0:
                     for result_ml in ml_results:
+                        if ignore_fields_for_bd_report_ml:
+                            remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
                         db_reporter_ml.submit(result_ml)
 
     except Exception:
