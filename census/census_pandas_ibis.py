@@ -117,13 +117,13 @@ def etl_ibis(
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
         if import_mode == "copy-from":
             # Create table and import data for ETL queries
+            t0 = timer()
             omnisci_server_worker.create_table(
                 table_name=table_name,
                 schema=schema_table,
                 database=database_name,
                 fragmnet_size=fragmnet_size,
             )
-            t0 = timer()
             table_import = omnisci_server_worker.database(database_name).table(table_name)
             etl_times["t_connect"] += timer() - t0
 

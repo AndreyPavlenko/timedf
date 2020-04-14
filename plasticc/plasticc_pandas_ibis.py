@@ -193,6 +193,7 @@ def load_data_ibis(
 
         if import_mode == "copy-from":
             # create tables
+            t0 = timer()
             omnisci_server_worker.create_table(
                 table_name="training",
                 schema=schema,
@@ -219,7 +220,6 @@ def load_data_ibis(
             )
 
             # get tables
-            t0 = timer()
             db = omnisci_server_worker.database(database_name)
             training_table = db.table("training")
             test_table = db.table("test")
