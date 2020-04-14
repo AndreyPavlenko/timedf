@@ -9,6 +9,12 @@ from timeit import default_timer as timer
 import hiyapyco
 
 returned_port_numbers = []
+conversions = {
+    "ms": 1000,
+    "s": 1,
+    "m": 1 / 60,
+    "": 1,
+}
 
 
 def str_arg_to_bool(v):
@@ -211,8 +217,9 @@ def print_times(times, backend=None):
 
 
 def print_results(results, backend=None, unit=""):
-    conversions = {"ms": 1, "s": 1 / 1000, "m": 1 / (1000 * 60)}
-    multiplier = conversions.get(unit, 1)
+    if unit not in conversions.keys():
+        raise ValueError("Conversion to " + unit + " is not implemented")
+    multiplier = conversions.get(unit)
     if backend:
         print(f"{backend} results:")
     for result_name, result in results.items():
@@ -270,6 +277,22 @@ def split(X, y, test_size=0.1, stratify=None, random_state=None):
 
 def timer_ms():
     return round(timer() * 1000)
+
+
+def remove_fields_from_dict(dictonary, fields_to_remove):
+    for key in fields_to_remove or ():
+        if key in dictonary:
+            dictonary.pop(key)
+
+
+def convert_results_unit(results, ignore_fields, unit="ms"):
+    if unit not in conversions.keys():
+        raise ValueError("Conversion to " + unit + " is not implemented")
+    multiplier = conversions.get(unit)
+
+    results.update(
+        {key: value * multiplier for key, value in results.items() if key not in ignore_fields}
+    )
 
 
 class KeyValueListParser(argparse.Action):

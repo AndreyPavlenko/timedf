@@ -18,6 +18,7 @@ class OmnisciServerWorker:
         self.omnisci_server = omnisci_server
         self._command_2_import_CSV = "COPY %s FROM '%s' WITH (header='%s');"
         self._conn = None
+        self._conn_creation_time = 0.0
 
     def _get_omnisci_cmd_line(
         self, database_name=None, user=None, password=None, server_port=None
@@ -98,6 +99,7 @@ class OmnisciServerWorker:
 
         if self._conn:
             self._conn.close()
+        t0 = time.time()
         self._conn = ibis.omniscidb.connect(
             host="localhost",
             port=self.omnisci_server.server_port,
@@ -106,6 +108,7 @@ class OmnisciServerWorker:
             password=self.omnisci_server.password,
             ipc=ipc,
         )
+        self._conn_creation_time = time.time() - t0
         if database:
             self.omnisci_server.database_name = database
 
@@ -349,3 +352,6 @@ class OmnisciServerWorker:
         except Exception as err:
             print("terminate is not successful")
             raise err
+
+    def get_conn_creation_time(self):
+        return self._conn_creation_time
