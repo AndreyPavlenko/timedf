@@ -413,16 +413,15 @@ def etl_pandas(dataset_path, dfiles_num, acq_schema, perf_schema, etl_keys):
     for fname in mb.list_perf_files(quarter=quarter, year=year):
         pd_dfs.append(mb.run_cpu_workflow(quarter=quarter, year=year, perf_file=fname))
     pd_df = pd_dfs[0] if len(pd_dfs) == 1 else pd.concat(pd_dfs)
-    etl_times["t_readcsv"] = round(mb.t_read_csv * 1000)
+    etl_times["t_readcsv"] = mb.t_read_csv
     print("ETL timings")
     print("  t_one_hot_encoding = ", mb.t_one_hot_encoding)
     print("  t_fillna = ", mb.t_fillna)
     print("  t_drop_cols = ", mb.t_drop_cols)
     print("  t_merge = ", mb.t_merge)
     print("  t_conv_dates = ", mb.t_conv_dates)
-    etl_times["t_etl"] = round(
-        (mb.t_one_hot_encoding + mb.t_fillna + mb.t_drop_cols + mb.t_merge + mb.t_conv_dates)
-        * 1000
+    etl_times["t_etl"] = (
+        mb.t_one_hot_encoding + mb.t_fillna + mb.t_drop_cols + mb.t_merge + mb.t_conv_dates
     )
 
     return pd_df, mb, etl_times

@@ -108,7 +108,7 @@ def etl_cpu_ibis(table, table_meta, etl_times):
 
     df = table_meta.execute()
 
-    etl_times["t_etl"] += round((timer() - t_etl_start) * 1000)
+    etl_times["t_etl"] += timer() - t_etl_start
 
     return df
 
@@ -146,7 +146,7 @@ def etl_cpu_pandas(df, df_meta, etl_times):
 
     df_meta = df_meta.merge(agg_df, on="object_id", how="left")
 
-    etl_times["t_etl"] += round((timer() - t_etl_start) * 1000)
+    etl_times["t_etl"] += timer() - t_etl_start
 
     return df_meta
 
@@ -219,11 +219,13 @@ def load_data_ibis(
             )
 
             # get tables
+            t0 = timer()
             db = omnisci_server_worker.database(database_name)
             training_table = db.table("training")
             test_table = db.table("test")
             training_meta_table = db.table("training_meta")
             test_meta_table = db.table("test_meta")
+            t_connect = timer() - t0
 
             # measuring time of reading
             t0 = timer()
@@ -233,7 +235,7 @@ def load_data_ibis(
                 training_meta_file, header=True, quotechar="", delimiter=","
             )
             test_meta_table.read_csv(test_meta_file, header=True, quotechar="", delimiter=",")
-            t_readcsv = round((timer() - t0) * 1000)
+            t_readcsv = timer() - t0
 
         elif import_mode == "pandas":
             general_options = {
@@ -285,7 +287,8 @@ def load_data_ibis(
             )
             t_import_ibis = t_import_ibis_1 + t_import_ibis_2 + t_import_ibis_3 + t_import_ibis_4
             print(f"import times: pandas - {t_import_pandas}s, ibis - {t_import_ibis}s")
-            t_readcsv = round((t_import_pandas + t_import_ibis) * 1000)
+            t_readcsv = t_import_pandas + t_import_ibis
+            t_connect += omnisci_server_worker.get_conn_creation_time()
 
         elif import_mode == "fsi":
             t0 = timer()
@@ -297,13 +300,14 @@ def load_data_ibis(
             omnisci_server_worker._conn.create_table_from_csv(
                 "test_meta", test_meta_file, meta_schema_without_target
             )
-            t_readcsv = round((timer() - t0) * 1000)
+            t_readcsv = timer() - t0
+            t_connect += omnisci_server_worker.get_conn_creation_time()
 
     # Second connection - this is ibis's ipc connection for DML
     t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     db = omnisci_server_worker.database(database_name)
-    t_connect = round((timer() - t0) * 1000)
+    t_connect += timer() - t0
 
     training_table = db.table("training")
     test_table = db.table("test")
@@ -415,7 +419,7 @@ def etl_all_pandas(dataset_path, skip_rows, dtypes, meta_dtypes, etl_keys):
     train, train_meta, test, test_meta = load_data_pandas(
         dataset_path=dataset_path, skip_rows=skip_rows, dtypes=dtypes, meta_dtypes=meta_dtypes,
     )
-    etl_times["t_readcsv"] += round((timer() - t0) * 1000)
+    etl_times["t_readcsv"] += timer() - t0
 
     # update etl_times
     train_final = etl_cpu_pandas(train, train_meta, etl_times)
@@ -487,19 +491,19 @@ def ml(train_final, test_final, ml_keys):
         early_stopping_rounds=10,
         verbose_eval=1000,
     )
-    ml_times["t_training"] += round((timer() - t0) * 1000)
+    ml_times["t_training"] += timer() - t0
 
     t0 = timer()
     yp = clf.predict(dvalid)
-    ml_times["t_infer"] += round((timer() - t0) * 1000)
+    ml_times["t_infer"] += timer() - t0
 
     cpu_loss = multi_weighted_logloss(y_test, yp, classes, class_weights)
 
     t0 = timer()
     ysub = clf.predict(dtest)
-    ml_times["t_infer"] += round((timer() - t0) * 1000)
+    ml_times["t_infer"] += timer() - t0
 
-    ml_times["t_ml"] = round((timer() - t_ml_start) * 1000)
+    ml_times["t_ml"] = timer() - t_ml_start
 
     print("validation cpu_loss:", cpu_loss)
 
@@ -561,8 +565,7 @@ def run_benchmark(parameters):
         [(columns_names[i], meta_dtypes[i]) for i in range(len(meta_dtypes))]
     )
 
-    etl_keys = ["t_readcsv", "t_etl"]
-    etl_keys_ibis = ["t_readcsv", "t_etl", "t_connect"]
+    etl_keys = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_train_test_split", "t_dmatrix", "t_training", "t_infer", "t_ml"]
     try:
         import_pandas_into_module_namespace(
@@ -589,7 +592,7 @@ def run_benchmark(parameters):
                 validation=parameters["validation"],
                 dtypes=dtypes,
                 meta_dtypes=meta_dtypes,
-                etl_keys=etl_keys_ibis,
+                etl_keys=etl_keys,
                 import_mode=parameters["import_mode"],
             )
 

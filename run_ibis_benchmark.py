@@ -10,7 +10,13 @@ import mysql.connector
 from report import DbReport
 from server import OmnisciServer
 from server_worker import OmnisciServerWorker
-from utils import find_free_port, KeyValueListParser, str_arg_to_bool, remove_fields_from_dict
+from utils import (
+    find_free_port,
+    KeyValueListParser,
+    str_arg_to_bool,
+    remove_fields_from_dict,
+    convert_results_unit,
+)
 
 
 def main():
@@ -29,6 +35,7 @@ def main():
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
+    ignore_fields_for_results_unit_conversion = ["Backend"]
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -348,14 +355,18 @@ def main():
 
             for backend_res in result["ETL"]:
                 if backend_res:
+                    convert_results_unit(backend_res, ignore_fields=ignore_fields_for_results_unit_conversion, unit="ms")
                     backend_res["Iteration"] = iter_num
                     backend_res["run_id"] = run_id
                     etl_results.append(backend_res)
             for backend_res in result["ML"]:
                 if backend_res:
+                    convert_results_unit(backend_res, ignore_fields=ignore_fields_for_results_unit_conversion, unit="ms")
                     backend_res["Iteration"] = iter_num
                     backend_res["run_id"] = run_id
                     ml_results.append(backend_res)
+
+            print("result", result)
 
             # Reporting to MySQL database
             if args.db_user is not None:

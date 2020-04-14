@@ -178,7 +178,7 @@ def run_benchmark(parameters):
         ),
     )
 
-    etl_keys = ["t_readcsv", "t_etl"]
+    etl_keys = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_dmatrix", "t_ml", "t_train"]
     ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
     N_RUNS = 1

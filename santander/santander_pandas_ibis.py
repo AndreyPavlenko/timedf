@@ -41,7 +41,7 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
         use_gzip=filename.endswith(".gz"),
         pd=run_benchmark.__globals__["pd"],
     )
-    etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+    etl_times["t_readcsv"] = timer() - t0
 
     t_etl_begin = timer()
 
@@ -61,7 +61,7 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
         train_pd.loc[mask, "%s_gt1" % col] = train_pd.loc[mask, col]
 
     train_pd = train_pd.drop(["ID_code"], axis=1)
-    etl_times["t_etl"] = round((timer() - t_etl_begin) * 1000)
+    etl_times["t_etl"] = timer() - t_etl_begin
 
     return train_pd, etl_times
 
@@ -132,13 +132,13 @@ def etl_ibis(
         table_import_query = omnisci_server_worker.database(database_name).table(tmp_table_name)
         t0 = timer()
         table_import_query.read_csv(filename, delimiter=",")
-        etl_times_import["t_readcsv_by_ibis"] = round((timer() - t0) * 1000)
+        etl_times_import["t_readcsv_by_ibis"] = timer() - t0
 
         # data file import by FSI
         omnisci_server_worker.drop_table(tmp_table_name)
         t0 = timer()
         omnisci_server_worker.execute_sql_query(import_by_FSI_sql)
-        etl_times_import["t_readcsv_by_FSI"] = round((timer() - t0) * 1000)
+        etl_times_import["t_readcsv_by_FSI"] = timer() - t0
 
         omnisci_server_worker.drop_table(tmp_table_name)
 
@@ -147,7 +147,7 @@ def etl_ibis(
 
         t0 = timer()
         omnisci_server_worker.execute_sql_query(import_by_COPY_sql)
-        etl_times_import["t_readcsv_by_COPY"] = round((timer() - t0) * 1000)
+        etl_times_import["t_readcsv_by_COPY"] = timer() - t0
 
         omnisci_server_worker.drop_table(tmp_table_name)
 
@@ -160,11 +160,13 @@ def etl_ibis(
             omnisci_server_worker.create_table(
                 table_name=table_name, schema=schema_table, database=database_name,
             )
+            t0 = timer()
             table_import = omnisci_server_worker.database(database_name).table(table_name)
+            etl_times["t_connect"] += timer() - t0
 
             t0 = timer()
             table_import.read_csv(filename, header=True, quotechar="", delimiter=",")
-            etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+            etl_times["t_readcsv"] = timer() - t0
 
         elif import_mode == "pandas":
             # Datafiles import
@@ -182,7 +184,8 @@ def etl_ibis(
                 compression_type="gzip" if filename.endswith("gz") else None,
                 validation=validation,
             )
-            etl_times["t_readcsv"] = round((t_import_pandas + t_import_ibis) * 1000)
+            etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
+            etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
 
         elif import_mode == "fsi":
             try:
@@ -200,7 +203,8 @@ def etl_ibis(
                 omnisci_server_worker._conn.create_table_from_csv(
                     table_name, unzip_name or filename, schema_table
                 )
-                etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+                etl_times["t_readcsv"] = timer() - t0
+                etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
 
             finally:
                 if filename.endswith("gz"):
@@ -212,7 +216,7 @@ def etl_ibis(
     t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
-    etl_times["t_connect"] = round((timer() - t0) * 1000)
+    etl_times["t_connect"] += timer() - t0
 
     # group_by/count, merge (join) and filtration queries
     # We are making 400 columns and then insert them into original table thus avoiding
@@ -245,14 +249,14 @@ def etl_ibis(
 
     table_df = table.execute()
 
-    etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
+    etl_times["t_etl"] = timer() - t_etl_start
     return table_df, etl_times
 
 
 def split_step(data, target):
     t0 = timer()
     train, valid = data[:-10000], data[-10000:]
-    split_time = round((timer() - t0) * 1000)
+    split_time = timer() - t0
 
     x_train = train.drop([target], axis=1)
 
@@ -278,7 +282,7 @@ def ml(ml_data, target, ml_keys, ml_score_keys):
     t0 = timer()
     training_dmat_part = xgboost.DMatrix(data=x_train, label=y_train)
     testing_dmat_part = xgboost.DMatrix(data=x_test, label=y_test)
-    ml_times["t_dmatrix"] = round((timer() - t0) * 1000)
+    ml_times["t_dmatrix"] = timer() - t0
 
     watchlist = [(testing_dmat_part, "eval"), (training_dmat_part, "train")]
     xgb_params = {
@@ -303,16 +307,16 @@ def ml(ml_data, target, ml_keys, ml_score_keys):
         maximize=True,
         verbose_eval=1000,
     )
-    ml_times["t_train"] = round((timer() - t0) * 1000)
+    ml_times["t_train"] = timer() - t0
 
     t0 = timer()
     yp = model.predict(testing_dmat_part)
-    ml_times["t_inference"] = round((timer() - t0) * 1000)
+    ml_times["t_inference"] = timer() - t0
 
     ml_scores["mse"] = mse(y_test, yp)
     ml_scores["cod"] = cod(y_test, yp)
 
-    ml_times["t_ml"] += round(ml_times["t_train"] + ml_times["t_inference"])
+    ml_times["t_ml"] += ml_times["t_train"] + ml_times["t_inference"]
 
     return ml_scores, ml_times
 
@@ -338,8 +342,7 @@ def run_benchmark(parameters):
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
     columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
 
-    etl_keys = ["t_readcsv", "t_etl"]
-    etl_keys_ibis = ["t_readcsv", "t_etl", "t_connect"]
+    etl_keys = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
     ml_score_keys = ["mse", "cod"]
     try:
@@ -364,7 +367,7 @@ def run_benchmark(parameters):
                 create_new_table=not parameters["dni"],
                 ipc_connection=parameters["ipc_connection"],
                 validation=parameters["validation"],
-                etl_keys=etl_keys_ibis,
+                etl_keys=etl_keys,
                 import_mode=parameters["import_mode"],
             )
 

@@ -37,7 +37,7 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
         use_gzip=filename.endswith(".gz"),
         pd=run_benchmark.__globals__["pd"],
     )
-    etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+    etl_times["t_readcsv"] = timer() - t0
 
     t_etl_start = timer()
 
@@ -83,7 +83,7 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
     y = df["EDUC"]
     X = df.drop(columns=["EDUC", "CPI99"])
 
-    etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
+    etl_times["t_etl"] = timer() - t_etl_start
     print("DataFrame shape:", X.shape)
 
     return df, X, y, etl_times
@@ -123,11 +123,13 @@ def etl_ibis(
                 database=database_name,
                 fragmnet_size=fragmnet_size,
             )
+            t0 = timer()
             table_import = omnisci_server_worker.database(database_name).table(table_name)
+            etl_times["t_connect"] += timer() - t0
 
             t0 = timer()
             table_import.read_csv(filename, header=True, quotechar="", delimiter=",")
-            etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+            etl_times["t_readcsv"] = timer() - t0
 
         elif import_mode == "pandas":
             # Datafiles import
@@ -142,7 +144,8 @@ def etl_ibis(
                 compression_type="gzip" if filename.endswith("gz") else None,
                 validation=validation,
             )
-            etl_times["t_readcsv"] = round((t_import_pandas + t_import_ibis) * 1000)
+            etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
+            etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
 
         elif import_mode == "fsi":
             try:
@@ -160,7 +163,8 @@ def etl_ibis(
                 omnisci_server_worker._conn.create_table_from_csv(
                     table_name, unzip_name or filename, schema_table, fragment_size=fragment_size
                 )
-                etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+                etl_times["t_readcsv"] = timer() - t0
+                etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
 
             finally:
                 if filename.endswith("gz"):
@@ -172,7 +176,7 @@ def etl_ibis(
     t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
-    etl_times["t_connect"] = round((timer() - t0) * 1000)
+    etl_times["t_connect"] += timer() - t0
 
     t_etl_start = timer()
 
@@ -238,7 +242,7 @@ def etl_ibis(
     y = df["EDUC"]
     X = df.drop(["EDUC", "CPI99"], axis=1)
 
-    etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
+    etl_times["t_etl"] = timer() - t_etl_start
     print("DataFrame shape:", X.shape)
 
     return df, X, y, etl_times
@@ -271,11 +275,11 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
 
         t0 = timer()
         model = clf.fit(X_train, y_train)
-        ml_times["t_train"] += round((timer() - t0) * 1000)
+        ml_times["t_train"] += timer() - t0
 
         t0 = timer()
         y_pred = model.predict(X_test)
-        ml_times["t_inference"] += round((timer() - t0) * 1000)
+        ml_times["t_inference"] += timer() - t0
 
         mse_values.append(mse(y_test, y_pred))
         cod_values.append(cod(y_test, y_pred))
@@ -407,8 +411,7 @@ def run_benchmark(parameters):
         "float64",
         "float64",
     ]
-    etl_keys = ["t_readcsv", "t_etl"]
-    etl_keys_ibis = ["t_readcsv", "t_etl", "t_connect"]
+    etl_keys = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference"]
 
     ml_score_keys = ["mse_mean", "cod_mean", "mse_dev", "cod_dev"]
@@ -441,7 +444,7 @@ def run_benchmark(parameters):
                 create_new_table=not parameters["dni"],
                 ipc_connection=parameters["ipc_connection"],
                 validation=parameters["validation"],
-                etl_keys=etl_keys_ibis,
+                etl_keys=etl_keys,
                 import_mode=parameters["import_mode"],
             )
 
