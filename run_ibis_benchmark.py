@@ -405,8 +405,7 @@ def main():
                         )
 
                 for result_etl in etl_results:
-                    if ignore_fields_for_bd_report_etl:
-                        remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
+                    remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
                     db_reporter_etl.submit(result_etl)
 
                 if len(ml_results) is not 0:
