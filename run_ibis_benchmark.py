@@ -8,8 +8,6 @@ import time
 import mysql.connector
 
 from report import DbReport
-from server import OmnisciServer
-from server_worker import OmnisciServerWorker
 from utils import (
     find_free_port,
     KeyValueListParser,
@@ -328,6 +326,8 @@ def main():
                 parser.error(
                     "Omnisci executable should be specified with -e/--executable for Ibis part"
                 )
+            from server import OmnisciServer
+
             omnisci_server = OmnisciServer(
                 omnisci_executable=args.executable,
                 omnisci_port=args.port,
@@ -363,6 +363,8 @@ def main():
             print(f"Iteration #{iter_num}")
 
             if not args.no_ibis:
+                from server_worker import OmnisciServerWorker
+
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
                 parameters["omnisci_server_worker"] = omnisci_server_worker
                 parameters["ipc_connection"] = args.ipc_connection
