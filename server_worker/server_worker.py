@@ -195,7 +195,7 @@ class OmnisciServerWorker:
         if columns_types:
             columns_types_pd = convert_type_ibis2pandas(columns_types)
         t0 = time.time()
-        if files_limit > 1 or isinstance(data_files_names, list):
+        if files_limit > 1 or isinstance(data_files_names, (list, tuple)):
             pandas_df_from_each_file = (
                 self._read_csv_datafile(
                     file_name,
