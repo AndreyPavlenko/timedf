@@ -25,7 +25,7 @@ def _run_ml(df, n_runs, mb, ml_keys, ml_score_keys, backend):
     ml_scores, ml_times = ml(
         df=df, n_runs=n_runs, mb=mb, ml_keys=ml_keys, ml_score_keys=ml_score_keys
     )
-    print_results(results=ml_times, backend=backend, unit="ms")
+    print_results(results=ml_times, backend=backend, unit="s")
     ml_times["Backend"] = backend
     print_results(results=ml_scores, backend=backend)
     ml_scores["Backend"] = backend
@@ -201,7 +201,7 @@ def run_benchmark(parameters):
             etl_keys=etl_keys,
             import_mode=parameters["import_mode"],
         )
-        print_results(results=etl_times_ibis, backend="Ibis", unit="ms")
+        print_results(results=etl_times_ibis, backend="Ibis", unit="s")
         etl_times_ibis["Backend"] = "Ibis"
         result["ETL"].append(etl_times_ibis)
         if not parameters["no_ml"]:
@@ -215,7 +215,7 @@ def run_benchmark(parameters):
             perf_schema=perf_schema,
             etl_keys=etl_keys,
         )
-        print_results(results=etl_times_pd, backend=parameters["pandas_mode"], unit="ms")
+        print_results(results=etl_times_pd, backend=parameters["pandas_mode"], unit="s")
         etl_times_pd["Backend"] = parameters["pandas_mode"]
         result["ETL"].append(etl_times_pd)
 

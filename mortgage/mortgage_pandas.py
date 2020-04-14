@@ -415,11 +415,11 @@ def etl_pandas(dataset_path, dfiles_num, acq_schema, perf_schema, etl_keys):
     pd_df = pd_dfs[0] if len(pd_dfs) == 1 else pd.concat(pd_dfs)
     etl_times["t_readcsv"] = mb.t_read_csv
     print("ETL timings")
-    print("  t_one_hot_encoding = ", mb.t_one_hot_encoding)
-    print("  t_fillna = ", mb.t_fillna)
-    print("  t_drop_cols = ", mb.t_drop_cols)
-    print("  t_merge = ", mb.t_merge)
-    print("  t_conv_dates = ", mb.t_conv_dates)
+    print("  t_one_hot_encoding = ", round(mb.t_one_hot_encoding, 2), " s")
+    print("  t_fillna = ", round(mb.t_fillna, 2), " s")
+    print("  t_drop_cols = ", round(mb.t_drop_cols, 2), " s")
+    print("  t_merge = ", round(mb.t_merge, 2), " s")
+    print("  t_conv_dates = ", round(mb.t_conv_dates, 2), " s")
     etl_times["t_etl"] = (
         mb.t_one_hot_encoding + mb.t_fillna + mb.t_drop_cols + mb.t_merge + mb.t_conv_dates
     )
@@ -435,8 +435,8 @@ def ml(df, n_runs, mb, ml_keys, ml_score_keys):
     print("ML runs: ", n_runs)
     for i in range(n_runs):
         mb.train_xgb(df)
-        ml_times["t_dmatrix"] += mb.t_dmatrix * 1000
-        ml_times["t_train"] += mb.t_train * 1000
+        ml_times["t_dmatrix"] += mb.t_dmatrix
+        ml_times["t_train"] += mb.t_train
         mse_values.append(mb.score_mse)
         cod_values.append(mb.score_cod)
 
