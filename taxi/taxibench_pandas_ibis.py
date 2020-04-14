@@ -314,7 +314,7 @@ def etl_ibis(
 
             for file_to_import in data_files_names[:files_limit]:
                 try:
-                    if file_to_import.endswith("gz"):
+                    if file_to_import.endswith(".gz"):
                         with gzip.open(file_to_import, "rb") as gz_input:
                             with open(unzip_name, "wb") as output:
                                 output.write(gz_input.read())
