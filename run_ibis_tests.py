@@ -179,6 +179,15 @@ def main():
         help="[multifrag_rs help message]",
     )
     omnisci.add_argument(
+        "-fragments_size",
+        dest="fragments_size",
+        default=None,
+        nargs="*",
+        type=int,
+        help="Number of rows per fragment that is a unit of the table for query processing. \
+            Should be specified for each table in workload",
+    )
+    omnisci.add_argument(
         "-omnisci_run_kwargs",
         dest="omnisci_run_kwargs",
         default={},
@@ -242,6 +251,12 @@ def main():
         default=False,
         type=str_arg_to_bool,
         help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
+    )
+    benchmark.add_argument(
+        "-no_pandas",
+        default=False,
+        type=str_arg_to_bool,
+        help="Do not run Pandas version of benchmark",
     )
     benchmark.add_argument(
         "-pandas_mode",
@@ -453,6 +468,7 @@ def main():
                 "validation",
                 "optimizer",
                 "no_ibis",
+                "no_pandas",
                 "pandas_mode",
                 "ray_tmpdir",
                 "ray_memory",
@@ -482,6 +498,7 @@ def main():
                 "columnar_output",
                 "lazy_fetch",
                 "multifrag_rs",
+                "fragments_size",
                 "omnisci_run_kwargs",
             ]
             args_dict = vars(args)

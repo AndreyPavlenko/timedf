@@ -102,6 +102,12 @@ def main():
         help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
     )
     optional.add_argument(
+        "-no_pandas",
+        default=False,
+        type=str_arg_to_bool,
+        help="Do not run Pandas version of benchmark",
+    )
+    optional.add_argument(
         "-pandas_mode",
         choices=["Pandas", "Modin_on_ray", "Modin_on_dask", "Modin_on_python"],
         default="Pandas",
@@ -256,6 +262,15 @@ def main():
         help="[multifrag_rs help message]",
     )
     optional.add_argument(
+        "-fragments_size",
+        dest="fragments_size",
+        default=None,
+        nargs="*",
+        type=int,
+        help="Number of rows per fragment that is a unit of the table for query processing. \
+            Should be specified for each table in workload",
+    )
+    optional.add_argument(
         "-omnisci_run_kwargs",
         dest="omnisci_run_kwargs",
         default={},
@@ -304,7 +319,8 @@ def main():
             "ray_tmpdir": args.ray_tmpdir,
             "ray_memory": args.ray_memory,
             "gpu_memory": args.gpu_memory,
-            "validation": False if args.no_ibis else args.validation,
+            "validation": args.validation,
+            "no_pandas": args.no_pandas,
         }
 
         if not args.no_ibis:
@@ -333,6 +349,11 @@ def main():
             parameters["dnd"] = args.dnd
             parameters["dni"] = args.dni
             parameters["import_mode"] = args.import_mode
+            parameters["fragments_size"] = args.fragments_size
+
+        if parameters["validation"] and (parameters["no_pandas"] or parameters["no_ibis"]):
+            parameters["validation"] = False
+            print("WARNING: validation was turned off as it requires both sides to compare.")
 
         etl_results = []
         ml_results = []
