@@ -326,7 +326,7 @@ def etl_ibis(
                     etl_times["t_readcsv"] += round((timer() - t0) * 1000)
 
                 finally:
-                    if file_to_import.endswith("gz"):
+                    if unzip_name:
                         os.remove(unzip_name)
 
     # Second connection - this is ibis's ipc connection for DML
