@@ -279,12 +279,16 @@ def remove_fields_from_dict(dictonary, fields_to_remove):
         if key in dictonary:
             dictonary.pop(key)
 
+
 def convert_results_unit(results, ignore_fields, unit="ms"):
     if unit not in conversions.keys():
         raise ValueError("Conversion to " + unit + " is not implemented")
     multiplier = conversions.get(unit)
-    
-    results.update({key: value * multiplier for key, value in results.items() if key not in ignore_fields})
+
+    results.update(
+        {key: value * multiplier for key, value in results.items() if key not in ignore_fields}
+    )
+
 
 class KeyValueListParser(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):

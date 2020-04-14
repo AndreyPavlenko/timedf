@@ -355,18 +355,24 @@ def main():
 
             for backend_res in result["ETL"]:
                 if backend_res:
-                    convert_results_unit(backend_res, ignore_fields=ignore_fields_for_results_unit_conversion, unit="ms")
+                    convert_results_unit(
+                        backend_res,
+                        ignore_fields=ignore_fields_for_results_unit_conversion,
+                        unit="ms",
+                    )
                     backend_res["Iteration"] = iter_num
                     backend_res["run_id"] = run_id
                     etl_results.append(backend_res)
             for backend_res in result["ML"]:
                 if backend_res:
-                    convert_results_unit(backend_res, ignore_fields=ignore_fields_for_results_unit_conversion, unit="ms")
+                    convert_results_unit(
+                        backend_res,
+                        ignore_fields=ignore_fields_for_results_unit_conversion,
+                        unit="ms",
+                    )
                     backend_res["Iteration"] = iter_num
                     backend_res["run_id"] = run_id
                     ml_results.append(backend_res)
-
-            print("result", result)
 
             # Reporting to MySQL database
             if args.db_user is not None:
