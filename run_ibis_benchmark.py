@@ -410,8 +410,7 @@ def main():
 
                 if len(ml_results) is not 0:
                     for result_ml in ml_results:
-                        if ignore_fields_for_bd_report_ml:
-                            remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
+                        remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
                         db_reporter_ml.submit(result_ml)
 
     except Exception:
