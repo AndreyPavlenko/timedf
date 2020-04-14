@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 # https://www.kaggle.com/c/santander-customer-transaction-prediction/data
 
 # Current script prerequisites:
-# 1) Patched OmniSci version (https://github.com/intel-go/omniscidb/tree/ienkovich/santander)
+# 1) Patched OmniSci version (https://github.com/intel-go/omniscidb/tree/develop)
 # 2) Patched Ibis version (https://github.com/intel-go/ibis/tree/develop)
 
 
@@ -340,13 +340,13 @@ def run_benchmark(parameters):
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
     ml_score_keys = ["mse", "cod"]
     try:
-
-        import_pandas_into_module_namespace(
-            namespace=run_benchmark.__globals__,
-            mode=parameters["pandas_mode"],
-            ray_tmpdir=parameters["ray_tmpdir"],
-            ray_memory=parameters["ray_memory"],
-        )
+        if not parameters["no_pandas"]:
+            import_pandas_into_module_namespace(
+                namespace=run_benchmark.__globals__,
+                mode=parameters["pandas_mode"],
+                ray_tmpdir=parameters["ray_tmpdir"],
+                ray_memory=parameters["ray_memory"],
+            )
 
         if not parameters["no_ibis"]:
             ml_data_ibis, etl_times_ibis = etl_ibis(
@@ -365,26 +365,28 @@ def run_benchmark(parameters):
                 import_mode=parameters["import_mode"],
             )
 
-            print_results(results=etl_times_ibis, backend="Ibis", unit="ms")
+            print_results(results=etl_times_ibis, backend="Ibis", unit="s")
             etl_times_ibis["Backend"] = "Ibis"
 
-        ml_data, etl_times = etl_pandas(
-            filename=parameters["data_file"],
-            columns_names=columns_names,
-            columns_types=columns_types_pd,
-            etl_keys=etl_keys,
-        )
-        print_results(results=etl_times, backend=parameters["pandas_mode"], unit="ms")
-        etl_times["Backend"] = parameters["pandas_mode"]
+        if not parameters["no_pandas"]:
+            ml_data, etl_times = etl_pandas(
+                filename=parameters["data_file"],
+                columns_names=columns_names,
+                columns_types=columns_types_pd,
+                etl_keys=etl_keys,
+            )
+            print_results(results=etl_times, backend=parameters["pandas_mode"], unit="s")
+            etl_times["Backend"] = parameters["pandas_mode"]
 
         if not parameters["no_ml"]:
-            ml_scores, ml_times = ml(
-                ml_data=ml_data, target="target", ml_keys=ml_keys, ml_score_keys=ml_score_keys,
-            )
-            print_results(results=ml_times, backend=parameters["pandas_mode"], unit="ms")
-            ml_times["Backend"] = parameters["pandas_mode"]
-            print_results(results=ml_scores, backend=parameters["pandas_mode"])
-            ml_scores["Backend"] = parameters["pandas_mode"]
+            if not parameters["no_pandas"]:
+                ml_scores, ml_times = ml(
+                    ml_data=ml_data, target="target", ml_keys=ml_keys, ml_score_keys=ml_score_keys,
+                )
+                print_results(results=ml_times, backend=parameters["pandas_mode"], unit="s")
+                ml_times["Backend"] = parameters["pandas_mode"]
+                print_results(results=ml_scores, backend=parameters["pandas_mode"])
+                ml_scores["Backend"] = parameters["pandas_mode"]
 
             if not parameters["no_ibis"]:
                 ml_scores_ibis, ml_times_ibis = ml(
@@ -393,13 +395,13 @@ def run_benchmark(parameters):
                     ml_keys=ml_keys,
                     ml_score_keys=ml_score_keys,
                 )
-                print_results(results=ml_times_ibis, backend="Ibis", unit="ms")
+                print_results(results=ml_times_ibis, backend="Ibis", unit="s")
                 ml_times_ibis["Backend"] = "Ibis"
                 print_results(results=ml_scores_ibis, backend="Ibis")
                 ml_scores_ibis["Backend"] = "Ibis"
 
         # Results validation block (comparison of etl_ibis and etl_pandas outputs)
-        if parameters["validation"] and not parameters["no_ibis"]:
+        if parameters["validation"]:
             print("Validation of ETL query results with ...")
             cols_to_sort = ["var_0", "var_1", "var_2", "var_3", "var_4"]
 
@@ -407,7 +409,7 @@ def run_benchmark(parameters):
             # compare_dataframes doesn't sort pandas dataframes
             ml_data.sort_values(by=cols_to_sort, inplace=True)
 
-            compare_result = compare_dataframes(
+            compare_dataframes(
                 ibis_dfs=[ml_data_ibis], pandas_dfs=[ml_data], sort_cols=cols_to_sort, drop_cols=[]
             )
 

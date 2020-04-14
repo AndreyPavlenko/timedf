@@ -34,7 +34,7 @@ def execute_process(cmdline, cwd=None, shell=False, daemon=False, print_output=T
         print("CMD: ", " ".join(cmdline))
         output = ""
         process = subprocess.Popen(
-            cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell,
+            cmdline, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell
         )
         if not daemon:
             output = process.communicate()[0].strip().decode()
@@ -80,7 +80,7 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir=None, ray_me
                 )
             os.environ["MODIN_ENGINE"] = "ray"
             print(
-                "Running on Modin on Ray with tmp directory", ray_tmpdir, "and memory", ray_memory,
+                "Running on Modin on Ray with tmp directory", ray_tmpdir, "and memory", ray_memory
             )
         elif mode == "Modin_on_dask":
             os.environ["MODIN_ENGINE"] = "dask"
@@ -211,10 +211,12 @@ def print_times(times, backend=None):
 
 
 def print_results(results, backend=None, unit=""):
+    conversions = {"ms": 1, "s": 1 / 1000, "m": 1 / (1000 * 60)}
+    multiplier = conversions.get(unit, 1)
     if backend:
         print(f"{backend} results:")
     for result_name, result in results.items():
-        print("    {} = {} {}".format(result_name, result, unit))
+        print("    {} = {:.2f} {}".format(result_name, result * multiplier, unit))
 
 
 def mse(y_test, y_pred):
@@ -254,12 +256,12 @@ def find_free_port():
     raise Exception("Can't find available ports")
 
 
-def split(X, y, test_size=0.1, random_state=None):
+def split(X, y, test_size=0.1, stratify=None, random_state=None):
     from sklearn.model_selection import train_test_split
 
     t0 = timer()
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, stratify=y, random_state=random_state
+        X, y, test_size=test_size, stratify=stratify, random_state=random_state
     )
     split_time = timer() - t0
 

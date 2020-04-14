@@ -8,8 +8,6 @@ import time
 import mysql.connector
 
 from report import DbReport
-from server import OmnisciServer
-from server_worker import OmnisciServerWorker
 from utils import find_free_port, KeyValueListParser, str_arg_to_bool
 
 
@@ -90,6 +88,12 @@ def main():
         default=False,
         type=str_arg_to_bool,
         help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
+    )
+    optional.add_argument(
+        "-no_pandas",
+        default=False,
+        type=str_arg_to_bool,
+        help="Do not run Pandas version of benchmark",
     )
     optional.add_argument(
         "-pandas_mode",
@@ -247,6 +251,15 @@ def main():
         help="[multifrag_rs help message]",
     )
     optional.add_argument(
+        "-fragments_size",
+        dest="fragments_size",
+        default=None,
+        nargs="*",
+        type=int,
+        help="Number of rows per fragment that is a unit of the table for query processing. \
+            Should be specified for each table in workload",
+    )
+    optional.add_argument(
         "-omnisci_run_kwargs",
         dest="omnisci_run_kwargs",
         default={},
@@ -295,7 +308,8 @@ def main():
             "ray_tmpdir": args.ray_tmpdir,
             "ray_memory": args.ray_memory,
             "gpu_memory": args.gpu_memory,
-            "validation": False if args.no_ibis else args.validation,
+            "validation": args.validation,
+            "no_pandas": args.no_pandas,
         }
 
         if not args.no_ibis:
@@ -303,6 +317,8 @@ def main():
                 parser.error(
                     "Omnisci executable should be specified with -e/--executable for Ibis part"
                 )
+            from server import OmnisciServer
+
             omnisci_server = OmnisciServer(
                 omnisci_executable=args.executable,
                 omnisci_port=args.port,
@@ -324,6 +340,11 @@ def main():
             parameters["dnd"] = args.dnd
             parameters["dni"] = args.dni
             parameters["import_mode"] = args.import_mode
+            parameters["fragments_size"] = args.fragments_size
+
+        if parameters["validation"] and (parameters["no_pandas"] or parameters["no_ibis"]):
+            parameters["validation"] = False
+            print("WARNING: validation was turned off as it requires both sides to compare.")
 
         etl_results = []
         ml_results = []
@@ -333,6 +354,8 @@ def main():
             print(f"Iteration #{iter_num}")
 
             if not args.no_ibis:
+                from server_worker import OmnisciServerWorker
+
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
                 parameters["omnisci_server_worker"] = omnisci_server_worker
                 parameters["ipc_connection"] = args.ipc_connection
