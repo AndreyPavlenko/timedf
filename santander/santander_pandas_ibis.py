@@ -256,12 +256,6 @@ def etl_ibis(
     table_df = table.execute()
 
     etl_times["t_etl"] = timer() - t_etl_start
-
-    mini = table_df.min().min()
-    maxi = table_df.max().max()
-
-    print("\n\nmini", mini)
-    print("\n\nmaxi", maxi)
     return table_df, etl_times
 
 
@@ -352,7 +346,7 @@ def run_benchmark(parameters):
     gt1_cols = ["var_%s_gt1" % i for i in range(200)]
     columns_names = ["ID_code", "target"] + var_cols
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
-    columns_types_ibis = ["string", "int32"] + ["decimal(9, 5)" for _ in range(200)]
+    columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
 
     etl_keys = ["t_readcsv", "t_etl", "t_connect"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
@@ -427,11 +421,6 @@ def run_benchmark(parameters):
             ml_data_ibis = ml_data_ibis.rename(columns={"target0": "target"})
             # compare_dataframes doesn't sort pandas dataframes
             ml_data.sort_values(by=cols_to_sort, inplace=True)
-            # ml_data_ibis.sort_values(by=cols_to_sort, inplace=True)
-            # cols = ['var_0', 'var_0_count', 'var_0_gt1']
-            # print("ml_data_ibis[cols] \n", ml_data_ibis[cols])
-            # print("ml_data[cols] \n", ml_data[cols])
-            cols_to_check = var_cols + gt1_cols
 
             compare_dataframes(
                 ibis_dfs=[ml_data_ibis], pandas_dfs=[ml_data], sort_cols=cols_to_sort, drop_cols=[]
