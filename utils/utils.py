@@ -212,13 +212,11 @@ def print_times(times, backend=None):
 
 
 def print_results(results, backend=None, unit=""):
-    if unit not in conversions.keys():
-        raise ValueError("Conversion to " + unit + " is not implemented")
-    multiplier = conversions.get(unit)
+    results_converted = convert_units(results, ignore_fields=[], unit=unit)
     if backend:
         print(f"{backend} results:")
-    for result_name, result in results.items():
-        print("    {} = {:.2f} {}".format(result_name, result * multiplier, unit))
+    for result_name, result in results_converted.items():
+        print("    {} = {:.2f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
@@ -280,14 +278,20 @@ def remove_fields_from_dict(dictonary, fields_to_remove):
             dictonary.pop(key)
 
 
-def convert_results_unit(results, ignore_fields, unit="ms"):
-    if unit not in conversions.keys():
-        raise ValueError("Conversion to " + unit + " is not implemented")
-    multiplier = conversions.get(unit)
+def convert_units(dict_to_convert, ignore_fields, unit="ms"):
+    try:
+        multiplier = conversions[unit]
+    except KeyError:
+        raise ValueError(f"Conversion to {unit} is not implemented")
 
-    results.update(
-        {key: value * multiplier for key, value in results.items() if key not in ignore_fields}
-    )
+    return {
+        key: (value * multiplier if key not in ignore_fields else value)
+        for key, value in dict_to_convert.items()
+    }
+
+
+def convert_results_unit(results, ignore_fields, unit="ms"):
+    return convert_units(results, ignore_fields=ignore_fields, unit=unit)
 
 
 class KeyValueListParser(argparse.Action):
