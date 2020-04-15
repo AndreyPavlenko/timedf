@@ -24,10 +24,8 @@ def validation_prereqs(omnisci_server_worker, data_files_names, files_limit, col
 
 def run_queries(queries, parameters, etl_times):
     for query_number, (query_name, query_func) in enumerate(queries.items()):
-        print("Running query number:", query_number + 1)
-        exec_time = int(round(query_func(**parameters) * 1000, 3))
+        exec_time = query_func(**parameters)
         etl_times[query_name] = exec_time
-        print("Query", query_number + 1, "Exec time (ms):", exec_time)
     return etl_times
 
 
@@ -286,7 +284,7 @@ def etl_ibis(
             for file_to_import in data_files_names[:files_limit]:
                 t0 = timer()
                 table_import.read_csv(file_to_import, header=False, quotechar="", delimiter=",")
-                etl_times["t_readcsv"] += round((timer() - t0) * 1000)
+                etl_times["t_readcsv"] += timer() - t0
 
         elif import_mode == "pandas":
             # Datafiles import
@@ -302,7 +300,7 @@ def etl_ibis(
                 validation=validation,
             )
 
-            etl_times["t_readcsv"] = round((t_import_pandas + t_import_ibis) * 1000)
+            etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
 
         elif import_mode == "fsi":  # Currently work for single file
             unzip_name = None
@@ -323,7 +321,7 @@ def etl_ibis(
                     omnisci_server_worker._conn.create_table_from_csv(
                         table_name, unzip_name or file_to_import, schema_table
                     )
-                    etl_times["t_readcsv"] += round((timer() - t0) * 1000)
+                    etl_times["t_readcsv"] += timer() - t0
 
                 finally:
                     if unzip_name:
@@ -593,7 +591,7 @@ def run_benchmark(parameters):
                 import_mode=parameters["import_mode"],
             )
 
-            print_results(results=etl_times_ibis, backend="Ibis", unit="s")
+            print_results(results=etl_times_ibis, backend="Ibis", unit="ms")
             etl_times_ibis["Backend"] = "Ibis"
 
         if not parameters["no_pandas"]:
@@ -606,7 +604,7 @@ def run_benchmark(parameters):
                 columns_types=columns_types,
             )
 
-            print_results(results=etl_times, backend=parameters["pandas_mode"], unit="s")
+            print_results(results=etl_times, backend=parameters["pandas_mode"], unit="ms")
             etl_times["Backend"] = parameters["pandas_mode"]
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": []}
