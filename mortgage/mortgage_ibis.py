@@ -199,15 +199,18 @@ def etl_ibis(
                 header=True,
                 fragment_size=fragments_size[1],
             )
-        etl_times["t_readcsv"] = round((timer() - t0) * 1000)
+        etl_times["t_readcsv"] = timer() - t0
+        etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
 
     # Second connection - this is ibis's ipc connection for DML
+    t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     acq_table = omnisci_server_worker.database(database_name).table(f"{table_prefix}_acq")
     perf_table = omnisci_server_worker.database(database_name).table(f"{table_prefix}_perf")
+    etl_times["t_connect"] += timer() - t0
 
     t_etl_start = timer()
     ibis_df = run_ibis_workflow(acq_table, perf_table)
-    etl_times["t_etl"] = round((timer() - t_etl_start) * 1000)
+    etl_times["t_etl"] = timer() - t_etl_start
 
     return ibis_df, mb, etl_times

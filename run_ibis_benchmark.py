@@ -8,7 +8,13 @@ import time
 import mysql.connector
 
 from report import DbReport
-from utils import find_free_port, KeyValueListParser, str_arg_to_bool
+from utils import (
+    find_free_port,
+    KeyValueListParser,
+    str_arg_to_bool,
+    remove_fields_from_dict,
+    convert_results_unit,
+)
 
 
 def main():
@@ -24,6 +30,10 @@ def main():
         "plasticc": "plasticc",
         "mortgage": "mortgage",
     }
+
+    ignore_fields_for_bd_report_etl = ["t_connect"]
+    ignore_fields_for_bd_report_ml = []
+    ignore_fields_for_results_unit_conversion = ["Backend"]
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -368,11 +378,21 @@ def main():
 
             for backend_res in result["ETL"]:
                 if backend_res:
+                    backend_res = convert_results_unit(
+                        backend_res,
+                        ignore_fields=ignore_fields_for_results_unit_conversion,
+                        unit="ms",
+                    )
                     backend_res["Iteration"] = iter_num
                     backend_res["run_id"] = run_id
                     etl_results.append(backend_res)
             for backend_res in result["ML"]:
                 if backend_res:
+                    backend_res = convert_results_unit(
+                        backend_res,
+                        ignore_fields=ignore_fields_for_results_unit_conversion,
+                        unit="ms",
+                    )
                     backend_res["Iteration"] = iter_num
                     backend_res["run_id"] = run_id
                     ml_results.append(backend_res)
@@ -425,10 +445,12 @@ def main():
                         )
 
                 for result_etl in etl_results:
+                    remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
                     db_reporter_etl.submit(result_etl)
 
                 if len(ml_results) is not 0:
                     for result_ml in ml_results:
+                        remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
                         db_reporter_ml.submit(result_ml)
 
     except Exception:

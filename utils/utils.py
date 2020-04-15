@@ -9,6 +9,12 @@ from timeit import default_timer as timer
 import hiyapyco
 
 returned_port_numbers = []
+conversions = {
+    "ms": 1000,
+    "s": 1,
+    "m": 1 / 60,
+    "": 1,
+}
 
 
 def str_arg_to_bool(v):
@@ -206,12 +212,11 @@ def print_times(times, backend=None):
 
 
 def print_results(results, backend=None, unit=""):
-    conversions = {"ms": 1, "s": 1 / 1000, "m": 1 / (1000 * 60)}
-    multiplier = conversions.get(unit, 1)
+    results_converted = convert_units(results, ignore_fields=[], unit=unit)
     if backend:
         print(f"{backend} results:")
-    for result_name, result in results.items():
-        print("    {} = {:.2f} {}".format(result_name, result * multiplier, unit))
+    for result_name, result in results_converted.items():
+        print("    {} = {:.2f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
@@ -265,6 +270,28 @@ def split(X, y, test_size=0.1, stratify=None, random_state=None):
 
 def timer_ms():
     return round(timer() * 1000)
+
+
+def remove_fields_from_dict(dictonary, fields_to_remove):
+    for key in fields_to_remove or ():
+        if key in dictonary:
+            dictonary.pop(key)
+
+
+def convert_units(dict_to_convert, ignore_fields, unit="ms"):
+    try:
+        multiplier = conversions[unit]
+    except KeyError:
+        raise ValueError(f"Conversion to {unit} is not implemented")
+
+    return {
+        key: (value * multiplier if key not in ignore_fields else value)
+        for key, value in dict_to_convert.items()
+    }
+
+
+def convert_results_unit(results, ignore_fields, unit="ms"):
+    return convert_units(results, ignore_fields=ignore_fields, unit=unit)
 
 
 class KeyValueListParser(argparse.Action):
