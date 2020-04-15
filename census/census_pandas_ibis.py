@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import traceback
+import numpy as np
 import warnings
 from timeit import default_timer as timer
 
@@ -266,6 +267,9 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
         sys.exit(1)
 
     clf = lm.Ridge()
+
+    X = np.ascontiguousarray(X, dtype=np.float64)
+    y = np.ascontiguousarray(y, dtype=np.float64)
 
     mse_values, cod_values = [], []
     ml_times = {key: 0.0 for key in ml_keys}
