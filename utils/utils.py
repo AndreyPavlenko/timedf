@@ -190,7 +190,7 @@ def compare_dataframes(
             for column_name in ibis_df.columns:
                 compare_columns((ibis_df[column_name], pandas_df[column_name]))
 
-        print("Precise check took {:.2f} seconds".format(timer() - t0))
+        print("Per-column check took {:.2f} seconds".format(timer() - t0))
 
     print("dataframes are equal")
 
