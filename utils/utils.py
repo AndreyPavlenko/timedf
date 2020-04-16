@@ -138,7 +138,7 @@ def compare_dataframes(
 ):
     import pandas as pd
 
-    parallel_processes = 28
+    parallel_processes = os.cpu_count() // 2
     prepared_dfs = []
     # in percentage - 0.05 %
     max_error = 0.05
