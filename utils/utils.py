@@ -9,12 +9,7 @@ from timeit import default_timer as timer
 import hiyapyco
 
 returned_port_numbers = []
-conversions = {
-    "ms": 1000,
-    "s": 1,
-    "m": 1 / 60,
-    "": 1,
-}
+conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
 
 
 def str_arg_to_bool(v):
@@ -256,8 +251,16 @@ def find_free_port():
     raise Exception("Can't find available ports")
 
 
-def split(X, y, test_size=0.1, stratify=None, random_state=None):
-    from sklearn.model_selection import train_test_split
+def split(X, y, test_size=0.1, stratify=None, random_state=None, optimizer="intel"):
+    if optimizer == "intel":
+        import daal4py
+        from daal4py import sklearn
+        from sklearn.model_selection import train_test_split
+    elif optimizer == "stock":
+        from sklearn.model_selection import train_test_split
+    else:
+        print(f"Intel optimized and stock sklearn are supported. {optimizer} can't be recognized")
+        sys.exit(1)
 
     t0 = timer()
     X_train, X_test, y_train, y_test = train_test_split(
