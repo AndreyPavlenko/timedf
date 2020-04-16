@@ -4,6 +4,7 @@ import sys
 import time
 import traceback
 import numpy as np
+from sklearn import config_context
 import warnings
 from timeit import default_timer as timer
 
@@ -284,7 +285,8 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
         random_state += 777
 
         t0 = timer()
-        model = clf.fit(X_train, y_train)
+        with config_context(assume_finite=True):
+            model = clf.fit(X_train, y_train)
         ml_times["t_train"] += timer() - t0
 
         t0 = timer()
