@@ -177,7 +177,9 @@ def etl_ibis(
         elif import_mode == "pandas":
             # decimal(8, 4) is converted to decimal(9, 6) in order to provide better data conversion
             # accuracy during import from Pandas into OmniSciDB for proper results validation
-            columns_types = ["decimal(9, 6)" if (x == "decimal(8, 4)") else x for x in columns_types]
+            columns_types = [
+                "decimal(9, 6)" if (x == "decimal(8, 4)") else x for x in columns_types
+            ]
             t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
                 table_name=table_name,
                 data_files_names=filename,
@@ -426,7 +428,11 @@ def run_benchmark(parameters):
             ml_data.sort_values(by=cols_to_sort, inplace=True)
 
             compare_dataframes(
-                ibis_dfs=[ml_data_ibis], pandas_dfs=[ml_data], sort_cols=cols_to_sort, drop_cols=[], parallel_execution=True
+                ibis_dfs=[ml_data_ibis],
+                pandas_dfs=[ml_data],
+                sort_cols=cols_to_sort,
+                drop_cols=[],
+                parallel_execution=True,
             )
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}

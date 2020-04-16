@@ -109,15 +109,13 @@ def get_percentage(error_message):
     # parsing message like: lalalalal values are different (xxxxx%) lalalalal
     return float(error_message.split("values are different ")[1].split("%)")[0][1:])
 
+
 def compare_columns(columns):
     import pandas as pd
 
     try:
         pd.testing.assert_series_equal(
-            columns[0],
-            columns[1],
-            check_less_precise=2,
-            check_dtype=False,
+            columns[0], columns[1], check_less_precise=2, check_dtype=False,
         )
     except AssertionError as assert_err:
         if str(columns[0].dtype).startswith("float"):
@@ -134,7 +132,10 @@ def compare_columns(columns):
         else:
             raise assert_err
 
-def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"], parallel_execution=False):
+
+def compare_dataframes(
+    ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"], parallel_execution=False
+):
     import pandas as pd
 
     parallel_processes = 28
@@ -175,8 +176,15 @@ def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"],
         assert ibis_df.shape == pandas_df.shape
         if parallel_execution:
             from multiprocessing import Pool
+
             pool = Pool(parallel_processes)
-            pool.map(compare_columns, [(ibis_df[column_name], pandas_df[column_name]) for column_name in ibis_df.columns])
+            pool.map(
+                compare_columns,
+                [
+                    (ibis_df[column_name], pandas_df[column_name])
+                    for column_name in ibis_df.columns
+                ],
+            )
             pool.close()
         else:
             for column_name in ibis_df.columns:
@@ -185,6 +193,7 @@ def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"],
         print("Precise check took {:.2f} seconds".format(timer() - t0))
 
     print("dataframes are equal")
+
 
 def load_data_pandas(
     filename,
