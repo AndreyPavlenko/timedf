@@ -183,7 +183,7 @@ def etl_ibis(
                 columns_types=columns_types,
                 header=0,
                 nrows=None,
-                compression_type="gzip" if filename.endswith("gz") else None,
+                compression_type="gzip" if filename.endswith(".gz") else None,
                 validation=False,
                 use_columns_types_for_pd=False,
             )
