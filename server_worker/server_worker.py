@@ -2,7 +2,7 @@ import gzip
 import os
 import subprocess
 import sys
-import time
+from timeit import default_timer as timer
 
 import ibis
 import pandas as pd
@@ -99,7 +99,7 @@ class OmnisciServerWorker:
 
         if self._conn:
             self._conn.close()
-        t0 = time.time()
+        t0 = timer()
         self._conn = ibis.omniscidb.connect(
             host="localhost",
             port=self.omnisci_server.server_port,
@@ -108,7 +108,7 @@ class OmnisciServerWorker:
             password=self.omnisci_server.password,
             ipc=ipc,
         )
-        self._conn_creation_time = time.time() - t0
+        self._conn_creation_time = timer() - t0
         if database:
             self.omnisci_server.database_name = database
 
@@ -196,6 +196,7 @@ class OmnisciServerWorker:
         "Import CSV files using Ibis load_data to the OmniSciDB from the Pandas.DataFrame"
 
         if columns_types:
+<<<<<<< HEAD
             schema_table = ibis.Schema(names=columns_names, types=columns_types)
             types_pd = schema_table.to_pandas()
             columns_types_pd = [x[1] for x in types_pd]
@@ -213,6 +214,11 @@ class OmnisciServerWorker:
 
         t0 = time.time()
         if files_limit > 1 or isinstance(data_files_names, (list, tuple)):
+=======
+            columns_types_pd = convert_type_ibis2pandas(columns_types)
+        t0 = timer()
+        if files_limit > 1:
+>>>>>>> master
             pandas_df_from_each_file = (
                 self._read_csv_datafile(
                     file_name,
@@ -237,7 +243,7 @@ class OmnisciServerWorker:
                 compression_type=compression_type,
                 skiprows=skiprows,
             )
-        t_import_pandas = time.time() - t0
+        t_import_pandas = timer() - t0
 
         if validation:
             df = self._imported_pd_df[table_name]
@@ -250,23 +256,23 @@ class OmnisciServerWorker:
             pandas_concatenated_df_casted = self._imported_pd_df[table_name].astype(
                 dtype=cast_dict, copy=True
             )
-            t0 = time.time()
+            t0 = timer()
             self.import_data_from_pd_df(
                 table_name=table_name,
                 pd_obj=pandas_concatenated_df_casted,
                 columns_names=columns_names,
                 columns_types=columns_types,
             )
-            t_import_ibis = time.time() - t0
+            t_import_ibis = timer() - t0
         else:
-            t0 = time.time()
+            t0 = timer()
             self.import_data_from_pd_df(
                 table_name=table_name,
                 pd_obj=self._imported_pd_df[table_name],
                 columns_names=columns_names,
                 columns_types=columns_types,
             )
-            t_import_ibis = time.time() - t0
+            t_import_ibis = timer() - t0
 
         return t_import_pandas, t_import_ibis
 

@@ -9,12 +9,7 @@ from timeit import default_timer as timer
 import hiyapyco
 
 returned_port_numbers = []
-conversions = {
-    "ms": 1000,
-    "s": 1,
-    "m": 1 / 60,
-    "": 1,
-}
+conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
 
 
 def str_arg_to_bool(v):
@@ -217,13 +212,11 @@ def print_times(times, backend=None):
 
 
 def print_results(results, backend=None, unit=""):
-    if unit not in conversions.keys():
-        raise ValueError("Conversion to " + unit + " is not implemented")
-    multiplier = conversions.get(unit)
+    results_converted = convert_units(results, ignore_fields=[], unit=unit)
     if backend:
         print(f"{backend} results:")
-    for result_name, result in results.items():
-        print("    {} = {:.2f} {}".format(result_name, result * multiplier, unit))
+    for result_name, result in results_converted.items():
+        print("    {} = {:.2f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
@@ -263,8 +256,16 @@ def find_free_port():
     raise Exception("Can't find available ports")
 
 
-def split(X, y, test_size=0.1, stratify=None, random_state=None):
-    from sklearn.model_selection import train_test_split
+def split(X, y, test_size=0.1, stratify=None, random_state=None, optimizer="intel"):
+    if optimizer == "intel":
+        import daal4py
+        from daal4py import sklearn
+        from sklearn.model_selection import train_test_split
+    elif optimizer == "stock":
+        from sklearn.model_selection import train_test_split
+    else:
+        print(f"Intel optimized and stock sklearn are supported. {optimizer} can't be recognized")
+        sys.exit(1)
 
     t0 = timer()
     X_train, X_test, y_train, y_test = train_test_split(
@@ -285,14 +286,20 @@ def remove_fields_from_dict(dictonary, fields_to_remove):
             dictonary.pop(key)
 
 
-def convert_results_unit(results, ignore_fields, unit="ms"):
-    if unit not in conversions.keys():
-        raise ValueError("Conversion to " + unit + " is not implemented")
-    multiplier = conversions.get(unit)
+def convert_units(dict_to_convert, ignore_fields, unit="ms"):
+    try:
+        multiplier = conversions[unit]
+    except KeyError:
+        raise ValueError(f"Conversion to {unit} is not implemented")
 
-    results.update(
-        {key: value * multiplier for key, value in results.items() if key not in ignore_fields}
-    )
+    return {
+        key: (value * multiplier if key not in ignore_fields else value)
+        for key, value in dict_to_convert.items()
+    }
+
+
+def convert_results_unit(results, ignore_fields, unit="ms"):
+    return convert_units(results, ignore_fields=ignore_fields, unit=unit)
 
 
 class KeyValueListParser(argparse.Action):
@@ -302,3 +309,28 @@ class KeyValueListParser(argparse.Action):
             k, v = kv.split("=")
             kwargs[k] = v
         setattr(namespace, self.dest, kwargs)
+
+
+def check_fragments_size(fragments_size, count_table, import_mode, default_fragments_size=None):
+    result_fragments_size = []
+    check_options = {
+        "fragments_size": fragments_size,
+        "default_fragments_size": default_fragments_size,
+    }
+
+    for option_name, option in check_options.items():
+        if option:
+            if import_mode != "pandas" and len(option) != count_table:
+                raise ValueError(
+                    f"fragment size should be specified for each table; \
+                    {option_name}: {option}; count table: {count_table}"
+                )
+
+    if fragments_size:
+        result_fragments_size = fragments_size
+    elif default_fragments_size:
+        result_fragments_size = default_fragments_size
+    else:
+        result_fragments_size = [None] * count_table
+
+    return result_fragments_size

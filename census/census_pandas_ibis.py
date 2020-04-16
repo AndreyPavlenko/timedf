@@ -3,11 +3,14 @@ import os
 import sys
 import time
 import traceback
+import numpy as np
+from sklearn import config_context
 import warnings
 from timeit import default_timer as timer
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import (
+    check_fragments_size,
     cod,
     compare_dataframes,
     import_pandas_into_module_namespace,
@@ -102,15 +105,17 @@ def etl_ibis(
     validation,
     etl_keys,
     import_mode,
+    fragments_size,
 ):
     import ibis
+
+    fragments_size = check_fragments_size(
+        fragments_size, count_table=1, import_mode=import_mode, default_fragments_size=[1000000]
+    )
 
     etl_times = {key: 0.0 for key in etl_keys}
 
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
-
-    # TODO: this will be specified through command line parameter
-    fragment_size = 1000000
 
     # Create table and import data
     if create_new_table:
@@ -122,7 +127,7 @@ def etl_ibis(
                 table_name=table_name,
                 schema=schema_table,
                 database=database_name,
-                fragment_size=fragment_size,
+                fragment_size=fragments_size[0],
             )
             table_import = omnisci_server_worker.database(database_name).table(table_name)
             etl_times["t_connect"] += timer() - t0
@@ -161,7 +166,10 @@ def etl_ibis(
 
                 t0 = timer()
                 omnisci_server_worker._conn.create_table_from_csv(
-                    table_name, unzip_name or filename, schema_table, fragment_size=fragment_size
+                    table_name,
+                    unzip_name or filename,
+                    schema_table,
+                    fragment_size=fragments_size[0],
                 )
                 etl_times["t_readcsv"] = timer() - t0
                 etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
@@ -261,6 +269,9 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
 
     clf = lm.Ridge()
 
+    X = np.ascontiguousarray(X, dtype=np.float64)
+    y = np.ascontiguousarray(y, dtype=np.float64)
+
     mse_values, cod_values = [], []
     ml_times = {key: 0.0 for key in ml_keys}
     ml_scores = {key: 0.0 for key in ml_score_keys}
@@ -268,13 +279,14 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
     print("ML runs: ", n_runs)
     for i in range(n_runs):
         (X_train, y_train, X_test, y_test), split_time = split(
-            X, y, test_size=test_size, random_state=random_state
+            X, y, test_size=test_size, random_state=random_state, optimizer=optimizer
         )
         ml_times["t_train_test_split"] += split_time
         random_state += 777
 
         t0 = timer()
-        model = clf.fit(X_train, y_train)
+        with config_context(assume_finite=True):
+            model = clf.fit(X_train, y_train)
         ml_times["t_train"] += timer() - t0
 
         t0 = timer()
@@ -451,6 +463,7 @@ def run_benchmark(parameters):
                 validation=parameters["validation"],
                 etl_keys=etl_keys,
                 import_mode=parameters["import_mode"],
+                fragments_size=parameters["fragments_size"],
             )
 
             print_results(results=etl_times_ibis, backend="Ibis", unit="s")
