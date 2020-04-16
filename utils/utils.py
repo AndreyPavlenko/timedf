@@ -110,13 +110,40 @@ def get_percentage(error_message):
     return float(error_message.split("values are different ")[1].split("%)")[0][1:])
 
 
-def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"]):
+def compare_columns(columns):
     import pandas as pd
 
+    try:
+        pd.testing.assert_series_equal(
+            columns[0], columns[1], check_less_precise=2, check_dtype=False,
+        )
+    except AssertionError as assert_err:
+        if str(columns[0].dtype).startswith("float"):
+            try:
+                current_error = get_percentage(str(assert_err))
+                if current_error > max_error:
+                    print(
+                        f"Max acceptable difference: {max_error}%; current difference: {current_error}%"
+                    )
+                    raise assert_err
+            # for catch exceptions from `get_percentage`
+            except Exception:
+                raise assert_err
+        else:
+            raise assert_err
+
+
+def compare_dataframes(
+    ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"], parallel_execution=False
+):
+    import pandas as pd
+
+    parallel_processes = os.cpu_count() // 2
     prepared_dfs = []
     # in percentage - 0.05 %
     max_error = 0.05
 
+    t0 = timer()
     assert len(ibis_dfs) == len(pandas_dfs)
 
     # preparing step
@@ -141,31 +168,29 @@ def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"])
         print("dataframes are equal")
         return
 
+    print("Fast check took {:.2f} seconds".format(timer() - t0))
+
     # comparing step
+    t0 = timer()
     for ibis_df, pandas_df in zip(ibis_dfs, pandas_dfs):
         assert ibis_df.shape == pandas_df.shape
-        for column_name in ibis_df.columns:
-            try:
-                pd.testing.assert_frame_equal(
-                    ibis_df[[column_name]],
-                    pandas_df[[column_name]],
-                    check_less_precise=2,
-                    check_dtype=False,
-                )
-            except AssertionError as assert_err:
-                if str(ibis_df.dtypes[column_name]).startswith("float"):
-                    try:
-                        current_error = get_percentage(str(assert_err))
-                        if current_error > max_error:
-                            print(
-                                f"Max acceptable difference: {max_error}%; current difference: {current_error}%"
-                            )
-                            raise assert_err
-                    # for catch exceptions from `get_percentage`
-                    except Exception:
-                        raise assert_err
-                else:
-                    raise assert_err
+        if parallel_execution:
+            from multiprocessing import Pool
+
+            pool = Pool(parallel_processes)
+            pool.map(
+                compare_columns,
+                [
+                    (ibis_df[column_name], pandas_df[column_name])
+                    for column_name in ibis_df.columns
+                ],
+            )
+            pool.close()
+        else:
+            for column_name in ibis_df.columns:
+                compare_columns((ibis_df[column_name], pandas_df[column_name]))
+
+        print("Per-column check took {:.2f} seconds".format(timer() - t0))
 
     print("dataframes are equal")
 
