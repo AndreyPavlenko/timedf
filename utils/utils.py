@@ -9,12 +9,7 @@ from timeit import default_timer as timer
 import hiyapyco
 
 returned_port_numbers = []
-conversions = {
-    "ms": 1000,
-    "s": 1,
-    "m": 1 / 60,
-    "": 1,
-}
+conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
 
 
 def str_arg_to_bool(v):

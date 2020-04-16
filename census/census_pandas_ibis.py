@@ -286,7 +286,7 @@ def ml(X, y, random_state, n_runs, test_size, optimizer, ml_keys, ml_score_keys)
 
         t0 = timer()
         with config_context(assume_finite=True):
-          model = clf.fit(X_train, y_train)
+            model = clf.fit(X_train, y_train)
         ml_times["t_train"] += timer() - t0
 
         t0 = timer()
