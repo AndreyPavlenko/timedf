@@ -318,7 +318,9 @@ def etl_ibis(
 
                     t0 = timer()
                     omnisci_server_worker._conn.create_table_from_csv(
-                        table_name, unzip_name if file_to_import.endswith(".gz") else file_to_import, schema_table
+                        table_name,
+                        unzip_name if file_to_import.endswith(".gz") else file_to_import,
+                        schema_table,
                     )
                     etl_times["t_readcsv"] += timer() - t0
 
