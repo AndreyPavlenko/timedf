@@ -296,7 +296,7 @@ def etl_ibis(
                 columns_types=columns_types,
                 header=0,
                 nrows=None,
-                compression_type="gzip" if filename.endswith("gz") else None,
+                compression_type="gzip" if filename.endswith(".gz") else None,
                 validation=validation,
             )
 
@@ -304,9 +304,8 @@ def etl_ibis(
 
         elif import_mode == "fsi":  # Currently work for single file
             unzip_name = None
-            if data_files_names[0].endswith("gz"):
+            if any([name.endswith(".gz") for name in data_files_names]):
                 import gzip
-                import os
 
                 unzip_name = "/tmp/taxibench-fsi.csv"
 
@@ -319,7 +318,7 @@ def etl_ibis(
 
                     t0 = timer()
                     omnisci_server_worker._conn.create_table_from_csv(
-                        table_name, unzip_name or file_to_import, schema_table
+                        table_name, unzip_name if file_to_import.endswith(".gz") else file_to_import, schema_table
                     )
                     etl_times["t_readcsv"] += timer() - t0
 
