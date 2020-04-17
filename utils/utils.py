@@ -107,7 +107,9 @@ def get_percentage(error_message):
 
 def compare_columns(columns):
     if len(columns) is not 2:
-        raise AttributeError("Columns number should be 2, actual number is {}".format(len(columns)))
+        raise AttributeError(
+            "Columns number should be 2, actual number is {}".format(len(columns))
+        )
 
     import pandas as pd
 
