@@ -271,15 +271,17 @@ def etl_ibis(
 
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
 
+    # Create table and import data for ETL queries
     if create_new_table:
         etl_times["t_readcsv"] = 0
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
         if import_mode == "copy-from":
-            # Create table and import data for ETL queries
+            t0 = timer()
             omnisci_server_worker.create_table(
                 table_name=table_name, schema=schema_table, database=database_name,
             )
             table_import = omnisci_server_worker.database(database_name).table(table_name)
+            etl_times["t_connect"] = timer() - t0
 
             for file_to_import in data_files_names[:files_limit]:
                 t0 = timer()
@@ -287,7 +289,6 @@ def etl_ibis(
                 etl_times["t_readcsv"] += timer() - t0
 
         elif import_mode == "pandas":
-            # Datafiles import
             t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
                 table_name=table_name,
                 data_files_names=data_files_names,
@@ -301,6 +302,7 @@ def etl_ibis(
             )
 
             etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
+            etl_times["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
         elif import_mode == "fsi":  # Currently work for single file
             unzip_name = None
@@ -328,9 +330,13 @@ def etl_ibis(
                     if unzip_name:
                         os.remove(unzip_name)
 
+            etl_times["t_connect"] = omnisci_server_worker.get_conn_creation_time()
+
     # Second connection - this is ibis's ipc connection for DML
+    t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
     table = omnisci_server_worker.database(database_name).table(table_name)
+    etl_times["t_connect"] += timer() - t0
 
     df_pandas = None
     if validation:
