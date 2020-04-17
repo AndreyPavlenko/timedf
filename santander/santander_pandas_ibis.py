@@ -175,21 +175,20 @@ def etl_ibis(
             etl_times["t_readcsv"] = timer() - t0
 
         elif import_mode == "pandas":
-            # decimal(8, 4) is converted to decimal(9, 6) in order to provide better data conversion
-            # accuracy during import from Pandas into OmniSciDB for proper results validation
-            columns_types = [
-                "decimal(9, 6)" if (x == "decimal(8, 4)") else x for x in columns_types
+            # Datafiles import
+            columns_types_converted = [
+                "float64" if (x.startswith("decimal")) else x for x in columns_types
             ]
             t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
                 table_name=table_name,
                 data_files_names=filename,
                 files_limit=1,
                 columns_names=columns_names,
-                columns_types=columns_types,
+                columns_types=columns_types_converted,
                 header=0,
                 nrows=None,
-                compression_type="gzip" if filename.endswith(".gz") else None,
-                use_columns_types_for_pd=False,
+                compression_type="gzip" if filename.endswith("gz") else None,
+                validation=validation,
             )
             etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
             etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
@@ -197,7 +196,7 @@ def etl_ibis(
         elif import_mode == "fsi":
             try:
                 unzip_name = None
-                if filename.endswith(".gz"):
+                if filename.endswith("gz"):
                     import gzip
 
                     unzip_name = "/tmp/santander-fsi.csv"
@@ -427,11 +426,7 @@ def run_benchmark(parameters):
             ml_data.sort_values(by=cols_to_sort, inplace=True)
 
             compare_dataframes(
-                ibis_dfs=[ml_data_ibis],
-                pandas_dfs=[ml_data],
-                sort_cols=cols_to_sort,
-                drop_cols=[],
-                parallel_execution=True,
+                ibis_dfs=[ml_data_ibis], pandas_dfs=[ml_data], sort_cols=cols_to_sort, drop_cols=[]
             )
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
