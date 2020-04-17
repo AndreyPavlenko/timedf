@@ -106,7 +106,7 @@ def get_percentage(error_message):
 
 
 def compare_columns(columns):
-    if len(columns) is not 2:
+    if len(columns) != 2:
         raise AttributeError(
             f"Columns number should be 2, actual number is {len(columns)}"
         )
@@ -180,10 +180,10 @@ def compare_dataframes(
             pool = Pool(parallel_processes)
             pool.map(
                 compare_columns,
-                [
+                (
                     (ibis_df[column_name], pandas_df[column_name])
                     for column_name in ibis_df.columns
-                ],
+                ),
             )
             pool.close()
         else:
