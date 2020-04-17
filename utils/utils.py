@@ -107,9 +107,7 @@ def get_percentage(error_message):
 
 def compare_columns(columns):
     if len(columns) != 2:
-        raise AttributeError(
-            f"Columns number should be 2, actual number is {len(columns)}"
-        )
+        raise AttributeError(f"Columns number should be 2, actual number is {len(columns)}")
 
     import pandas as pd
 
@@ -121,13 +119,12 @@ def compare_columns(columns):
         if str(columns[0].dtype).startswith("float"):
             try:
                 current_error = get_percentage(str(assert_err))
-                if current_error > max_error:
-                    print(
-                        f"Max acceptable difference: {max_error}%; current difference: {current_error}%"
-                    )
-                    raise assert_err
-            # for catch exceptions from `get_percentage`
             except Exception:
+                raise assert_err
+            if current_error > max_error:
+                print(
+                    f"Max acceptable difference: {max_error}%; current difference: {current_error}%"
+                )
                 raise assert_err
         else:
             raise assert_err

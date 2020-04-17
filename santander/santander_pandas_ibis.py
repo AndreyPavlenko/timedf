@@ -418,7 +418,7 @@ def run_benchmark(parameters):
 
         # Results validation block (comparison of etl_ibis and etl_pandas outputs)
         if parameters["validation"]:
-            print("Validation of ETL query results with ...")
+            print("Validation of ETL query results ...")
             cols_to_sort = ["var_0", "var_1", "var_2", "var_3", "var_4"]
 
             ml_data_ibis = ml_data_ibis.rename(columns={"target0": "target"})
