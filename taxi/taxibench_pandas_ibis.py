@@ -257,6 +257,8 @@ def etl_ibis(
         "Query4": q4_ibis,
     }
     etl_times = {x: 0.0 for x in queries.keys()}
+    etl_times["t_readcsv"] = 0.0
+    etl_times["t_connect"] = 0.0
 
     queries_validation_results = {"q%s" % i: False for i in range(1, 5)}
     queries_validation_flags = {"q%s" % i: False for i in range(1, 5)}
@@ -273,19 +275,19 @@ def etl_ibis(
 
     # Create table and import data for ETL queries
     if create_new_table:
-        etl_times["t_readcsv"] = 0
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
         if import_mode == "copy-from":
             t0 = timer()
             omnisci_server_worker.create_table(
                 table_name=table_name, schema=schema_table, database=database_name,
             )
+            etl_times["t_connect"] += timer() - t0
             table_import = omnisci_server_worker.database(database_name).table(table_name)
-            etl_times["t_connect"] = timer() - t0
+            etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
 
             for file_to_import in data_files_names[:files_limit]:
                 t0 = timer()
-                table_import.read_csv(file_to_import, header=False, quotechar="", delimiter=",")
+                table_import.read_csv(file_to_import, header=False, quotechar='"', delimiter=",")
                 etl_times["t_readcsv"] += timer() - t0
 
         elif import_mode == "pandas":
@@ -333,8 +335,9 @@ def etl_ibis(
             etl_times["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
     # Second connection - this is ibis's ipc connection for DML
-    t0 = timer()
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
+    etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
+    t0 = timer()
     table = omnisci_server_worker.database(database_name).table(table_name)
     etl_times["t_connect"] += timer() - t0
 
