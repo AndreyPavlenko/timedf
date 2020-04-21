@@ -13,6 +13,7 @@ from utils import (
     import_pandas_into_module_namespace,
     load_data_pandas,
     print_results,
+    write_to_csv_by_chunks,
 )
 
 
@@ -297,7 +298,7 @@ def etl_ibis(
                 files_limit=files_limit,
                 columns_names=columns_names,
                 columns_types=columns_types,
-                header=0,
+                header=False,
                 nrows=None,
                 compression_type="gzip" if filename.endswith(".gz") else None,
                 use_columns_types_for_pd=False,
@@ -306,32 +307,26 @@ def etl_ibis(
             etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
             etl_times["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
-        elif import_mode == "fsi":  # Currently work for single file
-            unzip_name = None
-            if any([name.endswith(".gz") for name in data_files_names]):
-                import gzip
-
-                unzip_name = "/tmp/taxibench-fsi.csv"
-
-            for file_to_import in data_files_names[:files_limit]:
+        elif import_mode == "fsi":
+            data_file_name = None
+            if any([name.endswith(".gz") for name in data_files_names]) or len(data_files_names) > 1:
+                data_file_name = os.path.join(os.path.dirname(__file__), f"taxibench-{files_limit}-files-fsi.csv")
+            
+            if not os.path.exists(data_file_name):
                 try:
-                    if file_to_import.endswith(".gz"):
-                        with gzip.open(file_to_import, "rb") as gz_input:
-                            with open(unzip_name, "wb") as output:
-                                output.write(gz_input.read())
+                    write_to_csv_by_chunks(files_to_write=[f for f in data_files_names[:files_limit]], output_file=data_file_name, append_file=True)
+                except Exception as exc:
+                    print("write_to_csv_by_chunks failed with exception:", exc)
+                    os.remove(data_file_name)
 
-                    t0 = timer()
-                    omnisci_server_worker._conn.create_table_from_csv(
-                        table_name,
-                        unzip_name if file_to_import.endswith(".gz") else file_to_import,
-                        schema_table,
-                    )
-                    etl_times["t_readcsv"] += timer() - t0
-
-                finally:
-                    if unzip_name:
-                        os.remove(unzip_name)
-
+            t0 = timer()
+            omnisci_server_worker.get_conn().create_table_from_csv(
+                table_name,
+                data_file_name if data_file_name else data_files_names[0],
+                schema_table,
+                header=0,
+            )
+            etl_times["t_readcsv"] += timer() - t0
             etl_times["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
     # Second connection - this is ibis's ipc connection for DML
@@ -438,7 +433,7 @@ def etl_pandas(
         load_data_pandas(
             filename=f,
             columns_names=columns_names,
-            header=0,
+            header=None,
             nrows=None,
             use_gzip=f.endswith(".gz"),
             parse_dates=["pickup_datetime", "dropoff_datetime",],
@@ -585,6 +580,7 @@ def run_benchmark(parameters):
             )
 
         etl_times_ibis = None
+        etl_times = None
         if not parameters["no_ibis"]:
             etl_times_ibis = etl_ibis(
                 filename=parameters["data_file"],
