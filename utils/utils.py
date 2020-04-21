@@ -326,22 +326,23 @@ def check_fragments_size(fragments_size, count_table, import_mode, default_fragm
 
     return result_fragments_size
 
+
 def write_to_csv_by_chunks(files_to_write, output_file, append_file=False, chunksize=1024):
     import zlib
 
     write_mode = "ab" if append_file else "wb"
 
     for file_name in files_to_write:
-        with open(file_name,'rb') as f:
-            buffer=f.read(chunksize)
+        with open(file_name, "rb") as f:
+            buffer = f.read(chunksize)
 
             if file_name.endswith(".gz"):
-                d = zlib.decompressobj(16+zlib.MAX_WBITS)
+                d = zlib.decompressobj(16 + zlib.MAX_WBITS)
                 while buffer:
                     chunk = d.decompress(buffer)
                     with open(output_file, write_mode) as output:
                         output.write(chunk)
-                    buffer=f.read(chunksize)
+                    buffer = f.read(chunksize)
 
                 chunk = d.flush()
                 with open(output_file, write_mode) as output:
@@ -351,6 +352,8 @@ def write_to_csv_by_chunks(files_to_write, output_file, append_file=False, chunk
                     chunk = d.decompress(buffer)
                     with open(output_file, write_mode) as output:
                         output.write(buffer)
-                    buffer=f.read(chunksize)
+                    buffer = f.read(chunksize)
             else:
-                raise NotImplementedError(f"fsi import of {file_name.split()[-1]} files is not supported yet")
+                raise NotImplementedError(
+                    f"fsi import of {file_name.split()[-1]} files is not supported yet"
+                )

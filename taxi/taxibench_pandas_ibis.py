@@ -309,12 +309,21 @@ def etl_ibis(
 
         elif import_mode == "fsi":
             data_file_name = None
-            if any([name.endswith(".gz") for name in data_files_names]) or len(data_files_names) > 1:
-                data_file_name = os.path.join(os.path.dirname(__file__), f"taxibench-{files_limit}-files-fsi.csv")
-            
+            if (
+                any([name.endswith(".gz") for name in data_files_names])
+                or len(data_files_names) > 1
+            ):
+                data_file_name = os.path.join(
+                    os.path.dirname(__file__), f"taxibench-{files_limit}-files-fsi.csv"
+                )
+
             if not os.path.exists(data_file_name):
                 try:
-                    write_to_csv_by_chunks(files_to_write=[f for f in data_files_names[:files_limit]], output_file=data_file_name, append_file=True)
+                    write_to_csv_by_chunks(
+                        files_to_write=[f for f in data_files_names[:files_limit]],
+                        output_file=data_file_name,
+                        append_file=True,
+                    )
                 except Exception as exc:
                     print("write_to_csv_by_chunks failed with exception:", exc)
                     os.remove(data_file_name)
