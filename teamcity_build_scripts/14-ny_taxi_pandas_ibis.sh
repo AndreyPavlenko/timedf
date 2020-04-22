@@ -5,6 +5,6 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --python_versi
 -database_name ${DATABASE_NAME} -table taxi -bench_name taxi -dfiles_num 20 -iterations 5                   \
 -data_file '/localdisk/benchmark_datasets/taxi/trips_xa{a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t}.csv.gz'    \
 -pandas_mode Pandas -ray_tmpdir /tmp -validation True                                                       \
--db_server ansatlin07.an.intel.com -db_port 3306 -db_user gashiman -db_pass omniscidb -db_name omniscidb    \
+-db_server ${DATABASE_SERVER_NAME} -db_port 3306 -db_user ${DATABASE_USER_NAME} -db-pass "${DATABASE_USER_PW}" -db_name "${DATABASE_NAME}"    \
 -db_table_etl taxibench_etl                                                                                 \
--commit_omnisci ${BUILD_REVISION} -commit_ibis ${BUILD_IBIS_REVISION}
+-commit_omnisci ${BUILD_REVISION} -commit_ibis ${BUILD_IBIS_REVISION} -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}
