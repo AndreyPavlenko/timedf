@@ -6,6 +6,6 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --python_versi
 -fragments_size 1000000                                                                                     \
 -data_file '/localdisk/benchmark_datasets/census/ipums_education2income_1970-2010.csv.gz'                   \
 -pandas_mode Pandas -ray_tmpdir /tmp -validation True -optimizer stock                                      \
--db_server ${DATABASE_SERVER_NAME} -db_port 3306 -db_user ${DATABASE_USER_NAME} -db_pass omniscidb -db_name omniscidb    \
+-db_server ${DATABASE_SERVER_NAME} -db_port 3306 -db_user ${DATABASE_USER_NAME} -db-pass "${DATABASE_USER_PW}" -db_name "${DATABASE_NAME}"    \
 -db_table_etl census_etl -db_table_ml census_ml                                                             \
--commit_omnisci ${BUILD_REVISION} -commit_ibis ${BUILD_IBIS_REVISION}
+-commit_omnisci ${BUILD_REVISION} -commit_ibis ${BUILD_IBIS_REVISION} -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}

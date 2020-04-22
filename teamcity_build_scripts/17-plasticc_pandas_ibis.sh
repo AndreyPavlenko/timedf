@@ -6,6 +6,6 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --python_versi
 -fragments_size 32000000 32000000 32000000 32000000                                                         \
 -data_file '/localdisk/benchmark_datasets/plasticc/'                                                        \
 -pandas_mode Pandas -ray_tmpdir /tmp -validation True                                                       \
--db_server ${DATABASE_SERVER_NAME} -db_port 3306 -db_user ${DATABASE_USER_NAME} -db_pass omniscidb -db_name omniscidb    \
+-db_server ${DATABASE_SERVER_NAME} -db_port 3306 -db_user ${DATABASE_USER_NAME} -db-pass "${DATABASE_USER_PW}" -db_name "${DATABASE_NAME}"    \
 -db_table_etl plasticc_etl -db_table_ml plasticc_ml                                                         \
--commit_omnisci ${BUILD_REVISION} -commit_ibis ${BUILD_IBIS_REVISION}
+-commit_omnisci ${BUILD_REVISION} -commit_ibis ${BUILD_IBIS_REVISION} -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}
