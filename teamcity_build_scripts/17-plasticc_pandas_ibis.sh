@@ -11,4 +11,4 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                   \
                           -db_server ${DATABASE_SERVER_NAME} -db_port 3306                                                    \
                           -db_user ${DATABASE_USER_NAME} -db-pass "${DATABASE_USER_PW}"                                       \
-                          -db_name "${DATABASE_NAME}" -db_table_etl plasticc_etl -db_table_ml plasticc_ml                     \
+                          -db_name "${DATABASE_NAME}" -db_table_etl plasticc_etl -db_table_ml plasticc_ml
