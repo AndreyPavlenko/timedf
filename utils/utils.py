@@ -57,7 +57,7 @@ def convert_type_ibis2pandas(types):
 
 def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir=None, ray_memory=None):
     if mode == "Pandas":
-        print("Running on Pandas")
+        print("Pandas backend: pure Pandas")
         import pandas as pd
     else:
         if mode == "Modin_on_ray":
@@ -76,14 +76,14 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir=None, ray_me
                 )
             os.environ["MODIN_ENGINE"] = "ray"
             print(
-                "Running on Modin on Ray with tmp directory", ray_tmpdir, "and memory", ray_memory
+                f"Pandas backend: Modin on Ray with tmp directory {ray_tmpdir} and memory {ray_memory}"
             )
         elif mode == "Modin_on_dask":
             os.environ["MODIN_ENGINE"] = "dask"
-            print("Running on Modin on Dask")
+            print("Pandas backend: Modin on Dask")
         elif mode == "Modin_on_python":
             os.environ["MODIN_ENGINE"] = "python"
-            print("Running on Modin on Python")
+            print("Pandas backend: Modin on pure Python")
         else:
             raise ValueError(f"Unknown pandas mode {mode}")
         import modin.pandas as pd
@@ -122,9 +122,9 @@ def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"])
             # as 'id' column in source dataframe
             ibis_dfs[idx].sort_index(axis=0, inplace=True)
         else:
-            if len(sort_cols):
+            if sort_cols:
                 ibis_dfs[idx].sort_values(by=sort_cols, axis=0, inplace=True)
-            if len(drop_cols):
+            if drop_cols:
                 ibis_dfs[idx].drop(drop_cols, axis=1, inplace=True)
 
         ibis_dfs[idx].reset_index(drop=True, inplace=True)
@@ -139,14 +139,28 @@ def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"])
     # comparing step
     for ibis_df, pandas_df in zip(ibis_dfs, pandas_dfs):
         assert ibis_df.shape == pandas_df.shape
-        for column_name in ibis_df.columns:
+        for column_name, column_type in ibis_df.dtypes.items():
             try:
                 pd.testing.assert_frame_equal(
                     ibis_df[[column_name]],
                     pandas_df[[column_name]],
                     check_less_precise=2,
                     check_dtype=False,
+                    check_categorical=False,
                 )
+                if str(column_type) == "category":
+                    left = ibis_df[column_name]
+                    right = pandas_df[column_name]
+                    assert left.cat.ordered == right.cat.ordered
+                    # assert_frame_equal cannot turn off comparison of
+                    # order of categories, so compare categories manually
+                    pd.testing.assert_series_equal(
+                        left,
+                        right,
+                        check_dtype=False,
+                        check_less_precise=2,
+                        check_category_order=left.cat.ordered,
+                    )
             except AssertionError as assert_err:
                 if str(ibis_df.dtypes[column_name]).startswith("float"):
                     try:
@@ -160,7 +174,7 @@ def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"])
                     except Exception:
                         raise assert_err
                 else:
-                    raise assert_err
+                    raise
 
     print("dataframes are equal")
 
