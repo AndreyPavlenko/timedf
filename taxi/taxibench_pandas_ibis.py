@@ -317,7 +317,7 @@ def etl_ibis(
                     os.path.dirname(__file__), f"taxibench-{files_limit}-files-fsi.csv"
                 )
 
-            if not os.path.exists(data_file_name):
+            if data_file_name and not os.path.exists(data_file_name):
                 try:
                     write_to_csv_by_chunks(
                         files_to_write=[f for f in data_files_names[:files_limit]],
