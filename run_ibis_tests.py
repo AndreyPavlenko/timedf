@@ -144,7 +144,7 @@ def main():
     )
     omnisci.add_argument(
         "-ipc_conn",
-        dest="ipc_connection",
+        dest="ipc_conn",
         default=True,
         type=str_arg_to_bool,
         help="Connection type for ETL operations",
@@ -339,6 +339,12 @@ def main():
         default="1234567890123456789012345678901234567890",
         help="Ibis commit hash to use for tests.",
     )
+    commits.add_argument(
+        "-commit_omniscripts",
+        dest="commit_omniscripts",
+        default="1234567890123456789012345678901234567890",
+        help="Omniscripts commit hash to use for tests.",
+    )
 
     try:
         args = parser.parse_args()
@@ -488,7 +494,7 @@ def main():
                 "calcite_port",
                 "user",
                 "password",
-                "ipc_connection",
+                "ipc_conn",
                 "database_name",
                 "table",
                 "commit_omnisci",
@@ -500,6 +506,7 @@ def main():
                 "multifrag_rs",
                 "fragments_size",
                 "omnisci_run_kwargs",
+                "commit_omniscripts",
             ]
             args_dict = vars(args)
             args_dict["data_file"] = f"'{args_dict['data_file']}'"

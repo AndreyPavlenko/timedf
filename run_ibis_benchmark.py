@@ -225,7 +225,7 @@ def main():
     )
     optional.add_argument(
         "-ipc_conn",
-        dest="ipc_connection",
+        dest="ipc_conn",
         default=True,
         type=str_arg_to_bool,
         help="Table name name to use in omniscidb server.",
@@ -288,6 +288,12 @@ def main():
         dest="commit_ibis",
         default="1234567890123456789012345678901234567890",
         help="Ibis commit hash to use for benchmark.",
+    )
+    optional.add_argument(
+        "-commit_omniscripts",
+        dest="commit_omniscripts",
+        default="1234567890123456789012345678901234567890",
+        help="Omniscripts commit hash to use for tests.",
     )
 
     try:
@@ -367,7 +373,7 @@ def main():
 
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
                 parameters["omnisci_server_worker"] = omnisci_server_worker
-                parameters["ipc_connection"] = args.ipc_connection
+                parameters["ipc_connection"] = args.ipc_conn
                 omnisci_server.launch()
 
             result = run_benchmark(parameters)
@@ -411,6 +417,7 @@ def main():
                     reporting_init_fields = {
                         "OmnisciCommitHash": args.commit_omnisci,
                         "IbisCommitHash": args.commit_ibis,
+                        "OmniscriptsCommitHash": args.commit_omniscripts,
                     }
 
                     reporting_fields_benchmark_etl = {
