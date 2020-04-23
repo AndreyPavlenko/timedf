@@ -276,6 +276,7 @@ def etl_ibis(
 
     # Create table and import data for ETL queries
     if create_new_table:
+        any_gz_file = any([name.endswith(".gz") for name in data_files_names])
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
         if import_mode == "copy-from":
             t0 = timer()
@@ -298,9 +299,9 @@ def etl_ibis(
                 files_limit=files_limit,
                 columns_names=columns_names,
                 columns_types=columns_types,
-                header=False,
+                header=None,
                 nrows=None,
-                compression_type="gzip" if filename.endswith(".gz") else None,
+                compression_type="gzip" if any_gz_file else None,
                 use_columns_types_for_pd=False,
             )
 
@@ -309,10 +310,7 @@ def etl_ibis(
 
         elif import_mode == "fsi":
             data_file_name = None
-            if (
-                any([name.endswith(".gz") for name in data_files_names])
-                or len(data_files_names) > 1
-            ):
+            if any_gz_file or len(data_files_names) > 1:
                 data_file_name = os.path.join(
                     os.path.dirname(__file__), f"taxibench-{files_limit}-files-fsi.csv"
                 )
