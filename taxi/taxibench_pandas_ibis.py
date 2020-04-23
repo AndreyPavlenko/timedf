@@ -269,14 +269,18 @@ def etl_ibis(
     data_files_names = files_names_from_pattern(filename)
 
     if len(data_files_names) == 0:
-        print("Could not find any data files matching ", filename)
-        sys.exit(2)
+        raise FileNotFoundError(f"Could not find any data files matching {filename}")
+
+    data_files_extension = data_files_names[0].split(".")[-1]
+    if not all([name.endswith(data_files_extension) for name in data_files_names]):
+        raise NotImplementedError(
+            "Import of data files with different extensions is not supported"
+        )
 
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
 
     # Create table and import data for ETL queries
     if create_new_table:
-        any_gz_file = any([name.endswith(".gz") for name in data_files_names])
         schema_table = ibis.Schema(names=columns_names, types=columns_types)
         if import_mode == "copy-from":
             t0 = timer()
@@ -301,7 +305,7 @@ def etl_ibis(
                 columns_types=columns_types,
                 header=None,
                 nrows=None,
-                compression_type="gzip" if any_gz_file else None,
+                compression_type="gzip" if data_files_extension == "gz" else None,
                 use_columns_types_for_pd=False,
             )
 
@@ -310,9 +314,12 @@ def etl_ibis(
 
         elif import_mode == "fsi":
             data_file_name = None
-            if any_gz_file or len(data_files_names) > 1:
+            if data_files_extension == "gz" or len(data_files_names) > 1:
                 data_file_name = os.path.join(
-                    os.path.dirname(__file__), f"taxibench-{files_limit}-files-fsi.csv"
+                    os.path.dirname(__file__),
+                    "..",
+                    "tmp",
+                    f"taxibench-{files_limit}-files-fsi.csv",
                 )
 
             if data_file_name and not os.path.exists(data_file_name):
