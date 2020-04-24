@@ -111,6 +111,9 @@ def compare_columns(columns):
 
     import pandas as pd
 
+    # in percentage - 0.05 %
+    max_error = 0.05
+
     try:
         pd.testing.assert_series_equal(
             columns[0],
@@ -154,9 +157,6 @@ def compare_dataframes(
     import pandas as pd
 
     parallel_processes = os.cpu_count() // 2
-    prepared_dfs = []
-    # in percentage - 0.05 %
-    max_error = 0.05
 
     t0 = timer()
     assert len(ibis_dfs) == len(pandas_dfs)
