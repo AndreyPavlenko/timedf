@@ -327,33 +327,27 @@ def check_fragments_size(fragments_size, count_table, import_mode, default_fragm
     return result_fragments_size
 
 
-def write_to_csv_by_chunks(files_to_write, output_file, append_file=False, chunksize=1024):
+def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksize=1024):
     import zlib
 
-    write_mode = "ab" if append_file else "wb"
+    with open(file_to_write, "rb") as f:
+        buffer = f.read(chunksize)
 
-    for file_name in files_to_write:
-        with open(file_name, "rb") as f:
-            buffer = f.read(chunksize)
-
-            if file_name.endswith(".gz"):
-                d = zlib.decompressobj(16 + zlib.MAX_WBITS)
-                while buffer:
-                    chunk = d.decompress(buffer)
-                    with open(output_file, write_mode) as output:
-                        output.write(chunk)
-                    buffer = f.read(chunksize)
-
-                chunk = d.flush()
+        if file_to_write.endswith(".gz"):
+            d = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            while buffer:
+                chunk = d.decompress(buffer)
                 with open(output_file, write_mode) as output:
                     output.write(chunk)
-            elif file_name.endswith(".csv"):
-                while buffer:
-                    chunk = d.decompress(buffer)
-                    with open(output_file, write_mode) as output:
-                        output.write(buffer)
-                    buffer = f.read(chunksize)
-            else:
-                raise NotImplementedError(
-                    f"file' extension: [{file_name}] is not supported yet"
-                )
+                buffer = f.read(chunksize)
+
+            chunk = d.flush()
+            with open(output_file, write_mode) as output:
+                output.write(chunk)
+        elif file_to_write.endswith(".csv"):
+            while buffer:
+                with open(output_file, write_mode) as output:
+                    output.write(buffer)
+                buffer = f.read(chunksize)
+        else:
+            raise NotImplementedError(f"file' extension: [{file_to_write}] is not supported yet")
