@@ -355,5 +355,5 @@ def write_to_csv_by_chunks(files_to_write, output_file, append_file=False, chunk
                     buffer = f.read(chunksize)
             else:
                 raise NotImplementedError(
-                    f"processing of {file_name.split('.')[-1]} files by write_to_csv_by_chunks function is not supported yet"
+                    f"file' extension: [{file_name}] is not supported yet"
                 )

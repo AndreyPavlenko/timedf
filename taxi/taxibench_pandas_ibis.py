@@ -269,7 +269,7 @@ def etl_ibis(
     data_files_names = files_names_from_pattern(filename)
 
     if len(data_files_names) == 0:
-        raise FileNotFoundError(f"Could not find any data files matching {filename}")
+        raise FileNotFoundError(f"Could not find any data files matching: [{filename}]")
 
     data_files_extension = data_files_names[0].split(".")[-1]
     if not all([name.endswith(data_files_extension) for name in data_files_names]):
@@ -330,8 +330,8 @@ def etl_ibis(
                         append_file=True,
                     )
                 except Exception as exc:
-                    print("write_to_csv_by_chunks failed with exception:", exc)
                     os.remove(data_file_name)
+                    raise
 
             t0 = timer()
             omnisci_server_worker.get_conn().create_table_from_csv(
