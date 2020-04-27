@@ -330,11 +330,13 @@ def check_fragments_size(fragments_size, count_table, import_mode, default_fragm
 def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksize=1024):
     import zlib
 
+    wbits_gzip = 16 + zlib.MAX_WBITS
+
     with open(file_to_write, "rb") as f:
         buffer = f.read(chunksize)
 
         if file_to_write.endswith(".gz"):
-            d = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            d = zlib.decompressobj(wbits=wbits_gzip)
             while buffer:
                 # Some of the input data may be preserved in internal buffers for later processing
                 # so we should use `flush` at the end of processing
