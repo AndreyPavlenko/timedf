@@ -336,6 +336,8 @@ def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksiz
         if file_to_write.endswith(".gz"):
             d = zlib.decompressobj(16 + zlib.MAX_WBITS)
             while buffer:
+                # Some of the input data may be preserved in internal buffers for later processing
+                # so we should use `flush` at the end of processing
                 chunk = d.decompress(buffer)
                 with open(output_file, write_mode) as output:
                     output.write(chunk)
