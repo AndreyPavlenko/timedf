@@ -323,7 +323,10 @@ def etl_ibis(
             data_file_path = None
             if data_files_extension == "gz" or len(data_files_names) > 1:
                 data_file_path = os.path.abspath(
-                    os.path.join(os.path.dirname(data_files_names[0]), f"taxibench-{files_limit}-files-fsi.csv")
+                    os.path.join(
+                        os.path.dirname(data_files_names[0]),
+                        f"taxibench-{files_limit}-files-fsi.csv",
+                    )
                 )
                 data_file_tmp_dir = os.path.abspath(
                     os.path.join(os.path.dirname(__file__), "..", "tmp")
