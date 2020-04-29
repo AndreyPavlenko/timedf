@@ -274,8 +274,10 @@ def split(X, y, test_size=0.1, stratify=None, random_state=None, optimizer="inte
     elif optimizer == "stock":
         from sklearn.model_selection import train_test_split
     else:
-        print(f"Intel optimized and stock sklearn are supported. {optimizer} can't be recognized")
-        sys.exit(1)
+        raise ValueError(
+            f"Intel optimized and stock sklearn are supported. \
+            {optimizer} can't be recognized"
+        )
 
     t0 = timer()
     X_train, X_test, y_train, y_test = train_test_split(
@@ -376,5 +378,7 @@ def check_support(current_params, unsupported_params):
     ignored_params = {}
     for param in unsupported_params:
         if current_params.get(param):
-            ignored_parameters[param] = current_params[param]
-    warnings.warn(f"Parameters {ignored_params} are irnored", RuntimeWarning)
+            ignored_params[param] = current_params[param]
+
+    if ignored_params:
+        warnings.warn(f"Parameters {ignored_params} are ignored", RuntimeWarning)
