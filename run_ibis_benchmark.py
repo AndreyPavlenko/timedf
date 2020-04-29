@@ -53,7 +53,7 @@ def main():
     optional.add_argument(
         "-dfiles_num",
         dest="dfiles_num",
-        default=1,
+        default=None,
         type=int,
         help="Number of datafiles to input into database for processing.",
     )
@@ -315,7 +315,6 @@ def main():
 
         parameters = {
             "data_file": args.data_file,
-            "dfiles_num": args.dfiles_num,
             "no_ml": args.no_ml,
             "no_ibis": args.no_ibis,
             "optimizer": args.optimizer,
@@ -326,6 +325,9 @@ def main():
             "validation": args.validation,
             "no_pandas": args.no_pandas,
         }
+
+        if args.dfiles_num:
+            parameters["dfiles_num"] = args.dfiles_num
 
         if not args.no_ibis:
             if args.executable is None:

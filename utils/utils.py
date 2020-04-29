@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+import warnings
 import re
 import socket
 import subprocess
@@ -369,3 +370,11 @@ def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksiz
                 buffer = f.read(chunksize)
         else:
             raise NotImplementedError(f"file' extension: [{file_to_write}] is not supported yet")
+
+
+def check_support(current_params, unsupported_params):
+    ignored_params = {}
+    for param in unsupported_params:
+        if current_params.get(param):
+            ignored_parameters[param] = current_params[param]
+    warnings.warn(f"Parameters {ignored_params} are irnored", RuntimeWarning)
