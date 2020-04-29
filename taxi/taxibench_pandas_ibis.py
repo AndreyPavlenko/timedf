@@ -623,6 +623,7 @@ def run_benchmark(parameters):
 
             print_results(results=etl_times_ibis, backend="Ibis", unit="ms")
             etl_times_ibis["Backend"] = "Ibis"
+            etl_times_ibis["dfiles_num"] = parameters["dfiles_num"]
 
         if not parameters["no_pandas"]:
             pandas_files_limit = parameters["dfiles_num"]
@@ -636,6 +637,7 @@ def run_benchmark(parameters):
 
             print_results(results=etl_times, backend=parameters["pandas_mode"], unit="ms")
             etl_times["Backend"] = parameters["pandas_mode"]
+            etl_times["dfiles_num"] = parameters["dfiles_num"]
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": []}
     except Exception:
