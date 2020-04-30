@@ -335,6 +335,7 @@ def etl_ibis(
                     data_file_path = os.path.join(
                         data_file_tmp_dir, f"taxibench-{files_limit}-files-fsi.csv"
                     )
+                    data_file_dir = data_file_tmp_dir
 
             if data_file_path and not os.path.exists(data_file_path):
                 if not os.path.exists(data_file_tmp_dir):
