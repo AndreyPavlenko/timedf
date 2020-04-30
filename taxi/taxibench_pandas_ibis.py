@@ -15,6 +15,7 @@ from utils import (
     load_data_pandas,
     print_results,
     write_to_csv_by_chunks,
+    get_dir,
 )
 
 
@@ -321,6 +322,11 @@ def etl_ibis(
 
         elif import_mode == "fsi":
             data_file_path = None
+            # If data files are compressed or number of csv files is more than one,
+            # data files (or single compressed file) should be transformed to single csv file.
+            # Before files transformation, script checks existance of already transformed file
+            # in the directory passed with -data_file flag, and then, if file is not found,
+            # in the omniscripts/tmp directory.
             if data_files_extension == "gz" or len(data_files_names) > 1:
                 data_file_path = os.path.abspath(
                     os.path.join(
@@ -328,9 +334,7 @@ def etl_ibis(
                         f"taxibench-{files_limit}-files-fsi.csv",
                     )
                 )
-                data_file_tmp_dir = os.path.abspath(
-                    os.path.join(os.path.dirname(__file__), "..", "tmp")
-                )
+                data_file_tmp_dir = os.path.join(get_dir("repository_root"), "tmp")
                 if not os.path.exists(data_file_path):
                     data_file_path = os.path.join(
                         data_file_tmp_dir, f"taxibench-{files_limit}-files-fsi.csv"
