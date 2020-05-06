@@ -376,8 +376,6 @@ def get_dir(dir_id):
     directories = {"repository_root": repository_root_directory}
 
     try:
-        directory = directories[dir_id]
+        return directories[dir_id]
     except KeyError:
-        raise ValueError(f"{dir_id} is not defined")
-
-    return directories[dir_id]
+        raise ValueError(f"{dir_id} is not known")
