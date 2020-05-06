@@ -377,7 +377,7 @@ def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksiz
 def check_support(current_params, unsupported_params):
     ignored_params = {}
     for param in unsupported_params:
-        if current_params.get(param):
+        if current_params.get(param) is not None:
             ignored_params[param] = current_params[param]
 
     if ignored_params:

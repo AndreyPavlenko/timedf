@@ -438,7 +438,7 @@ def run_benchmark(parameters):
         if parameters["validation"] and parameters["import_mode"] != "pandas":
             print(
                 f"WARNING: validation can not be performed, it works only for 'pandas' \
-                    import mode, [{parameters['import_mode']}] passed"
+                    import mode, '{parameters['import_mode']}' passed"
             )
 
         if not parameters["no_ibis"]:
