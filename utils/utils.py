@@ -11,6 +11,7 @@ import hiyapyco
 returned_port_numbers = []
 conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
 repository_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+directories = {"repository_root": repository_root_directory}
 
 
 def str_arg_to_bool(v):
@@ -373,8 +374,6 @@ def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksiz
 
 
 def get_dir(dir_id):
-    directories = {"repository_root": repository_root_directory}
-
     try:
         return directories[dir_id]
     except KeyError:
