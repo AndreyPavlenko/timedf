@@ -642,7 +642,6 @@ def run_benchmark(parameters):
             etl_results["dfiles_num"] = parameters["dfiles_num"]
             etl_results["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])
 
-
         return {"ETL": [etl_results_ibis, etl_results], "ML": []}
     except Exception:
         traceback.print_exc(file=sys.stdout)

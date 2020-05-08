@@ -398,4 +398,3 @@ def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksiz
 
 def get_ny_taxi_dataset_size(dfiles_num):
     return sum(list(ny_taxi_data_files_sizes_MB.values())[:dfiles_num])
-
