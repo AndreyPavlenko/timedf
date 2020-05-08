@@ -15,6 +15,7 @@ from utils import (
     load_data_pandas,
     print_results,
     write_to_csv_by_chunks,
+    get_ny_taxi_dataset_size,
 )
 
 
@@ -24,11 +25,11 @@ def validation_prereqs(omnisci_server_worker, data_files_names, files_limit, col
     )
 
 
-def run_queries(queries, parameters, etl_times):
+def run_queries(queries, parameters, etl_results):
     for query_number, (query_name, query_func) in enumerate(queries.items()):
         exec_time = query_func(**parameters)
-        etl_times[query_name] = exec_time
-    return etl_times
+        etl_results[query_name] = exec_time
+    return etl_results
 
 
 # Queries definitions
@@ -261,9 +262,9 @@ def etl_ibis(
         "Query3": q3_ibis,
         "Query4": q4_ibis,
     }
-    etl_times = {x: 0.0 for x in queries.keys()}
-    etl_times["t_readcsv"] = 0.0
-    etl_times["t_connect"] = 0.0
+    etl_results = {x: 0.0 for x in queries.keys()}
+    etl_results["t_readcsv"] = 0.0
+    etl_results["t_connect"] = 0.0
 
     queries_validation_results = {"q%s" % i: False for i in range(1, 5)}
     queries_validation_flags = {"q%s" % i: False for i in range(1, 5)}
@@ -294,14 +295,14 @@ def etl_ibis(
                 database=database_name,
                 fragment_size=fragments_size[0],
             )
-            etl_times["t_connect"] += timer() - t0
+            etl_results["t_connect"] += timer() - t0
             table_import = omnisci_server_worker.database(database_name).table(table_name)
-            etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
+            etl_results["t_connect"] += omnisci_server_worker.get_conn_creation_time()
 
             for file_to_import in data_files_names[:files_limit]:
                 t0 = timer()
                 table_import.read_csv(file_to_import, header=False, quotechar='"', delimiter=",")
-                etl_times["t_readcsv"] += timer() - t0
+                etl_results["t_readcsv"] += timer() - t0
 
         elif import_mode == "pandas":
             t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
@@ -316,8 +317,8 @@ def etl_ibis(
                 use_columns_types_for_pd=False,
             )
 
-            etl_times["t_readcsv"] = t_import_pandas + t_import_ibis
-            etl_times["t_connect"] = omnisci_server_worker.get_conn_creation_time()
+            etl_results["t_readcsv"] = t_import_pandas + t_import_ibis
+            etl_results["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
         elif import_mode == "fsi":
             data_file_path = None
@@ -349,15 +350,15 @@ def etl_ibis(
                 header=False,
                 fragment_size=fragments_size[0],
             )
-            etl_times["t_readcsv"] += timer() - t0
-            etl_times["t_connect"] = omnisci_server_worker.get_conn_creation_time()
+            etl_results["t_readcsv"] += timer() - t0
+            etl_results["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
     # Second connection - this is ibis's ipc connection for DML
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
-    etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
+    etl_results["t_connect"] += omnisci_server_worker.get_conn_creation_time()
     t0 = timer()
     table = omnisci_server_worker.database(database_name).table(table_name)
-    etl_times["t_connect"] += timer() - t0
+    etl_results["t_connect"] += timer() - t0
 
     df_pandas = None
     if validation:
@@ -372,7 +373,7 @@ def etl_ibis(
         "queries_validation_flags": queries_validation_flags,
         "validation": validation,
     }
-    return run_queries(queries=queries, parameters=queries_parameters, etl_times=etl_times)
+    return run_queries(queries=queries, parameters=queries_parameters, etl_results=etl_results)
 
 
 # SELECT cab_type,
@@ -449,7 +450,7 @@ def etl_pandas(
         "Query3": q3_pandas,
         "Query4": q4_pandas,
     }
-    etl_times = {x: 0.0 for x in queries.keys()}
+    etl_results = {x: 0.0 for x in queries.keys()}
 
     t0 = timer()
     df_from_each_file = [
@@ -465,10 +466,10 @@ def etl_pandas(
         for f in filename
     ]
     concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
-    etl_times["t_readcsv"] = timer() - t0
+    etl_results["t_readcsv"] = timer() - t0
 
     queries_parameters = {"df": concatenated_df}
-    return run_queries(queries=queries, parameters=queries_parameters, etl_times=etl_times)
+    return run_queries(queries=queries, parameters=queries_parameters, etl_results=etl_results)
 
 
 def run_benchmark(parameters):
@@ -602,10 +603,10 @@ def run_benchmark(parameters):
                 ray_memory=parameters["ray_memory"],
             )
 
-        etl_times_ibis = None
-        etl_times = None
+        etl_results_ibis = None
+        etl_results = None
         if not parameters["no_ibis"]:
-            etl_times_ibis = etl_ibis(
+            etl_results_ibis = etl_ibis(
                 filename=parameters["data_file"],
                 files_limit=parameters["dfiles_num"],
                 columns_names=columns_names,
@@ -621,25 +622,28 @@ def run_benchmark(parameters):
                 fragments_size=parameters["fragments_size"],
             )
 
-            print_results(results=etl_times_ibis, backend="Ibis", unit="ms")
-            etl_times_ibis["Backend"] = "Ibis"
-            etl_times_ibis["dfiles_num"] = parameters["dfiles_num"]
+            print_results(results=etl_results_ibis, backend="Ibis", unit="ms")
+            etl_results_ibis["Backend"] = "Ibis"
+            etl_results_ibis["dfiles_num"] = parameters["dfiles_num"]
+            etl_results_ibis["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])
 
         if not parameters["no_pandas"]:
             pandas_files_limit = parameters["dfiles_num"]
             filename = files_names_from_pattern(parameters["data_file"])[:pandas_files_limit]
-            etl_times = etl_pandas(
+            etl_results = etl_pandas(
                 filename=filename,
                 files_limit=pandas_files_limit,
                 columns_names=columns_names,
                 columns_types=columns_types,
             )
 
-            print_results(results=etl_times, backend=parameters["pandas_mode"], unit="ms")
-            etl_times["Backend"] = parameters["pandas_mode"]
-            etl_times["dfiles_num"] = parameters["dfiles_num"]
+            print_results(results=etl_results, backend=parameters["pandas_mode"], unit="ms")
+            etl_results["Backend"] = parameters["pandas_mode"]
+            etl_results["dfiles_num"] = parameters["dfiles_num"]
+            etl_results["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])
 
-        return {"ETL": [etl_times_ibis, etl_times], "ML": []}
+
+        return {"ETL": [etl_results_ibis, etl_results], "ML": []}
     except Exception:
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
