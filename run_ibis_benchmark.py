@@ -119,6 +119,7 @@ def main():
     optional.add_argument(
         "-ray_memory",
         default=200 * 1024 * 1024 * 1024,
+        type=int,
         help="Size of memory to allocate for Ray plasma store",
     )
     optional.add_argument(
