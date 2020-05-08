@@ -11,6 +11,8 @@ import hiyapyco
 
 returned_port_numbers = []
 conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
+repository_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+directories = {"repository_root": repository_root_directory}
 ny_taxi_data_files_sizes_MB = OrderedDict(
     {
         "trips_xaa.csv": 8000,
@@ -394,6 +396,13 @@ def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksiz
                 buffer = f.read(chunksize)
         else:
             raise NotImplementedError(f"file' extension: [{file_to_write}] is not supported yet")
+
+
+def get_dir(dir_id):
+    try:
+        return directories[dir_id]
+    except KeyError:
+        raise ValueError(f"{dir_id} is not known")
 
 
 def get_ny_taxi_dataset_size(dfiles_num):
