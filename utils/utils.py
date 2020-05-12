@@ -437,7 +437,6 @@ def refactore_results_for_reporting(
 ):
 
     for result_category in benchmark_results.keys():  # ETL or ML part
-        print(result_category)
         for backend_result in benchmark_results[result_category]:  # backend result
             backend_result_converted = []
             if subiterations_are_used:
@@ -459,4 +458,3 @@ def refactore_results_for_reporting(
                         for field in category_additional_fields.keys():
                             result[field] = category_additional_fields[field]
                     etl_ml_results[result_category].append(result)
-    print("etl_ml_results", etl_ml_results)
