@@ -446,11 +446,13 @@ def refactore_results_for_reporting(
                     backend_result_converted.append(query_results)
             else:
                 backend_result_converted.append(backend_result)
-                
+
             for result in backend_result_converted:
                 if result:
                     result = convert_units(
-                        result, ignore_fields=ignore_fields_for_results_unit_conversion, unit=reporting_unit,
+                        result,
+                        ignore_fields=ignore_fields_for_results_unit_conversion,
+                        unit=reporting_unit,
                     )
                     category_additional_fields = additional_fields.get(result_category, None)
                     if category_additional_fields:

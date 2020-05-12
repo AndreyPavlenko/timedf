@@ -35,7 +35,12 @@ def main():
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
-    ignore_fields_for_results_unit_conversion = ["Backend", "dfiles_num", "dataset_size", "query_name"]
+    ignore_fields_for_results_unit_conversion = [
+        "Backend",
+        "dfiles_num",
+        "dataset_size",
+        "query_name",
+    ]
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -385,7 +390,10 @@ def main():
                 omnisci_server_worker.terminate()
                 omnisci_server.terminate()
 
-            additional_fields_for_reporting = {"ETL": {"Iteration": iter_num, "run_id": run_id}, "ML": {"Iteration": iter_num, "run_id": run_id}}
+            additional_fields_for_reporting = {
+                "ETL": {"Iteration": iter_num, "run_id": run_id},
+                "ML": {"Iteration": iter_num, "run_id": run_id},
+            }
             refactore_results_for_reporting(
                 benchmark_results=benchmark_results,
                 etl_ml_results={"ETL": etl_results, "ML": ml_results},
