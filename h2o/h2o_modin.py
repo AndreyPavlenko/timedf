@@ -22,21 +22,21 @@ from utils import (
 
 warnings.filterwarnings("ignore")
 
-# "Groupby with lists of columns not yet supported."
 def groupby_query1_modin(x, queries_results):
+    query_name = "groupby_query1"
     question = "sum v1 by id1"  # 1
     gc.collect()
     t_start = timer()
     ans = x.groupby(["id1"]).agg({"v1": "sum"})
     print(ans.shape)
-    queries_results["groupby_query1"]["t_run1"] = timer() - t_start
+    queries_results[query_name]["t_run1"] = timer() - t_start
     m = memory_usage()
     t_start = timer()
     chk = [ans["v1"].sum()]
-    queries_results["groupby_query1"]["chk_t_run1"] = timer() - t_start
+    queries_results[query_name]["chk_t_run1"] = timer() - t_start
     chk = make_chk(chk)
     print(
-        "query1, question:",
+        query_name, ", question:",
         question,
         ",run1",
         ",in_rows:",
@@ -46,13 +46,13 @@ def groupby_query1_modin(x, queries_results):
         ",out_cols:",
         ans.shape[1],
         ",time_sec:",
-        queries_results["groupby_query1"]["t_run1"],
+        queries_results[query_name]["t_run1"],
         "mem_gb:",
         m,
         ",chk:",
         chk,
         ",chk_time_sec:",
-        queries_results["groupby_query1"]["chk_t_run1"],
+        queries_results[query_name]["chk_t_run1"],
     )
     del ans
     gc.collect()
@@ -60,14 +60,14 @@ def groupby_query1_modin(x, queries_results):
     t_start = timer()
     ans = x.groupby(["id1"]).agg({"v1": "sum"})
     print(ans.shape)
-    queries_results["groupby_query1"]["t_run2"] = timer() - t_start
+    queries_results[query_name]["t_run2"] = timer() - t_start
     m = memory_usage()
     t_start = timer()
     chk = [ans["v1"].sum()]
-    queries_results["groupby_query1"]["chk_t_run2"] = timer() - t_start
+    queries_results[query_name]["chk_t_run2"] = timer() - t_start
     chk = make_chk(chk)
     print(
-        "query1, question:",
+        query_name, ", question:",
         question,
         ",run2",
         ",in_rows:",
@@ -77,51 +77,283 @@ def groupby_query1_modin(x, queries_results):
         ",out_cols:",
         ans.shape[1],
         ",time_sec:",
-        queries_results["groupby_query1"]["t_run2"],
+        queries_results[query_name]["t_run2"],
         "mem_gb:",
         m,
         ",chk:",
         chk,
         ",chk_time_sec:",
-        queries_results["groupby_query1"]["chk_t_run2"],
+        queries_results[query_name]["chk_t_run2"],
     )
     del ans
 
 
-# def q2_modin(x, queries_results):
-#     question = "sum v1 by id1:id2" #2
-#     gc.collect()
-#     t_start = timer()
-#     ans = x.groupby(['id1','id2']).agg({'v1':'sum'})
-#     print(ans.shape)
-#     queries_results["query2_run1_t"] = timer() - t_start
-#     m = memory_usage()
-#     t_start = timer()
-#     chk = [ans['v1'].sum()]
-#     queries_results["query2_run1_chk_t"] = timer() - t_start
-#     print("query2, question:", question, ",run1", ",in_rows:", x.shape[0], ",out_rows:", ans.shape[0], ",out_cols:", ans.shape[1], ",time_sec:", queries_results["query2_run1_t"], "mem_gb:", m, ",chk:", chk , ",chk_time_sec:", queries_results["query2_run1_chk_t"])
-#     del ans
-#     gc.collect()
+def groupby_query2_modin(x, queries_results):
+    query_name = "groupby_query2"
+    question = "sum v1 by id1:id2" #2
+    gc.collect()
+    t_start = timer()
+    ans = x.groupby(['id1','id2']).agg({'v1':'sum'})
+    print(ans.shape)
+    queries_results[query_name]["t_run1"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum()]
+    queries_results[query_name]["chk_t_run1"] = timer() - t_start
+    print(
+        query_name, ", question:",
+        question,
+        ",run1",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run1"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run1"],
+    )
+    del ans
+    gc.collect()
 
-#     t_start = timer()
-#     ans = x.groupby(['id1','id2']).agg({'v1':'sum'})
-#     print(ans.shape)
-#     queries_results["query2_run2_t"] = timer() - t_start
-#     m = memory_usage()
-#     t_start = timer()
-#     chk = [ans['v1'].sum()]
-#     queries_results["query2_run2_chk_t"] = timer() - t_start
-#     print("query1, question:", question, ",run2", ",in_rows:", x.shape[0], ",out_rows:", ans.shape[0], ",out_cols:", ans.shape[1], ",time_sec:", queries_results["query2_run2_t"], "mem_gb:", m, ",chk:", chk , ",chk_time_sec:", queries_results["query2_run2_chk_t"])
-#     del ans
+    t_start = timer()
+    ans = x.groupby(['id1','id2']).agg({'v1':'sum'})
+    print(ans.shape)
+    queries_results[query_name]["t_run2"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum()]
+    queries_results[query_name]["chk_t_run2"] = timer() - t_start
+    print(
+        query_name ," question:",
+        question,
+        ",run2",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run2"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run2"],
+    )
+    del ans
+
+
+def groupby_query3_modin(x, queries_results):
+    query_name = "groupby_query3"
+    question = "sum v1 mean v3 by id3" #3
+    gc.collect()
+    t_start = timer()
+    ans = x.groupby(['id3']).agg({'v1':'sum', 'v3':'mean'})
+    print(ans.shape)
+    queries_results[query_name]["t_run1"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum(), ans['v3'].sum()]
+    queries_results[query_name]["chk_t_run1"] = timer() - t_start
+    print(
+        query_name, ", question:",
+        question,
+        ",run1",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run1"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run1"],
+    )
+    del ans
+    gc.collect()
+
+    t_start = timer()
+    ans = x.groupby(['id3']).agg({'v1':'sum', 'v3':'mean'})
+    print(ans.shape)
+    queries_results[query_name]["t_run2"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum(), ans['v3'].sum()]
+    queries_results[query_name]["chk_t_run2"] = timer() - t_start
+    print(
+        "query3, question:",
+        question,
+        ",run2",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run2"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run2"],
+    )
+    del ans
+
+def groupby_query4_modin(x, queries_results):
+    query_name = "groupby_query4"
+    question = "mean v1:v3 by id4" #4
+    gc.collect()
+    t_start = timer()
+    ans = x.groupby(['id4']).agg({'v1':'mean', 'v2':'mean', 'v3':'mean'})
+    print(ans.shape)
+    queries_results[query_name]["t_run1"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum(), ans['v2'].sum(), ans['v3'].sum()]
+    queries_results[query_name]["chk_t_run1"] = timer() - t_start
+    chk = make_chk(chk)
+    print(
+        query_name, ", question:",
+        question,
+        ",run1",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run1"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run1"],
+    )
+    del ans
+    gc.collect()
+
+    t_start = timer()
+    ans = x.groupby(['id4']).agg({'v1':'mean', 'v2':'mean', 'v3':'mean'})
+    print(ans.shape)
+    queries_results[query_name]["t_run2"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum(), ans['v2'].sum(), ans['v3'].sum()]
+    queries_results[query_name]["chk_t_run2"] = timer() - t_start
+    chk = make_chk(chk)
+    print(
+        query_name, ", question:",
+        question,
+        ",run2",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run2"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run2"],
+    )
+    del ans
+
+
+def groupby_query5_modin(x, queries_results):
+    query_name = "groupby_query5"
+    question = "sum v1:v3 by id6" #5
+    gc.collect()
+    t_start = timer()
+    ans = x.groupby(['id6']).agg({'v1':'sum', 'v2':'sum', 'v3':'sum'})
+    print(ans.shape)
+    queries_results[query_name]["t_run1"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum(), ans['v2'].sum(), ans['v3'].sum()]
+    queries_results[query_name]["chk_t_run1"] = timer() - t_start
+    chk = make_chk(chk)
+    print(
+        query_name, ", question:",
+        question,
+        ",run1",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run1"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run1"],
+    )
+    del ans
+    gc.collect()
+
+    t_start = timer()
+    ans = x.groupby(['id6']).agg({'v1':'sum', 'v2':'sum', 'v3':'sum'})
+    print(ans.shape)
+    queries_results[query_name]["t_run2"] = timer() - t_start
+    m = memory_usage()
+    t_start = timer()
+    chk = [ans['v1'].sum(), ans['v2'].sum(), ans['v3'].sum()]
+    queries_results[query_name]["chk_t_run2"] = timer() - t_start
+    chk = make_chk(chk)
+    print(
+        query_name, ", question:",
+        question,
+        ",run2",
+        ",in_rows:",
+        x.shape[0],
+        ",out_rows:",
+        ans.shape[0],
+        ",out_cols:",
+        ans.shape[1],
+        ",time_sec:",
+        queries_results[query_name]["t_run2"],
+        "mem_gb:",
+        m,
+        ",chk:",
+        chk,
+        ",chk_time_sec:",
+        queries_results[query_name]["chk_t_run2"],
+    )
+    del ans
 
 
 def queries_modin(filename, pandas_mode):
     queries = {
         "groupby_query1": groupby_query1_modin,
-        # "groupby_query2": q2_modin,
-        # "Query2": q2_pandas,
-        # "Query3": q3_pandas,
-        # "Query4": q4_pandas,
+        "groupby_query2": groupby_query2_modin,
+        "groupby_query3": groupby_query3_modin,
+        "groupby_query4": groupby_query4_modin,
+        "groupby_query5": groupby_query5_modin,
     }
     groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
     queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
