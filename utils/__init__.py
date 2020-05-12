@@ -21,4 +21,6 @@ from .utils import (
     write_to_csv_by_chunks,
     get_dir,
     get_ny_taxi_dataset_size,
+    make_chk,
+    memory_usage,
 )

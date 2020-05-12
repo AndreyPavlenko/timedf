@@ -6,6 +6,7 @@ import socket
 import subprocess
 from timeit import default_timer as timer
 from collections import OrderedDict
+import psutil
 
 import hiyapyco
 
@@ -407,3 +408,19 @@ def get_dir(dir_id):
 
 def get_ny_taxi_dataset_size(dfiles_num):
     return sum(list(ny_taxi_data_files_sizes_MB.values())[:dfiles_num])
+
+
+def make_chk(values):
+   s = ';'.join(str_round(x) for x in values)
+   return s.replace(",","_") # comma is reserved for csv separator
+   
+
+def str_round(x):
+   if type(x).__name__ in ["float","float64"]:
+      x = round(x,3)
+   return str(x)
+
+
+def memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss/(1024**3) # GB units

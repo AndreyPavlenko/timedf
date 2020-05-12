@@ -29,6 +29,7 @@ def main():
         "census": "census",
         "plasticc": "plasticc",
         "mortgage": "mortgage",
+        "h2o": "h2o",
     }
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
