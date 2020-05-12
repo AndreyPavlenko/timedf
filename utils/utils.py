@@ -248,12 +248,13 @@ def print_times(times, backend=None):
         print("{} = {:.5f} s".format(time_name, time))
 
 
-def print_results(results, backend=None, unit=""):
+def print_results(results, backend=None, unit="", ignore_fields=[]):
     results_converted = convert_units(results, ignore_fields=[], unit=unit)
     if backend:
         print(f"{backend} results:")
     for result_name, result in results_converted.items():
-        print("    {} = {:.2f} {}".format(result_name, result, unit))
+        if result_name not in ignore_fields:
+            print("    {} = {:.2f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
@@ -411,16 +412,49 @@ def get_ny_taxi_dataset_size(dfiles_num):
 
 
 def make_chk(values):
-   s = ';'.join(str_round(x) for x in values)
-   return s.replace(",","_") # comma is reserved for csv separator
-   
+    s = ";".join(str_round(x) for x in values)
+    return s.replace(",", "_")  # comma is reserved for csv separator
+
 
 def str_round(x):
-   if type(x).__name__ in ["float","float64"]:
-      x = round(x,3)
-   return str(x)
+    if type(x).__name__ in ["float", "float64"]:
+        x = round(x, 3)
+    return str(x)
 
 
 def memory_usage():
     process = psutil.Process(os.getpid())
-    return process.memory_info().rss/(1024**3) # GB units
+    return process.memory_info().rss / (1024 ** 3)  # GB units
+
+
+def refactore_results_for_reporting(
+    benchmark_results,
+    etl_ml_results,
+    ignore_fields_for_results_unit_conversion=None,
+    additional_fields=None,
+    reporting_unit="ms",
+    subiterations_are_used=False,
+):
+
+    for result_category in benchmark_results.keys():  # ETL or ML part
+        print(result_category)
+        for backend_result in benchmark_results[result_category]:  # backend result
+            backend_result_converted = []
+            if subiterations_are_used:
+                for query_name, query_results in backend_result.items():
+                    query_results.update({"query_name": query_name})
+                    backend_result_converted.append(query_results)
+            else:
+                backend_result_converted.append(backend_result)
+                
+            for result in backend_result_converted:
+                if result:
+                    result = convert_units(
+                        result, ignore_fields=ignore_fields_for_results_unit_conversion, unit=reporting_unit,
+                    )
+                    category_additional_fields = additional_fields.get(result_category, None)
+                    if category_additional_fields:
+                        for field in category_additional_fields.keys():
+                            result[field] = category_additional_fields[field]
+                    etl_ml_results[result_category].append(result)
+    print("etl_ml_results", etl_ml_results)

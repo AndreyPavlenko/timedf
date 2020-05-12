@@ -14,6 +14,7 @@ from utils import (
     str_arg_to_bool,
     remove_fields_from_dict,
     convert_units,
+    refactore_results_for_reporting,
 )
 
 
@@ -34,7 +35,7 @@ def main():
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
-    ignore_fields_for_results_unit_conversion = ["Backend", "dfiles_num", "dataset_size"]
+    ignore_fields_for_results_unit_conversion = ["Backend", "dfiles_num", "dataset_size", "query_name"]
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -378,32 +379,43 @@ def main():
                 parameters["ipc_connection"] = args.ipc_conn
                 omnisci_server.launch()
 
-            result = run_benchmark(parameters)
+            benchmark_results = run_benchmark(parameters)
 
             if not args.no_ibis:
                 omnisci_server_worker.terminate()
                 omnisci_server.terminate()
 
-            for backend_res in result["ETL"]:
-                if backend_res:
-                    backend_res = convert_units(
-                        backend_res,
-                        ignore_fields=ignore_fields_for_results_unit_conversion,
-                        unit="ms",
-                    )
-                    backend_res["Iteration"] = iter_num
-                    backend_res["run_id"] = run_id
-                    etl_results.append(backend_res)
-            for backend_res in result["ML"]:
-                if backend_res:
-                    backend_res = convert_units(
-                        backend_res,
-                        ignore_fields=ignore_fields_for_results_unit_conversion,
-                        unit="ms",
-                    )
-                    backend_res["Iteration"] = iter_num
-                    backend_res["run_id"] = run_id
-                    ml_results.append(backend_res)
+            additional_fields_for_reporting = {"ETL": {"Iteration": iter_num, "run_id": run_id}, "ML": {"Iteration": iter_num, "run_id": run_id}}
+            refactore_results_for_reporting(
+                benchmark_results=benchmark_results,
+                etl_ml_results={"ETL": etl_results, "ML": ml_results},
+                ignore_fields_for_results_unit_conversion=ignore_fields_for_results_unit_conversion,
+                additional_fields=additional_fields_for_reporting,
+                reporting_unit="ms",
+                subiterations_are_used=True if args.bench_name == "h2o" else False,
+            )
+            print("etl_results before", etl_results)
+
+            # for backend_res in result["ETL"]:
+            #     if backend_res:
+            #         backend_res = convert_units(
+            #             backend_res,
+            #             ignore_fields=ignore_fields_for_results_unit_conversion,
+            #             unit="ms",
+            #         )
+            #         backend_res["Iteration"] = iter_num
+            #         backend_res["run_id"] = run_id
+            #         etl_results.append(backend_res)
+            # for backend_res in result["ML"]:
+            #     if backend_res:
+            #         backend_res = convert_units(
+            #             backend_res,
+            #             ignore_fields=ignore_fields_for_results_unit_conversion,
+            #             unit="ms",
+            #         )
+            #         backend_res["Iteration"] = iter_num
+            #         backend_res["run_id"] = run_id
+            #         ml_results.append(backend_res)
 
             # Reporting to MySQL database
             if args.db_user is not None:
@@ -422,6 +434,7 @@ def main():
                         "OmniscriptsCommitHash": args.commit_omniscripts,
                     }
 
+                    print("etl_results", etl_results)
                     reporting_fields_benchmark_etl = {
                         x: "VARCHAR(500) NOT NULL" for x in etl_results[0]
                     }
