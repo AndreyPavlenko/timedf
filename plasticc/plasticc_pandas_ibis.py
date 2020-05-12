@@ -16,6 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from utils import (
     check_fragments_size,
+    check_support,
     compare_dataframes,
     import_pandas_into_module_namespace,
     print_results,
@@ -549,8 +550,7 @@ def compute_skip_rows(gpu_memory):
 
 
 def run_benchmark(parameters):
-    ignored_parameters = {"dfiles_num": parameters["dfiles_num"]}
-    warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
+    check_support(parameters, unsupported_params=["dfiles_num"])
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
     skip_rows = compute_skip_rows(parameters["gpu_memory"])
