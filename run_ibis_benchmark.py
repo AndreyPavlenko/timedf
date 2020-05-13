@@ -400,7 +400,6 @@ def main():
                 ignore_fields_for_results_unit_conversion=ignore_fields_for_results_unit_conversion,
                 additional_fields=additional_fields_for_reporting,
                 reporting_unit="ms",
-                subiterations_are_used=True if args.bench_name == "h2o" else False,
             )
 
             # Reporting to MySQL database
