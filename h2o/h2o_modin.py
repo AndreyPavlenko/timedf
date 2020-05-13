@@ -371,10 +371,6 @@ def queries_modin(filename, pandas_mode):
     queries_results = {x: {y: 0.0 for y in groupby_queries_results_fields} for x in queries.keys()}
     data_file_size = os.path.getsize(filename) / 1024 / 1024
 
-    # queries_results.update({x + "_run2_t": 0.0 for x in queries.keys()})
-    # queries_results.update({x + "_run1_chk_t": 0.0 for x in queries.keys()})
-    # queries_results.update({x + "_run2_chk_t": 0.0 for x in queries.keys()})
-
     print(f"loading dataset {filename}")
     t0 = timer()
     x = pd.read_csv(filename)
@@ -384,7 +380,6 @@ def queries_modin(filename, pandas_mode):
     for query_name, query_func in queries.items():
         query_func(**queries_parameters)
         print(f"{pandas_mode} {query_name} results:")
-        print(query_name + " results:")
         print_results(results=queries_results[query_name], unit="s")
         queries_results[query_name]["Backend"] = pandas_mode
         queries_results[query_name]["t_readcsv"] = data_file_import_time

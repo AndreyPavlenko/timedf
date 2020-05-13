@@ -438,14 +438,16 @@ def refactore_results_for_reporting(
 
     for result_category in benchmark_results.keys():  # ETL or ML part
         for backend_result in benchmark_results[result_category]:  # backend result
+            print("backend_result", backend_result)
             backend_result_converted = []
-            if subiterations_are_used:
+            if backend_result is not None and isinstance(list(backend_result.values())[0], dict): # True if subqueries are used
                 for query_name, query_results in backend_result.items():
                     query_results.update({"query_name": query_name})
                     backend_result_converted.append(query_results)
             else:
                 backend_result_converted.append(backend_result)
 
+            print("backend_result_converted", backend_result_converted)
             for result in backend_result_converted:
                 if result:
                     result = convert_units(
