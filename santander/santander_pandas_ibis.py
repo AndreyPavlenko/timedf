@@ -1,14 +1,11 @@
 # coding: utf-8
-import os
 import sys
-import time
 import traceback
 import warnings
 from timeit import default_timer as timer
 
 import ibis
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import (
     check_fragments_size,
     check_support,
@@ -83,7 +80,6 @@ def etl_ibis(
     import_mode,
     fragments_size,
 ):
-    tmp_table_name = "tmp_table"
     etl_times = {key: 0.0 for key in etl_keys}
 
     fragments_size = check_fragments_size(fragments_size, count_table=1, import_mode=import_mode)
@@ -182,7 +178,7 @@ def etl_ibis(
             .when(table[col].count().over(w).name(col_count) > 1, table[col].cast("float32"),)
             .else_(ibis.null())
             .end()
-            .name("var_%d_gt1" % i)
+            .name(col_gt1)
         )
         cast_cols.append(table[col].cast("float32").name(col))
 
@@ -276,8 +272,6 @@ def run_benchmark(parameters):
     ml_times = None
 
     var_cols = ["var_%s" % i for i in range(200)]
-    count_cols = ["var_%s_count" % i for i in range(200)]
-    gt1_cols = ["var_%s_gt1" % i for i in range(200)]
     columns_names = ["ID_code", "target"] + var_cols
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
     columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
