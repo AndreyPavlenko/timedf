@@ -5,7 +5,6 @@ import sys
 import threading
 import time
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import execute_process
 
 

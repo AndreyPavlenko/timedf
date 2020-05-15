@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+import warnings
 import re
 import socket
 import subprocess
@@ -136,7 +137,6 @@ def get_percentage(error_message):
 def compare_dataframes(ibis_dfs, pandas_dfs, sort_cols=["id"], drop_cols=["id"]):
     import pandas as pd
 
-    prepared_dfs = []
     # in percentage - 0.05 %
     max_error = 0.05
 
@@ -296,14 +296,16 @@ def find_free_port():
 
 def split(X, y, test_size=0.1, stratify=None, random_state=None, optimizer="intel"):
     if optimizer == "intel":
-        import daal4py
-        from daal4py import sklearn
+        import daal4py  # noqa: F401 (imported but unused) FIXME
+        from daal4py import sklearn  # noqa: F401 (imported but unused) FIXME
         from sklearn.model_selection import train_test_split
     elif optimizer == "stock":
         from sklearn.model_selection import train_test_split
     else:
-        print(f"Intel optimized and stock sklearn are supported. {optimizer} can't be recognized")
-        sys.exit(1)
+        raise ValueError(
+            f"Intel optimized and stock sklearn are supported. \
+            {optimizer} can't be recognized"
+        )
 
     t0 = timer()
     X_train, X_test, y_train, y_test = train_test_split(
@@ -398,6 +400,16 @@ def write_to_csv_by_chunks(file_to_write, output_file, write_mode="wb", chunksiz
                 buffer = f.read(chunksize)
         else:
             raise NotImplementedError(f"file' extension: [{file_to_write}] is not supported yet")
+
+
+def check_support(current_params, unsupported_params):
+    ignored_params = {}
+    for param in unsupported_params:
+        if current_params.get(param) is not None:
+            ignored_params[param] = current_params[param]
+
+    if ignored_params:
+        warnings.warn(f"Parameters {ignored_params} are ignored", RuntimeWarning)
 
 
 def get_dir(dir_id):

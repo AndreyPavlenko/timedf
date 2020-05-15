@@ -206,7 +206,7 @@ def main():
     benchmark.add_argument(
         "-dfiles_num",
         dest="dfiles_num",
-        default=1,
+        default=None,
         type=int,
         help="Number of datafiles to input into database for processing.",
     )
@@ -457,7 +457,7 @@ def main():
 
             if not args.data_file:
                 print(
-                    f"Parameter --data_file was received empty, but it is required for benchmarks"
+                    "Parameter --data_file was received empty, but it is required for benchmarks"
                 )
                 sys.exit(1)
 

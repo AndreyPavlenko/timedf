@@ -1,13 +1,12 @@
 import os
 import sys
 import traceback
-import warnings
 from timeit import default_timer as timer
 
 import numpy as np
+import pandas as pd
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from utils import (
+from utils import (  # noqa: F401 ("compare_dataframes" imported, but unused. Used in commented code.)
     check_fragments_size,
     compare_dataframes,
     files_names_from_pattern,
@@ -17,6 +16,7 @@ from utils import (
     write_to_csv_by_chunks,
     get_dir,
     get_ny_taxi_dataset_size,
+    check_support,
 )
 
 
@@ -37,7 +37,7 @@ def run_queries(queries, parameters, etl_results):
 def q1_ibis(table, df_pandas, queries_validation_results, queries_validation_flags, validation):
     t_query = 0
     t0 = timer()
-    q1_output_ibis = (
+    q1_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
         table.groupby("cab_type").count().sort_by("cab_type")["cab_type", "count"].execute()
     )
     t_query += timer() - t0
@@ -70,7 +70,7 @@ def q1_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
 def q2_ibis(table, df_pandas, queries_validation_results, queries_validation_flags, validation):
     t_query = 0
     t0 = timer()
-    q2_output_ibis = (
+    q2_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
         table.groupby("passenger_count")
         .aggregate(total_amount=table.total_amount.mean())[["passenger_count", "total_amount"]]
         .execute()
@@ -82,7 +82,9 @@ def q2_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
 
         queries_validation_flags["q2"] = True
 
-        q2_output_pd = df_pandas.groupby("passenger_count", as_index=False).mean()[
+        q2_output_pd = df_pandas.groupby(  # noqa: F841 (assigned, but unused. Used in commented code.)
+            "passenger_count", as_index=False
+        ).mean()[
             ["passenger_count", "total_amount"]
         ]
 
@@ -100,9 +102,9 @@ def q2_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
 def q3_ibis(table, df_pandas, queries_validation_results, queries_validation_flags, validation):
     t_query = 0
     t0 = timer()
-    q3_output_ibis = (
+    q3_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
         table.groupby(
-            [table.passenger_count, table.pickup_datetime.year().name("pickup_datetime"),]
+            [table.passenger_count, table.pickup_datetime.year().name("pickup_datetime")]
         )
         .aggregate(count=table.passenger_count.count())
         .execute()
@@ -155,7 +157,9 @@ def q4_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
             table.trip_distance.cast("int64").name("trip_distance"),
         ]
     ).size()
-    q4_output_ibis = q4_ibis_sized.sort_by([("pickup_datetime", True), ("count", False)]).execute()
+    q4_output_ibis = q4_ibis_sized.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
+        [("pickup_datetime", True), ("count", False)]
+    ).execute()
     t_query += timer() - t0
 
     if validation and not queries_validation_flags["q4"]:
@@ -203,7 +207,7 @@ def q4_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
         # )
 
         # compare_result_3 is the result of q4 output table all elements presence check
-        q4_output_ibis_validation = q4_ibis_sized.sort_by(
+        q4_output_ibis_validation = q4_ibis_sized.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
             [
                 ("pickup_datetime", True),
                 ("count", False),
@@ -230,7 +234,9 @@ def q4_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
         # )
 
         queries_validation_results["q4"] = (
-            compare_result_1 and compare_result_2 and compare_result_3
+            compare_result_1  # noqa: F821 (undefined name. Defined in commented code.)
+            and compare_result_2  # noqa: F821 (undefined name. Defined in commented code.)
+            and compare_result_3  # noqa: F821 (undefined name. Defined in commented code.)
         )
         if queries_validation_results["q4"]:
             print("q4 results are validated!")
@@ -340,7 +346,6 @@ def etl_ibis(
                     data_file_path = os.path.join(
                         data_file_tmp_dir, f"taxibench-{files_limit}-files-fsi.csv"
                     )
-                    data_file_dir = data_file_tmp_dir
 
             if data_file_path and not os.path.exists(data_file_path):
                 if not os.path.exists(data_file_tmp_dir):
@@ -352,7 +357,7 @@ def etl_ibis(
                         )
                 except Exception as exc:
                     os.remove(data_file_path)
-                    raise
+                    raise exc
 
             t0 = timer()
             omnisci_server_worker.get_conn().create_table_from_csv(
@@ -472,7 +477,7 @@ def etl_pandas(
             header=None,
             nrows=None,
             use_gzip=f.endswith(".gz"),
-            parse_dates=["pickup_datetime", "dropoff_datetime",],
+            parse_dates=["pickup_datetime", "dropoff_datetime"],
             pd=run_benchmark.__globals__["pd"],
         )
         for f in filename
@@ -485,13 +490,7 @@ def etl_pandas(
 
 
 def run_benchmark(parameters):
-
-    ignored_parameters = {
-        "optimizer": parameters["optimizer"],
-        "no_ml": parameters["no_ml"],
-        "gpu_memory": parameters["gpu_memory"],
-    }
-    warnings.warn(f"Parameters {ignored_parameters} are ignored", RuntimeWarning)
+    check_support(parameters, unsupported_params=["optimizer", "no_ml", "gpu_memory"])
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
 
