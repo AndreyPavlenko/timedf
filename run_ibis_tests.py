@@ -243,7 +243,7 @@ def main():
         "-optimizer",
         choices=["intel", "stock"],
         dest="optimizer",
-        default="intel",
+        default=None,
         help="Which optimizer is used",
     )
     benchmark.add_argument(
