@@ -279,7 +279,7 @@ def main():
     )
     benchmark.add_argument(
         "-no_ml",
-        default=False,
+        default=None,
         type=str_arg_to_bool,
         help="Do not run machine learning benchmark, only ETL part",
     )

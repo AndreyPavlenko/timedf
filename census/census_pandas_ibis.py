@@ -317,6 +317,7 @@ def run_benchmark(parameters):
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
     parameters["optimizer"] = parameters["optimizer"] or "intel"
+    parameters["no_ml"] = parameters["no_ml"] or False
 
     # ML specific
     N_RUNS = 50

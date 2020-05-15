@@ -62,6 +62,7 @@ def _run_ml(df, n_runs, mb, ml_keys, ml_score_keys, backend):
 def run_benchmark(parameters):
     parameters["data_file"] = parameters["data_file"].replace("'", "")
     parameters["dfiles_num"] = parameters["dfiles_num"] or 1
+    parameters["no_ml"] = parameters["no_ml"] or False
 
     check_support(parameters, unsupported_params=["gpu_memory"])
 
