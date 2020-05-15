@@ -6,7 +6,6 @@ import warnings
 from timeit import default_timer as timer
 import gc
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import (
     import_pandas_into_module_namespace,
     print_results,
