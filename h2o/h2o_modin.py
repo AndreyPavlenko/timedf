@@ -27,10 +27,6 @@ def execute_groupby_query_chk_expr_v1(ans): # q1, q2
     return [ans["v1"].sum()]
 
 
-def execute_groupby_query2_chk_expr(ans):
-    return [ans["v1"].sum()]
-
-
 def execute_groupby_query_chk_expr_v2(ans): # q3
     return [ans["v1"].sum(), ans["v3"].sum()]
 
@@ -39,12 +35,16 @@ def execute_groupby_query_chk_expr_v3(ans): # q4, q5
     return [ans["v1"].sum(), ans["v2"].sum(), ans["v3"].sum()]
 
 
-def execute_groupby_query5_chk_expr(ans):
-    return [ans["v1"].sum(), ans["v2"].sum(), ans["v3"].sum()]
-
-
 def execute_groupby_query_chk_expr_v4(ans): # q6
     return [ans['v3']['median'].sum(), ans['v3']['std'].sum()]
+
+
+def execute_groupby_query_chk_expr_v5(ans): # q7
+    return [ans['range_v1_v2'].sum()]
+
+
+def execute_groupby_query_chk_expr_v6(ans): # q8
+    return [ans['v3'].sum()]
 
 
 groupby_queries_chk_funcs = {
@@ -54,10 +54,20 @@ groupby_queries_chk_funcs = {
     "groupby_query4": execute_groupby_query_chk_expr_v3,
     "groupby_query5": execute_groupby_query_chk_expr_v3,
     "groupby_query6": execute_groupby_query_chk_expr_v4,
+    "groupby_query7": execute_groupby_query_chk_expr_v5,
+    "groupby_query8": execute_groupby_query_chk_expr_v6,
 }
 
 def execute_groupby_query_expr_v1(x, groupby_cols, agg_cols_funcs): # q1, q2, q3, q4, q5, q6
     return x.groupby(groupby_cols).agg(agg_cols_funcs)
+
+
+def execute_groupby_query_expr_v2(x, groupby_cols, agg_cols_funcs, range_cols): # q7
+    return x.groupby(groupby_cols).agg(agg_cols_funcs).assign(range_v1_v2=lambda x: x[range_cols[0]] - x[range_cols[0]])[['range_v1_v2']]
+
+def execute_groupby_query_expr_v3(x, select_cols, sort_col, sort_ascending, groupby_cols): # q8
+    return x[select_cols].sort_values(sort_col, ascending=sort_ascending).groupby(groupby_cols).head(2)
+
 
 groupby_queries_funcs = {
     "groupby_query1": execute_groupby_query_expr_v1,
@@ -66,6 +76,8 @@ groupby_queries_funcs = {
     "groupby_query4": execute_groupby_query_expr_v1,
     "groupby_query5": execute_groupby_query_expr_v1,
     "groupby_query6": execute_groupby_query_expr_v1,
+    "groupby_query7": execute_groupby_query_expr_v2,
+    "groupby_query8": execute_groupby_query_expr_v3,
 }
 
 
@@ -211,19 +223,30 @@ def groupby_query6_modin(x, queries_results):
         question=question,
     )
 
-# def groupby_query7_modin(x, queries_results):
-#     query_name = "groupby_query7"
-#     question = "max v1 - min v2 by id3" # q7
+def groupby_query7_modin(x, queries_results):
+    query_name = "groupby_query7"
+    question = "max v1 - min v2 by id3" # q7
+    query_args = {"x": x, "groupby_cols": ['id3'], "agg_cols_funcs": {'v1': 'max', 'v2': 'min'}, "range_cols": ["v1", "v2"]}
 
-#     execute_groupby_query(
-#         x=x,
-#         queries_results=queries_results,
-#         query_name=query_name,
-#         question=question,
-#         groupby_cols=['id3'],
-#         agg_cols_funcs={'v3': ['median','std']},
-#     )
+    execute_groupby_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
 
+
+def groupby_query8_modin(x, queries_results):
+    query_name = "groupby_query8"
+    question = "largest two v3 by id6" # q8
+    query_args = {"x": x, "select_cols": ['id6','v3'], "sort_col": "v3", "sort_ascending": False, "groupby_cols": ['id6']}
+
+    execute_groupby_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
 
 
 #     execute_groupby_query(
@@ -269,6 +292,8 @@ def queries_modin(filename, pandas_mode):
         "groupby_query4": groupby_query4_modin,
         "groupby_query5": groupby_query5_modin,
         "groupby_query6": groupby_query6_modin,
+        "groupby_query7": groupby_query7_modin,
+        "groupby_query8": groupby_query8_modin,
         # "join_query1": join_query1_modin,
     }
     groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
