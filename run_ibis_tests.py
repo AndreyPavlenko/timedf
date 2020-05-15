@@ -287,9 +287,9 @@ def main():
         "-gpu_memory",
         dest="gpu_memory",
         type=int,
-        help="specify the memory of your gpu, default 16. "
+        help="specify the memory of your gpu"
         "(This controls the lines to be used. Also work for CPU version. )",
-        default=16,
+        default=None,
     )
     # MySQL database parameters
     mysql.add_argument(

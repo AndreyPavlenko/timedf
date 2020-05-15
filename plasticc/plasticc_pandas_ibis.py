@@ -548,6 +548,8 @@ def run_benchmark(parameters):
     check_support(parameters, unsupported_params=["dfiles_num"])
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
+    parameters["gpu_memory"] = parameters["gpu_memory"] or 16
+
     skip_rows = compute_skip_rows(parameters["gpu_memory"])
 
     dtypes = OrderedDict(
