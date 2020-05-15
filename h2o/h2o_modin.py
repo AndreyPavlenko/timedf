@@ -23,7 +23,7 @@ from utils import (
 warnings.filterwarnings("ignore")
 
 
-def execute_groupby_query1_chk_expr(ans):
+def execute_groupby_query_chk_expr_v1(ans): # q1, q2
     return [ans["v1"].sum()]
 
 
@@ -31,11 +31,11 @@ def execute_groupby_query2_chk_expr(ans):
     return [ans["v1"].sum()]
 
 
-def execute_groupby_query3_chk_expr(ans):
+def execute_groupby_query_chk_expr_v2(ans): # q3
     return [ans["v1"].sum(), ans["v3"].sum()]
 
 
-def execute_groupby_query4_chk_expr(ans):
+def execute_groupby_query_chk_expr_v3(ans): # q4, q5
     return [ans["v1"].sum(), ans["v2"].sum(), ans["v3"].sum()]
 
 
@@ -43,19 +43,36 @@ def execute_groupby_query5_chk_expr(ans):
     return [ans["v1"].sum(), ans["v2"].sum(), ans["v3"].sum()]
 
 
+def execute_groupby_query_chk_expr_v4(ans): # q6
+    return [ans['v3']['median'].sum(), ans['v3']['std'].sum()]
+
+
 groupby_queries_chk_funcs = {
-    "groupby_query1": execute_groupby_query1_chk_expr,
-    "groupby_query2": execute_groupby_query2_chk_expr,
-    "groupby_query3": execute_groupby_query3_chk_expr,
-    "groupby_query4": execute_groupby_query4_chk_expr,
-    "groupby_query5": execute_groupby_query5_chk_expr,
+    "groupby_query1": execute_groupby_query_chk_expr_v1,
+    "groupby_query2": execute_groupby_query_chk_expr_v1,
+    "groupby_query3": execute_groupby_query_chk_expr_v2,
+    "groupby_query4": execute_groupby_query_chk_expr_v3,
+    "groupby_query5": execute_groupby_query_chk_expr_v3,
+    "groupby_query6": execute_groupby_query_chk_expr_v4,
+}
+
+def execute_groupby_query_expr_v1(x, groupby_cols, agg_cols_funcs): # q1, q2, q3, q4, q5, q6
+    return x.groupby(groupby_cols).agg(agg_cols_funcs)
+
+groupby_queries_funcs = {
+    "groupby_query1": execute_groupby_query_expr_v1,
+    "groupby_query2": execute_groupby_query_expr_v1,
+    "groupby_query3": execute_groupby_query_expr_v1,
+    "groupby_query4": execute_groupby_query_expr_v1,
+    "groupby_query5": execute_groupby_query_expr_v1,
+    "groupby_query6": execute_groupby_query_expr_v1,
 }
 
 
-def execute_groupby_query(x, queries_results, query_name, question, groupby_cols, agg_cols_funcs):
+def execute_groupby_query(query_args, queries_results, query_name, question):
     gc.collect()
     t_start = timer()
-    ans = x.groupby(groupby_cols).agg(agg_cols_funcs)
+    ans = groupby_queries_funcs[query_name](**query_args)
     print(ans.shape)
     queries_results[query_name]["t_run1"] = timer() - t_start
     m = memory_usage()
@@ -69,7 +86,7 @@ def execute_groupby_query(x, queries_results, query_name, question, groupby_cols
         question,
         ",run1",
         ",in_rows:",
-        x.shape[0],
+        query_args["x"].shape[0],
         ",out_rows:",
         ans.shape[0],
         ",out_cols:",
@@ -87,7 +104,7 @@ def execute_groupby_query(x, queries_results, query_name, question, groupby_cols
 
     gc.collect()
     t_start = timer()
-    ans = x.groupby(groupby_cols).agg(agg_cols_funcs)
+    ans = groupby_queries_funcs[query_name](**query_args)
     print(ans.shape)
     queries_results[query_name]["t_run2"] = timer() - t_start
     m = memory_usage()
@@ -101,7 +118,7 @@ def execute_groupby_query(x, queries_results, query_name, question, groupby_cols
         question,
         ",run2",
         ",in_rows:",
-        x.shape[0],
+        query_args["x"].shape[0],
         ",out_rows:",
         ans.shape[0],
         ",out_cols:",
@@ -121,72 +138,128 @@ def execute_groupby_query(x, queries_results, query_name, question, groupby_cols
 def groupby_query1_modin(x, queries_results):
     query_name = "groupby_query1"
     question = "sum v1 by id1"  # 1
+    query_args = {"x": x, "groupby_cols": ["id1"], "agg_cols_funcs": {"v1": "sum"}}
 
     execute_groupby_query(
-        x=x,
+        query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
         question=question,
-        groupby_cols=["id1"],
-        agg_cols_funcs={"v1": "sum"},
     )
 
 
 def groupby_query2_modin(x, queries_results):
     query_name = "groupby_query2"
     question = "sum v1 by id1:id2"  # 2
+    query_args = {"x": x, "groupby_cols": ["id1", "id2"], "agg_cols_funcs": {"v1": "sum"}}
 
     execute_groupby_query(
-        x=x,
+        query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
         question=question,
-        groupby_cols=["id1", "id2"],
-        agg_cols_funcs={"v1": "sum"},
     )
 
 
 def groupby_query3_modin(x, queries_results):
     query_name = "groupby_query3"
     question = "sum v1 mean v3 by id3"  # 3
+    query_args = {"x": x, "groupby_cols": ["id3"], "agg_cols_funcs": {"v1": "sum", "v3": "mean"}}
 
     execute_groupby_query(
-        x=x,
+        query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
         question=question,
-        groupby_cols=["id3"],
-        agg_cols_funcs={"v1": "sum", "v3": "mean"},
     )
 
 
 def groupby_query4_modin(x, queries_results):
     query_name = "groupby_query4"
     question = "mean v1:v3 by id4"  # 4
+    query_args = {"x": x, "groupby_cols": ["id4"], "agg_cols_funcs": {"v1": "mean", "v2": "mean", "v3": "mean"}}
 
     execute_groupby_query(
-        x=x,
+        query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
         question=question,
-        groupby_cols=["id4"],
-        agg_cols_funcs={"v1": "mean", "v2": "mean", "v3": "mean"},
     )
 
 
 def groupby_query5_modin(x, queries_results):
     query_name = "groupby_query5"
     question = "sum v1:v3 by id6"  # 5
+    query_args = {"x": x, "groupby_cols": ["id6"], "agg_cols_funcs": {"v1": "sum", "v2": "sum", "v3": "sum"}}
 
     execute_groupby_query(
-        x=x,
+        query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
         question=question,
-        groupby_cols=["id6"],
-        agg_cols_funcs={"v1": "sum", "v2": "sum", "v3": "sum"},
     )
 
+def groupby_query6_modin(x, queries_results):
+    query_name = "groupby_query6"
+    question = "median v3 sd v3 by id4 id5" # q6
+    query_args = {"x": x, "groupby_cols": ['id4','id5'], "agg_cols_funcs": {'v3': ['median','std']}}
+
+    execute_groupby_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
+
+# def groupby_query7_modin(x, queries_results):
+#     query_name = "groupby_query7"
+#     question = "max v1 - min v2 by id3" # q7
+
+#     execute_groupby_query(
+#         x=x,
+#         queries_results=queries_results,
+#         query_name=query_name,
+#         question=question,
+#         groupby_cols=['id3'],
+#         agg_cols_funcs={'v3': ['median','std']},
+#     )
+
+
+
+#     execute_groupby_query(
+#         x=x,
+#         queries_results=queries_results,
+#         query_name=query_name,
+#         question=question,
+#         groupby_cols=['id4','id5'],
+#         agg_cols_funcs={'v3': ['median','std']},
+#     )
+
+# def groupby_query6_modin(x, queries_results):
+#     query_name = "groupby_query6"
+#     question = "median v3 sd v3 by id4 id5" # q6
+
+#     execute_groupby_query(
+#         x=x,
+#         queries_results=queries_results,
+#         query_name=query_name,
+#         question=question,
+#         groupby_cols=['id4','id5'],
+#         agg_cols_funcs={'v3': ['median','std']},
+#     )
+
+# def join_query1_modin(x, y, queries_results):
+#     query_name = "groupby_query1"
+#     question = "sum v1 by id1"  # 1
+
+#     execute_groupby_query(
+#         x=x,
+#         queries_results=queries_results,
+#         query_name=query_name,
+#         question=question,
+#         groupby_cols=["id1"],
+#         agg_cols_funcs={"v1": "sum"},
+#     )
 
 def queries_modin(filename, pandas_mode):
     queries = {
@@ -195,6 +268,8 @@ def queries_modin(filename, pandas_mode):
         "groupby_query3": groupby_query3_modin,
         "groupby_query4": groupby_query4_modin,
         "groupby_query5": groupby_query5_modin,
+        "groupby_query6": groupby_query6_modin,
+        # "join_query1": join_query1_modin,
     }
     groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
     queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
