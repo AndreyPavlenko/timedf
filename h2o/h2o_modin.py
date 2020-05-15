@@ -1,7 +1,6 @@
 # coding: utf-8
 import os
 import sys
-import time
 import traceback
 import warnings
 from timeit import default_timer as timer
@@ -9,12 +8,7 @@ import gc
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils import (
-    check_fragments_size,
-    cod,
-    compare_dataframes,
     import_pandas_into_module_namespace,
-    load_data_pandas,
-    mse,
     print_results,
     make_chk,
     memory_usage,
@@ -390,8 +384,6 @@ def run_benchmark(parameters):
     warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
-
-    queries_times_modin = None
 
     try:
         if not parameters["no_pandas"]:
