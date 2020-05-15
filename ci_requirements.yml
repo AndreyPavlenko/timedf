@@ -13,3 +13,4 @@ dependencies:
   - daal4py
   - scikit-learn
   - pip
+  - psutil
