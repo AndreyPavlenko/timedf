@@ -1,3 +1,5 @@
+#!/bin/bash
+
 python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env True --python_version 3.7 -task benchmark        \
                           --ci_requirements "${PWD}/ci_requirements.yml"                                                      \
                           --ibis_path "${PWD}/../ibis/"                                                                       \
