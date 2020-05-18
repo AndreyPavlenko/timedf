@@ -316,6 +316,8 @@ def run_benchmark(parameters):
     check_support(parameters, unsupported_params=["dfiles_num", "gpu_memory"])
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
+    parameters["optimizer"] = parameters["optimizer"] or "intel"
+    parameters["no_ml"] = parameters["no_ml"] or False
 
     # ML specific
     N_RUNS = 50
