@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -z ${ADDITIONAL_OPTS+x} ]; then
-    export "ADDITIONAL_OPTS=-dfiles_num 10"
+    export "ADDITIONAL_OPTS=-dfiles_num 10 -no_pandas True"
 else
     # ny_taxy doesn`t have ML. Because of it, it give warning if any value for option -no_ml specifyed
     export "ADDITIONAL_OPTS=${ADDITIONAL_OPTS/-no_ml True/} -dfiles_num 1"
