@@ -11,5 +11,5 @@ dependencies:
   - conda
   - xgboost
   - daal4py
-  - scikit-learn
+  - scikit-learn<0.23.0
   - pip
