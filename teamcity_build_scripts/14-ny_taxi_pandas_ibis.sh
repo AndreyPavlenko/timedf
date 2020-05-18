@@ -3,8 +3,13 @@
 if [ -z ${ADDITIONAL_OPTS+x} ]; then
     export "ADDITIONAL_OPTS=-dfiles_num 10"
 else
+    # ny_taxy doesn`t have ML. Because of it, it give warning if any value for option -no_ml specifyed
     export "ADDITIONAL_OPTS=${ADDITIONAL_OPTS/-no_ml True/} -dfiles_num 1"
 fi
+
+# At this moment NYC taxi benchmark works fine with import_mode copy-from flag and fails during import by fsi
+# on the trips_xad.csv with message: Exception: Invalid: In CSV column #1:
+#    CSV conversion error to int64: invalid value 'VTS'
 
 python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env True --python_version 3.7 -task benchmark         \
                           --ci_requirements "${PWD}/ci_requirements.yml"                                                       \
