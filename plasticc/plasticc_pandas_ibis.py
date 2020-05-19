@@ -653,7 +653,9 @@ def run_benchmark(parameters):
 
         if parameters["validation"] and parameters["import_mode"] == "pandas":
             compare_dataframes(
-                ibis_dfs=[train_final_ibis, test_final_ibis], pandas_dfs=[train_final, test_final]
+                ibis_dfs=[train_final_ibis, test_final_ibis],
+                pandas_dfs=[train_final, test_final],
+                parallel_execution=True,
             )
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
