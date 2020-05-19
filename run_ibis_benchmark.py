@@ -8,10 +8,12 @@ import time
 import mysql.connector
 
 from report import DbReport
-from utils import (
+from utils_base_env import (
     find_free_port,
     KeyValueListParser,
     str_arg_to_bool,
+)
+from utils import (
     remove_fields_from_dict,
     convert_units,
     refactore_results_for_reporting,
@@ -96,7 +98,7 @@ def main():
         "-optimizer",
         choices=["intel", "stock"],
         dest="optimizer",
-        default="intel",
+        default=None,
         help="Which optimizer is used",
     )
     optional.add_argument(
@@ -130,7 +132,7 @@ def main():
     )
     optional.add_argument(
         "-no_ml",
-        default=False,
+        default=None,
         type=str_arg_to_bool,
         help="Do not run machine learning benchmark, only ETL part",
     )
@@ -138,8 +140,9 @@ def main():
         "-gpu_memory",
         dest="gpu_memory",
         type=int,
-        help="specify the memory of your gpu, default 16. (This controls the lines to be used. Also work for CPU version. )",
-        default=16,
+        help="specify the memory of your gpu"
+        "(This controls the lines to be used. Also work for CPU version. )",
+        default=None,
     )
     # MySQL database parameters
     optional.add_argument(

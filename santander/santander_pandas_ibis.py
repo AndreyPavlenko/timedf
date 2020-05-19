@@ -265,6 +265,7 @@ def run_benchmark(parameters):
     check_support(parameters, unsupported_params=["dfiles_num", "gpu_memory", "optimizer"])
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
+    parameters["no_ml"] = parameters["no_ml"] or False
 
     etl_times_ibis = None
     etl_times = None
@@ -354,6 +355,7 @@ def run_benchmark(parameters):
                 pandas_dfs=[ml_data],
                 sort_cols=cols_to_sort,
                 drop_cols=[],
+                parallel_execution=True,
             )
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}

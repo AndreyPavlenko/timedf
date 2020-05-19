@@ -6,7 +6,12 @@ import traceback
 
 from environment import CondaEnvironment
 from server import OmnisciServer
-from utils import combinate_requirements, find_free_port, KeyValueListParser, str_arg_to_bool
+from utils_base_env import (
+    combinate_requirements,
+    find_free_port,
+    KeyValueListParser,
+    str_arg_to_bool,
+)
 
 
 def main():
@@ -243,7 +248,7 @@ def main():
         "-optimizer",
         choices=["intel", "stock"],
         dest="optimizer",
-        default="intel",
+        default=None,
         help="Which optimizer is used",
     )
     benchmark.add_argument(
@@ -279,7 +284,7 @@ def main():
     )
     benchmark.add_argument(
         "-no_ml",
-        default=False,
+        default=None,
         type=str_arg_to_bool,
         help="Do not run machine learning benchmark, only ETL part",
     )
@@ -287,9 +292,9 @@ def main():
         "-gpu_memory",
         dest="gpu_memory",
         type=int,
-        help="specify the memory of your gpu, default 16. "
+        help="specify the memory of your gpu"
         "(This controls the lines to be used. Also work for CPU version. )",
-        default=16,
+        default=None,
     )
     # MySQL database parameters
     mysql.add_argument(
