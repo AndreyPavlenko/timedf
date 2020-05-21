@@ -550,7 +550,7 @@ def run_benchmark(parameters):
 
     columns_types = [
         "int64",
-        "int64",
+        "category",
         "timestamp",
         "timestamp",
         "category",
@@ -569,7 +569,7 @@ def run_benchmark(parameters):
         "float64",
         "float64",
         "float64",
-        "int64",
+        "category",
         "float64",
         "category",
         "category",
