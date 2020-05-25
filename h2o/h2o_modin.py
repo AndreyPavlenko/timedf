@@ -1,4 +1,5 @@
 # coding: utf-8
+# This script is ported to omniscripts repository from https://github.com/h2oai/db-benchmark
 import os
 import sys
 import traceback
@@ -11,6 +12,8 @@ from utils import (
     print_results,
     make_chk,
     memory_usage,
+    files_names_from_pattern,
+    join_to_tbls,
 )
 
 warnings.filterwarnings("ignore")
@@ -48,6 +51,10 @@ def execute_groupby_query_chk_expr_v8(ans):  # q10
     return [ans["v3"].sum(), ans["v1"].sum()]
 
 
+def execute_join_query_chk_expr_v1(ans):  # q1
+    return [ans["v1"].sum(), ans["v2"].sum()]
+
+
 groupby_queries_chk_funcs = {
     "groupby_query1": execute_groupby_query_chk_expr_v1,
     "groupby_query2": execute_groupby_query_chk_expr_v1,
@@ -59,6 +66,7 @@ groupby_queries_chk_funcs = {
     "groupby_query8": execute_groupby_query_chk_expr_v6,
     "groupby_query9": execute_groupby_query_chk_expr_v7,
     "groupby_query10": execute_groupby_query_chk_expr_v8,
+    "join_query1": execute_join_query_chk_expr_v1,
 }
 
 
@@ -91,7 +99,11 @@ def execute_groupby_query_expr_v4(x, select_cols, groupby_cols, apply_cols):  # 
     )
 
 
-groupby_queries_funcs = {
+def execute_join_query_expr_v1(x, y, on):  # q1
+    return x.merge(y, on=on)  # y == small
+
+
+queries_funcs = {
     "groupby_query1": execute_groupby_query_expr_v1,
     "groupby_query2": execute_groupby_query_expr_v1,
     "groupby_query3": execute_groupby_query_expr_v1,
@@ -102,13 +114,14 @@ groupby_queries_funcs = {
     "groupby_query8": execute_groupby_query_expr_v3,
     "groupby_query9": execute_groupby_query_expr_v4,
     "groupby_query10": execute_groupby_query_expr_v1,
+    "join_query1": execute_join_query_expr_v1,
 }
 
 
-def execute_groupby_query(query_args, queries_results, query_name, question):
+def execute_query(query_args, queries_results, query_name, question):
     gc.collect()
     t_start = timer()
-    ans = groupby_queries_funcs[query_name](**query_args)
+    ans = queries_funcs[query_name](**query_args)
     print(ans.shape)
     queries_results[query_name]["t_run1"] = timer() - t_start
     m = memory_usage()
@@ -140,7 +153,7 @@ def execute_groupby_query(query_args, queries_results, query_name, question):
 
     gc.collect()
     t_start = timer()
-    ans = groupby_queries_funcs[query_name](**query_args)
+    ans = queries_funcs[query_name](**query_args)
     print(ans.shape)
     queries_results[query_name]["t_run2"] = timer() - t_start
     m = memory_usage()
@@ -176,7 +189,7 @@ def groupby_query1_modin(x, queries_results):
     question = "sum v1 by id1"  # 1
     query_args = {"x": x, "groupby_cols": ["id1"], "agg_cols_funcs": {"v1": "sum"}}
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -189,7 +202,7 @@ def groupby_query2_modin(x, queries_results):
     question = "sum v1 by id1:id2"  # 2
     query_args = {"x": x, "groupby_cols": ["id1", "id2"], "agg_cols_funcs": {"v1": "sum"}}
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -202,7 +215,7 @@ def groupby_query3_modin(x, queries_results):
     question = "sum v1 mean v3 by id3"  # 3
     query_args = {"x": x, "groupby_cols": ["id3"], "agg_cols_funcs": {"v1": "sum", "v3": "mean"}}
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -219,7 +232,7 @@ def groupby_query4_modin(x, queries_results):
         "agg_cols_funcs": {"v1": "mean", "v2": "mean", "v3": "mean"},
     }
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -236,7 +249,7 @@ def groupby_query5_modin(x, queries_results):
         "agg_cols_funcs": {"v1": "sum", "v2": "sum", "v3": "sum"},
     }
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -253,7 +266,7 @@ def groupby_query6_modin(x, queries_results):
         "agg_cols_funcs": {"v3": ["median", "std"]},
     }
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -271,7 +284,7 @@ def groupby_query7_modin(x, queries_results):
         "range_cols": ["v1", "v2"],
     }
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -290,7 +303,7 @@ def groupby_query8_modin(x, queries_results):
         "groupby_cols": ["id6"],
     }
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -308,7 +321,7 @@ def groupby_query9_modin(x, queries_results):
         "apply_cols": ["r2", "v1", "v2"],
     }
 
-    execute_groupby_query(
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -325,7 +338,24 @@ def groupby_query10_modin(x, queries_results):
         "agg_cols_funcs": {"v3": "sum", "v1": "count"},
     }
 
-    execute_groupby_query(
+    execute_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
+
+
+def join_query1_modin(x, ys, queries_results):
+    query_name = "join_query1"
+    question = "small inner on int"  # q1
+    query_args = {
+        "x": x,
+        "y": ys[0],
+        "on": "id1",
+    }
+
+    execute_query(
         query_args=query_args,
         queries_results=queries_results,
         query_name=query_name,
@@ -334,32 +364,114 @@ def groupby_query10_modin(x, queries_results):
 
 
 def queries_modin(filename, pandas_mode):
-    # groupby_query9 currently fails with message:
-    # numpy.core._exceptions.UFuncTypeError: ufunc 'subtract' did not contain a loop
-    # with signature matching types (dtype('<U2'), dtype('<U2')) -> dtype('<U2')
-    queries = {
-        "groupby_query1": groupby_query1_modin,
-        "groupby_query2": groupby_query2_modin,
-        "groupby_query3": groupby_query3_modin,
-        "groupby_query4": groupby_query4_modin,
-        "groupby_query5": groupby_query5_modin,
-        "groupby_query6": groupby_query6_modin,
-        "groupby_query7": groupby_query7_modin,
-        "groupby_query8": groupby_query8_modin,
-        # "groupby_query9": groupby_query9_modin,
-        "groupby_query10": groupby_query10_modin,
-    }
-    groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
-    queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
-    queries_results = {x: {y: 0.0 for y in groupby_queries_results_fields} for x in queries.keys()}
-    data_file_size = os.path.getsize(filename) / 1024 / 1024
+    data_files_names = files_names_from_pattern(filename)
+    data_for_groupby_queries = []
+    data_for_join_queries = []
+    for f in data_files_names:
+        if f.split("/")[-1].startswith("G1"):
+            data_for_groupby_queries.append(f)
+        elif f.split("/")[-1].startswith("J1"):
+            data_for_join_queries.append(f)
+        else:
+            raise AttributeError(f"Unrecognized file is passed as -data_file flag argument: {f}")
 
-    print(f"loading dataset {filename}")
-    t0 = timer()
-    x = pd.read_csv(filename)
-    data_file_import_time = timer() - t0
+    groupby_queries_files_number = len(data_for_groupby_queries)
+    join_queries_files_number = len(data_for_join_queries)
+    accepted_number_of_files_for_join_queries = [0, 1, 4]
 
-    queries_parameters = {"x": x, "queries_results": queries_results}
+    if all([groupby_queries_files_number, join_queries_files_number]):
+        raise AttributeError(
+            f"Only one type of queries (groupby or join) can be executed during one run, but files for both queries are passed with -data_file flag"
+        )
+    elif groupby_queries_files_number > 1:
+        raise AttributeError(
+            f"Only one file for one run is accepted for groupby queries, actually passed {groupby_queries_files_number}: {data_for_groupby_queries}"
+        )
+    elif join_queries_files_number not in accepted_number_of_files_for_join_queries:
+        raise AttributeError(
+            f"Accepted numbers of files for join queries are {accepted_number_of_files_for_join_queries}, actually passed {join_queries_files_number}: {data_for_join_queries}"
+        )
+    elif join_queries_files_number and sum("NA" in f for f in data_for_join_queries) != 1:
+        raise FileNotFoundError(
+            f"Data files for join queries should contain file (only one) with NA component in the file name"
+        )
+
+    print(f"loading datasets {data_files_names}")
+
+    if groupby_queries_files_number:
+        t0 = timer()
+        x = pd.read_csv(data_for_groupby_queries[0])
+        data_file_import_time = timer() - t0
+        data_file_size = os.path.getsize(data_for_groupby_queries[0]) / 1024 / 1024
+
+        # groupby_query9 currently fails with message:
+        # numpy.core._exceptions.UFuncTypeError: ufunc 'subtract' did not contain a loop
+        # with signature matching types (dtype('<U2'), dtype('<U2')) -> dtype('<U2')
+        queries = {
+            "groupby_query1": groupby_query1_modin,
+            "groupby_query2": groupby_query2_modin,
+            "groupby_query3": groupby_query3_modin,
+            "groupby_query4": groupby_query4_modin,
+            "groupby_query5": groupby_query5_modin,
+            "groupby_query6": groupby_query6_modin,
+            "groupby_query7": groupby_query7_modin,
+            "groupby_query8": groupby_query8_modin,
+            # "groupby_query9": groupby_query9_modin,
+            "groupby_query10": groupby_query10_modin,
+        }
+        groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
+        queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
+        queries_results = {
+            x: {y: 0.0 for y in groupby_queries_results_fields} for x in queries.keys()
+        }
+
+        queries_parameters = {"x": x, "queries_results": queries_results}
+
+    if join_queries_files_number:
+        data_name = next(
+            (f for f in data_for_join_queries if "NA" in f), None
+        )  # gets the file name with "NA" component
+        y_data_name = join_to_tbls(data_name)
+
+        t0 = timer()
+        x = pd.read_csv(data_name)
+        small = pd.read_csv(y_data_name[0])
+        medium = pd.read_csv(y_data_name[1])
+        big = pd.read_csv(y_data_name[2])
+        data_file_import_time = timer() - t0
+
+        data_file_size = os.path.getsize(data_name) / 1024 / 1024
+        for f in y_data_name:
+            data_file_size += os.path.getsize(f) / 1024 / 1024
+
+        # print("x \n", x)
+        # print("small \n", small)
+        # print("medium \n", medium)
+        # print("big \n", big)
+        # print("data_file_size \n", data_file_size)
+
+        # print(len(x.index), flush=True)
+        # print(len(small.index), flush=True)
+        # print(len(medium.index), flush=True)
+        # print(len(big.index), flush=True)
+        queries = {
+            "join_query1": join_query1_modin,
+            # "join_query2": join_query2_modin,
+            # "join_query3": join_query3_modin,
+            # "join_query4": join_query4_modin,
+            # "join_query5": join_query5_modin,
+        }
+        groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
+        queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
+        queries_results = {
+            x: {y: 0.0 for y in groupby_queries_results_fields} for x in queries.keys()
+        }
+        queries_parameters = {
+            "x": x,
+            "ys": [small, medium, big],
+            "queries_results": queries_results,
+        }
+
     for query_name, query_func in queries.items():
         query_func(**queries_parameters)
         print(f"{pandas_mode} {query_name} results:")
