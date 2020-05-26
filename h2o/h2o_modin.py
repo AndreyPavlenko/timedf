@@ -51,7 +51,7 @@ def execute_groupby_query_chk_expr_v8(ans):  # q10
     return [ans["v3"].sum(), ans["v1"].sum()]
 
 
-def execute_join_query_chk_expr_v1(ans):  # q1
+def execute_join_query_chk_expr_v1(ans):  # q1, q2, q3, q4, q5
     return [ans["v1"].sum(), ans["v2"].sum()]
 
 
@@ -67,6 +67,10 @@ groupby_queries_chk_funcs = {
     "groupby_query9": execute_groupby_query_chk_expr_v7,
     "groupby_query10": execute_groupby_query_chk_expr_v8,
     "join_query1": execute_join_query_chk_expr_v1,
+    "join_query2": execute_join_query_chk_expr_v1,
+    "join_query3": execute_join_query_chk_expr_v1,
+    "join_query4": execute_join_query_chk_expr_v1,
+    "join_query5": execute_join_query_chk_expr_v1,
 }
 
 
@@ -99,8 +103,11 @@ def execute_groupby_query_expr_v4(x, select_cols, groupby_cols, apply_cols):  # 
     )
 
 
-def execute_join_query_expr_v1(x, y, on):  # q1
-    return x.merge(y, on=on)  # y == small
+def execute_join_query_expr_v1(x, y, on):  # q1, q2, q4, q5
+    return x.merge(y, on=on)
+
+def execute_join_query_expr_v2(x, y, how, on):  # q3
+    return x.merge(y, how=how, on=on)
 
 
 queries_funcs = {
@@ -115,6 +122,10 @@ queries_funcs = {
     "groupby_query9": execute_groupby_query_expr_v4,
     "groupby_query10": execute_groupby_query_expr_v1,
     "join_query1": execute_join_query_expr_v1,
+    "join_query2": execute_join_query_expr_v1,
+    "join_query3": execute_join_query_expr_v2,
+    "join_query4": execute_join_query_expr_v1,
+    "join_query5": execute_join_query_expr_v1,
 }
 
 
@@ -363,6 +374,75 @@ def join_query1_modin(x, ys, queries_results):
     )
 
 
+def join_query2_modin(x, ys, queries_results):
+    query_name = "join_query2"
+    question = "medium inner on int" # q2
+    query_args = {
+        "x": x,
+        "y": ys[1],
+        "on": "id2",
+    }
+
+    execute_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
+
+
+def join_query3_modin(x, ys, queries_results):
+    query_name = "join_query3"
+    question = "medium outer on int" # q3
+    query_args = {
+        "x": x,
+        "y": ys[1],
+        "how": "left",
+        "on": "id2",
+    }
+
+    execute_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
+
+
+def join_query4_modin(x, ys, queries_results):
+    query_name = "join_query4"
+    question = "medium inner on factor" # q4
+    query_args = {
+        "x": x,
+        "y": ys[1],
+        "on": "id5",
+    }
+
+    execute_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
+
+
+def join_query5_modin(x, ys, queries_results):
+    query_name = "join_query5"
+    question = "big inner on int" # q5
+    query_args = {
+        "x": x,
+        "y": ys[2],
+        "on": "id3",
+    }
+
+    execute_query(
+        query_args=query_args,
+        queries_results=queries_results,
+        query_name=query_name,
+        question=question,
+    )
+
+
 def queries_modin(filename, pandas_mode):
     data_files_names = files_names_from_pattern(filename)
     data_for_groupby_queries = []
@@ -444,22 +524,16 @@ def queries_modin(filename, pandas_mode):
         for f in y_data_name:
             data_file_size += os.path.getsize(f) / 1024 / 1024
 
-        # print("x \n", x)
-        # print("small \n", small)
-        # print("medium \n", medium)
-        # print("big \n", big)
-        # print("data_file_size \n", data_file_size)
-
-        # print(len(x.index), flush=True)
-        # print(len(small.index), flush=True)
-        # print(len(medium.index), flush=True)
-        # print(len(big.index), flush=True)
+        print(len(x.index), flush=True)
+        print(len(small.index), flush=True)
+        print(len(medium.index), flush=True)
+        print(len(big.index), flush=True)
         queries = {
             "join_query1": join_query1_modin,
-            # "join_query2": join_query2_modin,
-            # "join_query3": join_query3_modin,
-            # "join_query4": join_query4_modin,
-            # "join_query5": join_query5_modin,
+            "join_query2": join_query2_modin,
+            "join_query3": join_query3_modin,
+            "join_query4": join_query4_modin,
+            "join_query5": join_query5_modin,
         }
         groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
         queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
