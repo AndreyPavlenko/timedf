@@ -570,7 +570,6 @@ def queries_modin(filename, pandas_mode):
         print_results(results=queries_results[query_name], unit="s")
         queries_results[query_name]["Backend"] = pandas_mode
         queries_results[query_name]["t_readcsv"] = data_file_import_times[query_name]
-        # queries_results[query_name]["dataset_size"] = data_file_size
         queries_results[query_name]["dataset_size"] = data_file_sizes[query_name]
 
     return queries_results

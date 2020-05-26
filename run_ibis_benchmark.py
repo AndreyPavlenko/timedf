@@ -420,7 +420,6 @@ def main():
                         "OmniscriptsCommitHash": args.commit_omniscripts,
                     }
 
-                    print("etl_results", etl_results)
                     reporting_fields_benchmark_etl = {
                         x: "VARCHAR(500) NOT NULL" for x in etl_results[0]
                     }
