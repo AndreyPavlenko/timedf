@@ -462,7 +462,7 @@ def queries_modin(filename, pandas_mode):
 
     if all([groupby_queries_files_number, join_queries_files_number]):
         raise AttributeError(
-            f"Only one type of queries (groupby or join) can be executed during one run, but files for both queries are passed with -data_file flag"
+            "Only one type of queries (groupby or join) can be executed during one run, but files for both queries are passed with -data_file flag"
         )
     elif groupby_queries_files_number > 1:
         raise AttributeError(
@@ -474,7 +474,7 @@ def queries_modin(filename, pandas_mode):
         )
     elif join_queries_files_number and sum("NA" in f for f in data_for_join_queries) != 1:
         raise FileNotFoundError(
-            f"Data files for join queries should contain file (only one) with NA component in the file name"
+            "Data files for join queries should contain file (only one) with NA component in the file name"
         )
 
     print(f"loading datasets {data_files_names}")
