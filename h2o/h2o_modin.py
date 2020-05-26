@@ -106,6 +106,7 @@ def execute_groupby_query_expr_v4(x, select_cols, groupby_cols, apply_cols):  # 
 def execute_join_query_expr_v1(x, y, on):  # q1, q2, q4, q5
     return x.merge(y, on=on)
 
+
 def execute_join_query_expr_v2(x, y, how, on):  # q3
     return x.merge(y, how=how, on=on)
 
@@ -376,7 +377,7 @@ def join_query1_modin(x, ys, queries_results):
 
 def join_query2_modin(x, ys, queries_results):
     query_name = "join_query2"
-    question = "medium inner on int" # q2
+    question = "medium inner on int"  # q2
     query_args = {
         "x": x,
         "y": ys[1],
@@ -393,7 +394,7 @@ def join_query2_modin(x, ys, queries_results):
 
 def join_query3_modin(x, ys, queries_results):
     query_name = "join_query3"
-    question = "medium outer on int" # q3
+    question = "medium outer on int"  # q3
     query_args = {
         "x": x,
         "y": ys[1],
@@ -411,7 +412,7 @@ def join_query3_modin(x, ys, queries_results):
 
 def join_query4_modin(x, ys, queries_results):
     query_name = "join_query4"
-    question = "medium inner on factor" # q4
+    question = "medium inner on factor"  # q4
     query_args = {
         "x": x,
         "y": ys[1],
@@ -428,7 +429,7 @@ def join_query4_modin(x, ys, queries_results):
 
 def join_query5_modin(x, ys, queries_results):
     query_name = "join_query5"
-    question = "big inner on int" # q5
+    question = "big inner on int"  # q5
     query_args = {
         "x": x,
         "y": ys[2],
@@ -478,11 +479,11 @@ def queries_modin(filename, pandas_mode):
 
     print(f"loading datasets {data_files_names}")
 
+    queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
     if groupby_queries_files_number:
         t0 = timer()
         x = pd.read_csv(data_for_groupby_queries[0])
-        data_file_import_time = timer() - t0
-        data_file_size = os.path.getsize(data_for_groupby_queries[0]) / 1024 / 1024
+        x_data_file_import_time = timer() - t0
 
         # groupby_query9 currently fails with message:
         # numpy.core._exceptions.UFuncTypeError: ufunc 'subtract' did not contain a loop
@@ -499,11 +500,10 @@ def queries_modin(filename, pandas_mode):
             # "groupby_query9": groupby_query9_modin,
             "groupby_query10": groupby_query10_modin,
         }
-        groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
-        queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
-        queries_results = {
-            x: {y: 0.0 for y in groupby_queries_results_fields} for x in queries.keys()
-        }
+        queries_results = {x: {y: 0.0 for y in queries_results_fields} for x in queries.keys()}
+        x_data_file_size = os.path.getsize(data_for_groupby_queries[0]) / 1024 / 1024
+        data_file_sizes = {x: x_data_file_size for x in queries.keys()}
+        data_file_import_times = {x: x_data_file_import_time for x in queries.keys()}
 
         queries_parameters = {"x": x, "queries_results": queries_results}
 
@@ -515,14 +515,21 @@ def queries_modin(filename, pandas_mode):
 
         t0 = timer()
         x = pd.read_csv(data_name)
+        x_data_file_import_time = timer() - t0
+        t0 = timer()
         small = pd.read_csv(y_data_name[0])
+        small_data_file_import_time = timer() - t0
+        t0 = timer()
         medium = pd.read_csv(y_data_name[1])
+        medium_data_file_import_time = timer() - t0
+        t0 = timer()
         big = pd.read_csv(y_data_name[2])
-        data_file_import_time = timer() - t0
+        big_data_file_import_time = timer() - t0
 
-        data_file_size = os.path.getsize(data_name) / 1024 / 1024
-        for f in y_data_name:
-            data_file_size += os.path.getsize(f) / 1024 / 1024
+        x_data_file_size = os.path.getsize(data_name) / 1024 / 1024
+        small_data_file_size = os.path.getsize(y_data_name[0]) / 1024 / 1024
+        medium_data_file_size = os.path.getsize(y_data_name[1]) / 1024 / 1024
+        big_data_file_size = os.path.getsize(y_data_name[2]) / 1024 / 1024
 
         print(len(x.index), flush=True)
         print(len(small.index), flush=True)
@@ -535,15 +542,26 @@ def queries_modin(filename, pandas_mode):
             "join_query4": join_query4_modin,
             "join_query5": join_query5_modin,
         }
-        groupby_queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
-        queries_results = {x + "_run1_t": 0.0 for x in queries.keys()}
-        queries_results = {
-            x: {y: 0.0 for y in groupby_queries_results_fields} for x in queries.keys()
-        }
+        queries_results = {x: {y: 0.0 for y in queries_results_fields} for x in queries.keys()}
         queries_parameters = {
             "x": x,
             "ys": [small, medium, big],
             "queries_results": queries_results,
+        }
+
+        data_file_sizes = {
+            "join_query1": x_data_file_size + small_data_file_size,
+            "join_query2": x_data_file_size + medium_data_file_size,
+            "join_query3": x_data_file_size + medium_data_file_size,
+            "join_query4": x_data_file_size + medium_data_file_size,
+            "join_query5": x_data_file_size + big_data_file_size,
+        }
+        data_file_import_times = {
+            "join_query1": x_data_file_import_time + small_data_file_import_time,
+            "join_query2": x_data_file_import_time + medium_data_file_import_time,
+            "join_query3": x_data_file_import_time + medium_data_file_import_time,
+            "join_query4": x_data_file_import_time + medium_data_file_import_time,
+            "join_query5": x_data_file_import_time + big_data_file_import_time,
         }
 
     for query_name, query_func in queries.items():
@@ -551,8 +569,9 @@ def queries_modin(filename, pandas_mode):
         print(f"{pandas_mode} {query_name} results:")
         print_results(results=queries_results[query_name], unit="s")
         queries_results[query_name]["Backend"] = pandas_mode
-        queries_results[query_name]["t_readcsv"] = data_file_import_time
-        queries_results[query_name]["dataset_size"] = data_file_size
+        queries_results[query_name]["t_readcsv"] = data_file_import_times[query_name]
+        # queries_results[query_name]["dataset_size"] = data_file_size
+        queries_results[query_name]["dataset_size"] = data_file_sizes[query_name]
 
     return queries_results
 
