@@ -8,9 +8,11 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -database_name ${DATABASE_NAME} -table plasticc -bench_name plasticc -iterations 1                   \
                           -data_file '${DATASETS_PWD}/plasticc/'                                                               \
                           -pandas_mode Pandas -ray_tmpdir /tmp                                                                 \
+                          -optimizer intel -gpu_memory 16                                                                      \
                           -fragments_size 32000000 32000000 32000000 32000000                                                  \
                           -commit_omnisci ${BUILD_REVISION}                                                                    \
                           -commit_ibis ${BUILD_IBIS_REVISION}                                                                  \
                            -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                   \
                           ${ADDITIONAL_OPTS}                                                                                   \
+                          ${ADDITIONAL_OPTS_NIGHTLY}                                                                           \
                           ${DB_COMMON_OPTS} ${DB_PLASTICC_OPTS}

@@ -1,9 +1,7 @@
-import os
 import sys
 import traceback
 from timeit import default_timer as timer
 
-import numpy as np
 import pandas as pd
 
 from utils import (  # noqa: F401 ("compare_dataframes" imported, but unused. Used in commented code.)
@@ -14,27 +12,30 @@ from utils import (  # noqa: F401 ("compare_dataframes" imported, but unused. Us
     load_data_pandas,
     print_results,
     write_to_csv_by_chunks,
-    get_dir,
     get_ny_taxi_dataset_size,
     check_support,
+    get_tmp_filepath,
+    FilesCombiner,
 )
 
 
-def validation_prereqs(omnisci_server_worker, data_files_names, files_limit, columns_names):
-    return omnisci_server_worker.import_data_by_pandas(
-        data_files_names=data_files_names, files_limit=files_limit, columns_names=columns_names,
-    )
+def run_queries(queries, parameters, etl_results, output_for_validation=None):
+    for query_name, query_func in queries.items():
+        query_result = query_func(**parameters[query_name])
+        etl_results[query_name] = (
+            query_result[0]
+            if isinstance(query_result, (tuple, list)) and len(query_result) == 2
+            else query_result
+        )
+        if output_for_validation is not None:
+            assert len(query_result) == 2
+            output_for_validation[query_name] = query_result[1]
 
-
-def run_queries(queries, parameters, etl_results):
-    for query_number, (query_name, query_func) in enumerate(queries.items()):
-        exec_time = query_func(**parameters)
-        etl_results[query_name] = exec_time
     return etl_results
 
 
 # Queries definitions
-def q1_ibis(table, df_pandas, queries_validation_results, queries_validation_flags, validation):
+def q1_ibis(table, input_for_validation):
     t_query = 0
     t0 = timer()
     q1_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
@@ -42,64 +43,50 @@ def q1_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
     )
     t_query += timer() - t0
 
-    if validation and not queries_validation_flags["q1"]:
+    if input_for_validation:
         print("Validating query 1 results ...")
 
-        queries_validation_flags["q1"] = True
-
-        q1_output_pd = df_pandas.groupby("cab_type")["cab_type"].count()
+        q1_output_pd = input_for_validation["Query1"]
 
         # Casting of Pandas q1 output to Pandas.DataFrame type, which is compartible with
         # Ibis q1 output
-        q1_output_pd_df = q1_output_pd.to_frame()
-        q1_output_pd_df.loc[:, "count"] = q1_output_pd_df.loc[:, "cab_type"]
-        q1_output_pd_df["cab_type"] = q1_output_pd_df.index
-        q1_output_pd_df.index = [i for i in range(len(q1_output_pd_df))]
+        q1_output_pd_data = {
+            q1_output_pd.name: q1_output_pd.index.to_numpy(),
+            "count": q1_output_pd.to_numpy(),
+        }
+        q1_output_pd_df = pd.DataFrame(q1_output_pd_data, columns=[q1_output_pd.name, "count"])
+        q1_output_pd_df = q1_output_pd_df.astype({"cab_type": "category"}, copy=False)
 
-        # queries_validation_results["q1"] = compare_dataframes(
-        #     ibis_df=q1_output_pd_df,
-        #     pandas_df=q1_output_ibis,
-        #     pd=run_benchmark.__globals__["pd"],
-        # )
-        if queries_validation_results["q1"]:
-            print("q1 results are validated!")
+        compare_dataframes(
+            ibis_dfs=[q1_output_pd_df], pandas_dfs=[q1_output_ibis], sort_cols=[], drop_cols=[]
+        )
 
     return t_query
 
 
-def q2_ibis(table, df_pandas, queries_validation_results, queries_validation_flags, validation):
+def q2_ibis(table, input_for_validation):
     t_query = 0
     t0 = timer()
     q2_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
         table.groupby("passenger_count")
-        .aggregate(total_amount=table.total_amount.mean())[["passenger_count", "total_amount"]]
+        .aggregate(total_amount=table.total_amount.count())[["passenger_count", "total_amount"]]
         .execute()
     )
     t_query += timer() - t0
 
-    if validation and not queries_validation_flags["q2"]:
+    if input_for_validation is not None:
         print("Validating query 2 results ...")
 
-        queries_validation_flags["q2"] = True
+        q2_output_pd = input_for_validation["Query2"]
 
-        q2_output_pd = df_pandas.groupby(  # noqa: F841 (assigned, but unused. Used in commented code.)
-            "passenger_count", as_index=False
-        ).mean()[
-            ["passenger_count", "total_amount"]
-        ]
-
-        # queries_validation_results["q2"] = compare_dataframes(
-        #     pandas_df=q2_output_pd,
-        #     ibis_df=q2_output_ibis,
-        #     pd=run_benchmark.__globals__["pd"],
-        # )
-        if queries_validation_results["q2"]:
-            print("q2 results are validated!")
+        compare_dataframes(
+            ibis_dfs=[q2_output_pd], pandas_dfs=[q2_output_ibis], sort_cols=[], drop_cols=[]
+        )
 
     return t_query
 
 
-def q3_ibis(table, df_pandas, queries_validation_results, queries_validation_flags, validation):
+def q3_ibis(table, input_for_validation):
     t_query = 0
     t0 = timer()
     q3_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
@@ -111,50 +98,38 @@ def q3_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
     )
     t_query += timer() - t0
 
-    if validation and not queries_validation_flags["q3"]:
+    if input_for_validation is not None:
         print("Validating query 3 results ...")
 
-        queries_validation_flags["q3"] = True
-
-        transformed = df_pandas[["passenger_count", "pickup_datetime"]].transform(
-            {
-                "passenger_count": lambda x: x,
-                "pickup_datetime": lambda x: pd.DatetimeIndex(x).year,
-            }
-        )
-        q3_output_pd = transformed.groupby(["passenger_count", "pickup_datetime"])[
-            ["passenger_count", "pickup_datetime"]
-        ].count()["passenger_count"]
-
+        q3_output_pd = input_for_validation["Query3"]
         # Casting of Pandas q3 output to Pandas.DataFrame type, which is compartible with
         # Ibis q3 output
-        q3_output_pd_df = q3_output_pd.to_frame()
-        count_df = q3_output_pd_df.loc[:, "passenger_count"].copy()
-        q3_output_pd_df["passenger_count"] = q3_output_pd.index.droplevel(level="pickup_datetime")
-        q3_output_pd_df["pickup_datetime"] = q3_output_pd.index.droplevel(level="passenger_count")
-        q3_output_pd_df = q3_output_pd_df.astype({"pickup_datetime": "int32"})
-        q3_output_pd_df.loc[:, "count"] = count_df
-        q3_output_pd_df.index = [i for i in range(len(q3_output_pd_df))]
+        passenger_count_col = q3_output_pd.index.droplevel(level="pickup_datetime")
+        pickup_datetime_col = q3_output_pd.index.droplevel(level="passenger_count")
+        count_col = q3_output_pd[("passenger_count", "count")].to_numpy()
+        q3_output_pd_casted = pd.DataFrame(
+            {
+                "passenger_count": passenger_count_col,
+                "pickup_datetime": pickup_datetime_col,
+                "count": count_col,
+            }
+        )
 
-        # queries_validation_results["q3"] = compare_dataframes(
-        #     pandas_df=q3_output_pd_df,
-        #     ibis_df=q3_output_ibis,
-        #     pd=run_benchmark.__globals__["pd"],
-        # )
-        if queries_validation_results["q3"]:
-            print("q3 results are validated!")
+        compare_dataframes(
+            ibis_dfs=[q3_output_pd_casted], pandas_dfs=[q3_output_ibis], sort_cols=[], drop_cols=[]
+        )
 
     return t_query
 
 
-def q4_ibis(table, df_pandas, queries_validation_results, queries_validation_flags, validation):
+def q4_ibis(table, input_for_validation):
     t_query = 0
     t0 = timer()
     q4_ibis_sized = table.groupby(
         [
             table.passenger_count,
             table.pickup_datetime.year().name("pickup_datetime"),
-            table.trip_distance.cast("int64").name("trip_distance"),
+            table.trip_distance.round().cast("int64").name("trip_distance"),
         ]
     ).size()
     q4_output_ibis = q4_ibis_sized.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
@@ -162,84 +137,26 @@ def q4_ibis(table, df_pandas, queries_validation_results, queries_validation_fla
     ).execute()
     t_query += timer() - t0
 
-    if validation and not queries_validation_flags["q4"]:
+    if input_for_validation is not None:
         print("Validating query 4 results ...")
 
-        queries_validation_flags["q4"] = True
-
-        q4_pd_sized = (
-            df_pandas[["passenger_count", "pickup_datetime", "trip_distance"]]
-            .transform(
-                {
-                    "passenger_count": lambda x: x,
-                    "pickup_datetime": lambda x: pd.DatetimeIndex(x).year,
-                    "trip_distance": lambda x: x.astype("int64", copy=False),
-                }
-            )
-            .groupby(["passenger_count", "pickup_datetime", "trip_distance"])
-            .size()
-            .reset_index()
-        )
-
-        q4_output_pd = q4_pd_sized.sort_values(by=["pickup_datetime", 0], ascending=[True, False])
+        q4_output_pd = input_for_validation["Query4"]
 
         # Casting of Pandas q4 output to Pandas.DataFrame type, which is compartible with
         # Ibis q4 output
-        q4_output_pd = q4_output_pd.astype({"pickup_datetime": "int32"})
-        q4_output_pd.columns = [
-            "passenger_count",
-            "pickup_datetime",
-            "trip_distance",
-            "count",
-        ]
-        q4_output_pd.index = [i for i in range(len(q4_output_pd))]
-
-        # compare_result_1 and compare_result_2 are the results of comparison of q4 sorted columns
-        # compare_result_1 = compare_dataframes(
-        #     pandas_df=q4_output_pd["pickup_datetime"],
-        #     ibis_df=q4_output_ibis["pickup_datetime"],
-        #     pd=run_benchmark.__globals__["pd"],
-        # )
-        # compare_result_2 = compare_dataframes(
-        #     pandas_df=q4_output_pd["count"],
-        #     ibis_df=q4_output_ibis["count"],
-        #     pd=run_benchmark.__globals__["pd"],
-        # )
-
-        # compare_result_3 is the result of q4 output table all elements presence check
-        q4_output_ibis_validation = q4_ibis_sized.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
-            [
-                ("pickup_datetime", True),
-                ("count", False),
-                ("trip_distance", True),
-                ("passenger_count", True),
-            ]
-        ).execute()
-        q4_output_pd_valid = q4_pd_sized.sort_values(
-            by=["trip_distance", "passenger_count"]
-        ).sort_values(by=["pickup_datetime", 0], ascending=[True, False])
-        q4_output_pd_valid = q4_output_pd_valid.astype({"pickup_datetime": "int32"})
-        q4_output_pd_valid.columns = [
-            "passenger_count",
-            "pickup_datetime",
-            "trip_distance",
-            "count",
-        ]
-        q4_output_pd_valid.index = [i for i in range(len(q4_output_pd))]
-
-        # compare_result_3 = compare_dataframes(
-        #     pandas_df=q4_output_pd_valid,
-        #     ibis_df=q4_output_ibis_validation,
-        #     pd=run_benchmark.__globals__["pd"],
-        # )
-
-        queries_validation_results["q4"] = (
-            compare_result_1  # noqa: F821 (undefined name. Defined in commented code.)
-            and compare_result_2  # noqa: F821 (undefined name. Defined in commented code.)
-            and compare_result_3  # noqa: F821 (undefined name. Defined in commented code.)
+        q4_output_pd = q4_output_pd.rename(columns={0: "count"})
+        q4_output_ibis = q4_output_ibis.sort_values(
+            by=["passenger_count", "pickup_datetime", "trip_distance"],
+            ascending=[True, True, True],
         )
-        if queries_validation_results["q4"]:
-            print("q4 results are validated!")
+        q4_output_pd = q4_output_pd.sort_values(
+            by=["passenger_count", "pickup_datetime", "trip_distance"],
+            ascending=[True, True, True],
+        )
+
+        compare_dataframes(
+            ibis_dfs=[q4_output_ibis], pandas_dfs=[q4_output_pd], sort_cols=[], drop_cols=[]
+        )
 
     return t_query
 
@@ -255,7 +172,7 @@ def etl_ibis(
     delete_old_database,
     create_new_table,
     ipc_connection,
-    validation,
+    input_for_validation,
     import_mode,
     fragments_size,
 ):
@@ -272,9 +189,6 @@ def etl_ibis(
     etl_results = {x: 0.0 for x in queries.keys()}
     etl_results["t_readcsv"] = 0.0
     etl_results["t_connect"] = 0.0
-
-    queries_validation_results = {"q%s" % i: False for i in range(1, 5)}
-    queries_validation_flags = {"q%s" % i: False for i in range(1, 5)}
 
     omnisci_server_worker.connect_to_server()
 
@@ -328,47 +242,21 @@ def etl_ibis(
             etl_results["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
         elif import_mode == "fsi":
-            data_file_path = None
-            # If data files are compressed or number of csv files is more than one,
-            # data files (or single compressed file) should be transformed to single csv file.
-            # Before files transformation, script checks existance of already transformed file
-            # in the directory passed with -data_file flag, and then, if file is not found,
-            # in the omniscripts/tmp directory.
-            if data_files_extension == "gz" or len(data_files_names) > 1:
-                data_file_path = os.path.abspath(
-                    os.path.join(
-                        os.path.dirname(data_files_names[0]),
-                        f"taxibench-{files_limit}-files-fsi.csv",
-                    )
+            with FilesCombiner(
+                data_files_names=data_files_names,
+                combined_filename=f"taxibench-{files_limit}--files-fsi.csv",
+                files_limit=files_limit,
+            ) as data_file_path:
+                t0 = timer()
+                omnisci_server_worker.get_conn().create_table_from_csv(
+                    table_name,
+                    data_file_path,
+                    schema_table,
+                    header=False,
+                    fragment_size=fragments_size[0],
                 )
-                data_file_tmp_dir = os.path.join(get_dir("repository_root"), "tmp")
-                if not os.path.exists(data_file_path):
-                    data_file_path = os.path.join(
-                        data_file_tmp_dir, f"taxibench-{files_limit}-files-fsi.csv"
-                    )
-
-            if data_file_path and not os.path.exists(data_file_path):
-                if not os.path.exists(data_file_tmp_dir):
-                    os.mkdir(data_file_tmp_dir)
-                try:
-                    for file_name in data_files_names[:files_limit]:
-                        write_to_csv_by_chunks(
-                            file_to_write=file_name, output_file=data_file_path, write_mode="ab",
-                        )
-                except Exception as exc:
-                    os.remove(data_file_path)
-                    raise exc
-
-            t0 = timer()
-            omnisci_server_worker.get_conn().create_table_from_csv(
-                table_name,
-                data_file_path if data_file_path else data_files_names[0],
-                schema_table,
-                header=False,
-                fragment_size=fragments_size[0],
-            )
-            etl_results["t_readcsv"] += timer() - t0
-            etl_results["t_connect"] = omnisci_server_worker.get_conn_creation_time()
+                etl_results["t_readcsv"] += timer() - t0
+                etl_results["t_connect"] = omnisci_server_worker.get_conn_creation_time()
 
     # Second connection - this is ibis's ipc connection for DML
     omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
@@ -377,18 +265,9 @@ def etl_ibis(
     table = omnisci_server_worker.database(database_name).table(table_name)
     etl_results["t_connect"] += timer() - t0
 
-    df_pandas = None
-    if validation:
-        df_pandas = validation_prereqs(
-            omnisci_server_worker, data_files_names, files_limit, columns_names
-        )
-
     queries_parameters = {
-        "table": table,
-        "df_pandas": df_pandas,
-        "queries_validation_results": queries_validation_results,
-        "queries_validation_flags": queries_validation_flags,
-        "validation": validation,
+        query_name: {"table": table, "input_for_validation": input_for_validation}
+        for query_name in queries.keys()
     }
     return run_queries(queries=queries, parameters=queries_parameters, etl_results=etl_results)
 
@@ -400,8 +279,10 @@ def etl_ibis(
 # @hpat.jit fails with Invalid use of Function(<ufunc 'isnan'>) with argument(s) of type(s): (StringType), even when dtype is provided
 def q1_pandas(df):
     t0 = timer()
-    df.groupby("cab_type").count()
-    return timer() - t0
+    q1_pandas_output = df.groupby("cab_type")["cab_type"].count()
+    query_time = timer() - t0
+
+    return query_time, q1_pandas_output
 
 
 # SELECT passenger_count,
@@ -410,56 +291,81 @@ def q1_pandas(df):
 # GROUP BY passenger_count;
 def q2_pandas(df):
     t0 = timer()
-    df.groupby("passenger_count", as_index=False).count()[["passenger_count", "total_amount"]]
-    return timer() - t0
+    q2_pandas_output = df.groupby("passenger_count", as_index=False).count()[
+        ["passenger_count", "total_amount"]
+    ]
+    query_time = timer() - t0
+
+    return query_time, q2_pandas_output
 
 
 # SELECT passenger_count,
-#       EXTRACT(year from pickup_datetime) as year,
+#       EXTRACT(year from pickup_datetime) as year0,
 #       count(*)
 # FROM trips
 # GROUP BY passenger_count,
-#         year;
+#         year0;
 def q3_pandas(df):
     t0 = timer()
-    transformed = df.applymap(lambda x: x.year if hasattr(x, "year") else x)
-    transformed.groupby(["pickup_datetime", "passenger_count"], as_index=False).count()[
-        "passenger_count"
-    ]
-    return timer() - t0
+    transformed = pd.DataFrame(
+        {
+            "passenger_count": df["passenger_count"],
+            "pickup_datetime": df["pickup_datetime"].dt.year,
+        }
+    )
+    q3_pandas_output = transformed.groupby(["pickup_datetime", "passenger_count"]).agg(
+        {"passenger_count": ["count"]}
+    )
+    query_time = timer() - t0
+
+    return query_time, q3_pandas_output
 
 
 # SELECT passenger_count,
-#       EXTRACT(year from pickup_datetime) as year,
+#       EXTRACT(year from pickup_datetime) as year0,
 #       round(trip_distance) distance,
 #       count(*) trips
 # FROM trips
 # GROUP BY passenger_count,
-#         year,
+#         year0,
 #         distance
-# ORDER BY year,
+# ORDER BY year0,
 #         trips desc;
-def q4_pandas(df):
+def q4_pandas(df, validation):
     t0 = timer()
-    transformed = df.applymap(
-        lambda x: x.year
-        if hasattr(x, "year")
-        else round(x)
-        if isinstance(x, (int, float)) and not np.isnan(x)
-        else x
-    )[["passenger_count", "pickup_datetime", "trip_distance"]].groupby(
-        ["passenger_count", "pickup_datetime", "trip_distance"]
+    transformed = pd.DataFrame(
+        {
+            "passenger_count": df["passenger_count"],
+            "pickup_datetime": df["pickup_datetime"].dt.year,
+            "trip_distance": df["trip_distance"].round(),
+        }
     )
-    (
-        transformed.count()
+    q4_pandas_output = (
+        transformed.groupby(["passenger_count", "pickup_datetime", "trip_distance"])
+        .size()
         .reset_index()
-        .sort_values(by=["pickup_datetime", "trip_distance"], ascending=[True, False])
-    )
-    return timer() - t0
+        .sort_values(by=["pickup_datetime", 0], ascending=[True, False])
+    ).astype({"trip_distance": "int64"}, copy=False)
+    query_time = timer() - t0
+
+    if validation:
+        import math
+
+        transformed["trip_distance"] = df["trip_distance"].transform(
+            lambda x: round(x) if round(math.modf(x)[0], 5) != 0.5 else math.modf(x + 1)[1]
+        )
+        q4_pandas_output = (
+            transformed.groupby(["passenger_count", "pickup_datetime", "trip_distance"])
+            .size()
+            .reset_index()
+            .sort_values(by=["pickup_datetime", 0], ascending=[True, False])
+        ).astype({"trip_distance": "int64"}, copy=False)
+
+    return query_time, q4_pandas_output
 
 
 def etl_pandas(
-    filename, files_limit, columns_names, columns_types,
+    filename, files_limit, columns_names, columns_types, output_for_validation,
 ):
     queries = {
         "Query1": q1_pandas,
@@ -485,8 +391,23 @@ def etl_pandas(
     concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
     etl_results["t_readcsv"] = timer() - t0
 
-    queries_parameters = {"df": concatenated_df}
-    return run_queries(queries=queries, parameters=queries_parameters, etl_results=etl_results)
+    queries_parameters = {
+        query_name: {"df": concatenated_df} for query_name in list(queries.keys())[:3]
+    }
+    queries_parameters.update(
+        {
+            "Query4": {
+                "df": concatenated_df,
+                "validation": True if output_for_validation is not None else False,
+            }
+        }
+    )
+    return run_queries(
+        queries=queries,
+        parameters=queries_parameters,
+        etl_results=etl_results,
+        output_for_validation=output_for_validation,
+    )
 
 
 def run_benchmark(parameters):
@@ -550,7 +471,7 @@ def run_benchmark(parameters):
 
     columns_types = [
         "int64",
-        "int64",
+        "category",
         "timestamp",
         "timestamp",
         "category",
@@ -569,7 +490,7 @@ def run_benchmark(parameters):
         "float64",
         "float64",
         "float64",
-        "int64",
+        "category",
         "float64",
         "category",
         "category",
@@ -603,8 +524,7 @@ def run_benchmark(parameters):
     ]
 
     if parameters["dfiles_num"] <= 0:
-        print("Bad number of data files specified: ", parameters["dfiles_num"])
-        sys.exit(1)
+        raise ValueError(f"Bad number of data files specified: {parameters['dfiles_num']}")
     try:
         if not parameters["no_pandas"]:
             import_pandas_into_module_namespace(
@@ -616,6 +536,21 @@ def run_benchmark(parameters):
 
         etl_results_ibis = None
         etl_results = None
+        pd_queries_outputs = {} if parameters["validation"] else None
+        if not parameters["no_pandas"]:
+            pandas_files_limit = parameters["dfiles_num"]
+            filename = files_names_from_pattern(parameters["data_file"])[:pandas_files_limit]
+            etl_results = etl_pandas(
+                filename=filename,
+                files_limit=pandas_files_limit,
+                columns_names=columns_names,
+                columns_types=columns_types,
+                output_for_validation=pd_queries_outputs,
+            )
+
+            print_results(results=etl_results, backend=parameters["pandas_mode"], unit="ms")
+            etl_results["Backend"] = parameters["pandas_mode"]
+
         if not parameters["no_ibis"]:
             etl_results_ibis = etl_ibis(
                 filename=parameters["data_file"],
@@ -628,7 +563,7 @@ def run_benchmark(parameters):
                 delete_old_database=not parameters["dnd"],
                 ipc_connection=parameters["ipc_connection"],
                 create_new_table=not parameters["dni"],
-                validation=parameters["validation"],
+                input_for_validation=pd_queries_outputs,
                 import_mode=parameters["import_mode"],
                 fragments_size=parameters["fragments_size"],
             )
@@ -637,21 +572,6 @@ def run_benchmark(parameters):
             etl_results_ibis["Backend"] = "Ibis"
             etl_results_ibis["dfiles_num"] = parameters["dfiles_num"]
             etl_results_ibis["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])
-
-        if not parameters["no_pandas"]:
-            pandas_files_limit = parameters["dfiles_num"]
-            filename = files_names_from_pattern(parameters["data_file"])[:pandas_files_limit]
-            etl_results = etl_pandas(
-                filename=filename,
-                files_limit=pandas_files_limit,
-                columns_names=columns_names,
-                columns_types=columns_types,
-            )
-
-            print_results(results=etl_results, backend=parameters["pandas_mode"], unit="ms")
-            etl_results["Backend"] = parameters["pandas_mode"]
-            etl_results["dfiles_num"] = parameters["dfiles_num"]
-            etl_results["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])
 
         return {"ETL": [etl_results_ibis, etl_results], "ML": []}
     except Exception:

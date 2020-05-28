@@ -8,8 +8,10 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -database_name ${DATABASE_NAME} -table santander -bench_name santander -dfiles_num 1 -iterations 1   \
                           -data_file '${DATASETS_PWD}/santander/train.csv.gz'                                                  \
                           -pandas_mode Pandas -ray_tmpdir /tmp                                                                 \
+                          -optimizer intel -gpu_memory 16                                                                      \
                           -commit_omnisci ${BUILD_REVISION}                                                                    \
                           -commit_ibis ${BUILD_IBIS_REVISION}                                                                  \
                           -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                    \
                           ${ADDITIONAL_OPTS}                                                                                   \
+                          ${ADDITIONAL_OPTS_NIGHTLY}                                                                           \
                           ${DB_COMMON_OPTS} ${DB_SANTANDER_OPTS}

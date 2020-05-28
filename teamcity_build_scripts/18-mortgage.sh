@@ -9,6 +9,7 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -fragments_size 2000000 2000000 -import_mode fsi -omnisci_run_kwargs enable-union=1                 \
                           -data_file '${DATASETS_PWD}/mortgage_new'                                                           \
                           -pandas_mode Pandas                                                                                 \
+                          -optimizer intel -gpu_memory 16                                                                     \
                           -commit_omnisci ${BUILD_REVISION}                                                                   \
                           -commit_ibis ${BUILD_IBIS_REVISION}                                                                 \
                           -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                   \

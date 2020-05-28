@@ -9,8 +9,10 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -fragments_size 1000000                                                                              \
                           -data_file '${DATASETS_PWD}/census/ipums_education2income_1970-2010.csv.gz'                          \
                           -pandas_mode Pandas -ray_tmpdir /tmp                                                                 \
+                          -optimizer intel -gpu_memory 16                                                                      \
                           -commit_omnisci ${BUILD_REVISION}                                                                    \
                           -commit_ibis ${BUILD_IBIS_REVISION}                                                                  \
                           -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                    \
                           ${ADDITIONAL_OPTS}                                                                                   \
+                          ${ADDITIONAL_OPTS_NIGHTLY}                                                                           \
                           ${DB_COMMON_OPTS} ${DB_CENSUS_OPTS}
