@@ -430,6 +430,7 @@ class FilesCombiner:
             except FileNotFoundError:
                 pass
 
+
 def refactor_results_for_reporting(
     benchmark_results,
     etl_ml_results,

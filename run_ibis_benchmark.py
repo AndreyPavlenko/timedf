@@ -398,7 +398,6 @@ def main():
                 reporting_unit="ms",
             )
 
-
             # Reporting to MySQL database
             if args.db_user is not None:
                 if iter_num == 1:
