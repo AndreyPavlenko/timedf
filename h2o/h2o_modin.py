@@ -103,11 +103,7 @@ def execute_groupby_query_expr_v4(x, select_cols, groupby_cols, apply_cols):  # 
     )
 
 
-def execute_join_query_expr_v1(x, y, on):  # q1, q2, q4, q5
-    return x.merge(y, on=on)
-
-
-def execute_join_query_expr_v2(x, y, how, on):  # q3
+def execute_join_query_expr(x, y, on, how="inner"):  # q1, q2, q3, q4, q5
     return x.merge(y, how=how, on=on)
 
 
@@ -122,45 +118,46 @@ queries_funcs = {
     "groupby_query8": execute_groupby_query_expr_v3,
     "groupby_query9": execute_groupby_query_expr_v4,
     "groupby_query10": execute_groupby_query_expr_v1,
-    "join_query1": execute_join_query_expr_v1,
-    "join_query2": execute_join_query_expr_v1,
-    "join_query3": execute_join_query_expr_v2,
-    "join_query4": execute_join_query_expr_v1,
-    "join_query5": execute_join_query_expr_v1,
+    "join_query1": execute_join_query_expr,
+    "join_query2": execute_join_query_expr,
+    "join_query3": execute_join_query_expr,
+    "join_query4": execute_join_query_expr,
+    "join_query5": execute_join_query_expr,
 }
 
 
-def execute_query(query_args, queries_results, query_name, question):
+def execute_query(query_args, queries_results, query_name, question, extended_functionality=False):
     gc.collect()
     t_start = timer()
     ans = queries_funcs[query_name](**query_args)
     print(ans.shape)
     queries_results[query_name]["t_run1"] = timer() - t_start
-    m = memory_usage()
-    t_start = timer()
-    chk = groupby_queries_chk_funcs[query_name](ans)
-    queries_results[query_name]["chk_t_run1"] = timer() - t_start
-    chk = make_chk(chk)
-    print(
-        query_name,
-        ", question:",
-        question,
-        ", run1",
-        ", in_rows:",
-        query_args["x"].shape[0],
-        ", out_rows:",
-        ans.shape[0],
-        ", out_cols:",
-        ans.shape[1],
-        ", time_sec:",
-        queries_results[query_name]["t_run1"],
-        ", mem_gb:",
-        m,
-        ", chk:",
-        chk,
-        ", chk_time_sec:",
-        queries_results[query_name]["chk_t_run1"],
-    )
+    if extended_functionality:
+        m = memory_usage()
+        t_start = timer()
+        chk = groupby_queries_chk_funcs[query_name](ans)
+        queries_results[query_name]["chk_t_run1"] = timer() - t_start
+        chk = make_chk(chk)
+        print(
+            query_name,
+            ", question:",
+            question,
+            ", run1",
+            ", in_rows:",
+            query_args["x"].shape[0],
+            ", out_rows:",
+            ans.shape[0],
+            ", out_cols:",
+            ans.shape[1],
+            ", time_sec:",
+            queries_results[query_name]["t_run1"],
+            ", mem_gb:",
+            m,
+            ", chk:",
+            chk,
+            ", chk_time_sec:",
+            queries_results[query_name]["chk_t_run1"],
+        )
     del ans
 
     gc.collect()
@@ -168,35 +165,36 @@ def execute_query(query_args, queries_results, query_name, question):
     ans = queries_funcs[query_name](**query_args)
     print(ans.shape)
     queries_results[query_name]["t_run2"] = timer() - t_start
-    m = memory_usage()
-    t_start = timer()
-    chk = groupby_queries_chk_funcs[query_name](ans)
-    queries_results[query_name]["chk_t_run2"] = timer() - t_start
-    chk = make_chk(chk)
-    print(
-        query_name,
-        ", question:",
-        question,
-        ", run2",
-        ", in_rows:",
-        query_args["x"].shape[0],
-        ", out_rows:",
-        ans.shape[0],
-        ", out_cols:",
-        ans.shape[1],
-        ", time_sec:",
-        queries_results[query_name]["t_run2"],
-        ", mem_gb:",
-        m,
-        ", chk:",
-        chk,
-        ", chk_time_sec:",
-        queries_results[query_name]["chk_t_run2"],
-    )
+    if extended_functionality:
+        m = memory_usage()
+        t_start = timer()
+        chk = groupby_queries_chk_funcs[query_name](ans)
+        queries_results[query_name]["chk_t_run2"] = timer() - t_start
+        chk = make_chk(chk)
+        print(
+            query_name,
+            ", question:",
+            question,
+            ", run2",
+            ", in_rows:",
+            query_args["x"].shape[0],
+            ", out_rows:",
+            ans.shape[0],
+            ", out_cols:",
+            ans.shape[1],
+            ", time_sec:",
+            queries_results[query_name]["t_run2"],
+            ", mem_gb:",
+            m,
+            ", chk:",
+            chk,
+            ", chk_time_sec:",
+            queries_results[query_name]["chk_t_run2"],
+        )
     del ans
 
 
-def groupby_query1_modin(x, queries_results):
+def groupby_query1_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query1"
     question = "sum v1 by id1"  # 1
     query_args = {"x": x, "groupby_cols": ["id1"], "agg_cols_funcs": {"v1": "sum"}}
@@ -206,10 +204,11 @@ def groupby_query1_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query2_modin(x, queries_results):
+def groupby_query2_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query2"
     question = "sum v1 by id1:id2"  # 2
     query_args = {"x": x, "groupby_cols": ["id1", "id2"], "agg_cols_funcs": {"v1": "sum"}}
@@ -219,10 +218,11 @@ def groupby_query2_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query3_modin(x, queries_results):
+def groupby_query3_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query3"
     question = "sum v1 mean v3 by id3"  # 3
     query_args = {"x": x, "groupby_cols": ["id3"], "agg_cols_funcs": {"v1": "sum", "v3": "mean"}}
@@ -232,10 +232,11 @@ def groupby_query3_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query4_modin(x, queries_results):
+def groupby_query4_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query4"
     question = "mean v1:v3 by id4"  # 4
     query_args = {
@@ -249,10 +250,11 @@ def groupby_query4_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query5_modin(x, queries_results):
+def groupby_query5_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query5"
     question = "sum v1:v3 by id6"  # 5
     query_args = {
@@ -266,10 +268,11 @@ def groupby_query5_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query6_modin(x, queries_results):
+def groupby_query6_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query6"
     question = "median v3 sd v3 by id4 id5"  # q6
     query_args = {
@@ -283,10 +286,11 @@ def groupby_query6_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query7_modin(x, queries_results):
+def groupby_query7_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query7"
     question = "max v1 - min v2 by id3"  # q7
     query_args = {
@@ -301,10 +305,11 @@ def groupby_query7_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query8_modin(x, queries_results):
+def groupby_query8_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query8"
     question = "largest two v3 by id6"  # q8
     query_args = {
@@ -320,10 +325,11 @@ def groupby_query8_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query9_modin(x, queries_results):
+def groupby_query9_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query9"
     question = "regression v1 v2 by id2 id4"  # q9
     query_args = {
@@ -338,10 +344,11 @@ def groupby_query9_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def groupby_query10_modin(x, queries_results):
+def groupby_query10_modin(x, queries_results, extended_functionality):
     query_name = "groupby_query10"
     question = "sum v3 count by id1:id6"  # q10
     query_args = {
@@ -355,10 +362,11 @@ def groupby_query10_modin(x, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def join_query1_modin(x, ys, queries_results):
+def join_query1_modin(x, ys, queries_results, extended_functionality):
     query_name = "join_query1"
     question = "small inner on int"  # q1
     query_args = {
@@ -372,10 +380,11 @@ def join_query1_modin(x, ys, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def join_query2_modin(x, ys, queries_results):
+def join_query2_modin(x, ys, queries_results, extended_functionality):
     query_name = "join_query2"
     question = "medium inner on int"  # q2
     query_args = {
@@ -389,10 +398,11 @@ def join_query2_modin(x, ys, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def join_query3_modin(x, ys, queries_results):
+def join_query3_modin(x, ys, queries_results, extended_functionality):
     query_name = "join_query3"
     question = "medium outer on int"  # q3
     query_args = {
@@ -407,10 +417,11 @@ def join_query3_modin(x, ys, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def join_query4_modin(x, ys, queries_results):
+def join_query4_modin(x, ys, queries_results, extended_functionality):
     query_name = "join_query4"
     question = "medium inner on factor"  # q4
     query_args = {
@@ -424,10 +435,11 @@ def join_query4_modin(x, ys, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def join_query5_modin(x, ys, queries_results):
+def join_query5_modin(x, ys, queries_results, extended_functionality):
     query_name = "join_query5"
     question = "big inner on int"  # q5
     query_args = {
@@ -441,10 +453,11 @@ def join_query5_modin(x, ys, queries_results):
         queries_results=queries_results,
         query_name=query_name,
         question=question,
+        extended_functionality=extended_functionality,
     )
 
 
-def queries_modin(filename, pandas_mode):
+def queries_modin(filename, pandas_mode, extended_functionality):
     data_files_names = files_names_from_pattern(filename)
     data_for_groupby_queries = []
     data_for_join_queries = []
@@ -505,7 +518,7 @@ def queries_modin(filename, pandas_mode):
         data_file_sizes = {x: x_data_file_size for x in queries.keys()}
         data_file_import_times = {x: x_data_file_import_time for x in queries.keys()}
 
-        queries_parameters = {"x": x, "queries_results": queries_results}
+        queries_parameters = {"x": x, "queries_results": queries_results, "extended_functionality": extended_functionality}
 
     if join_queries_files_number:
         data_name = next(
@@ -547,6 +560,7 @@ def queries_modin(filename, pandas_mode):
             "x": x,
             "ys": [small, medium, big],
             "queries_results": queries_results,
+            "extended_functionality": extended_functionality,
         }
 
         data_file_sizes = {
@@ -597,7 +611,7 @@ def run_benchmark(parameters):
                 ray_memory=parameters["ray_memory"],
             )
             queries_results = queries_modin(
-                filename=parameters["data_file"], pandas_mode=parameters["pandas_mode"]
+                filename=parameters["data_file"], pandas_mode=parameters["pandas_mode"], extended_functionality=parameters["extended_functionality"]
             )
 
         return {"ETL": [queries_results], "ML": []}

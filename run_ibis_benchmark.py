@@ -143,6 +143,15 @@ def main():
         "(This controls the lines to be used. Also work for CPU version. )",
         default=None,
     )
+    optional.add_argument(
+        "-extended_functionality",
+        dest="extended_functionality",
+        default=False,
+        type=str_arg_to_bool,
+        help="Eextends functionality of H2O benchmark by adding 'chk' functions and verbose local reporting of results",
+    )
+
+
     # MySQL database parameters
     optional.add_argument(
         "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server.",
@@ -334,6 +343,7 @@ def main():
             "gpu_memory": args.gpu_memory,
             "validation": args.validation,
             "no_pandas": args.no_pandas,
+            "extended_functionality": args.extended_functionality,
         }
 
         if not args.no_ibis:
