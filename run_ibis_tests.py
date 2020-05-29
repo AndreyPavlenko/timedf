@@ -94,6 +94,11 @@ def main():
         "that don't contain 'test_method' in their names.",
     )
 
+    # Modin
+    optional.add_argument(
+        "-m", "--modin_path", dest="modin_path", default=None, help="Path to modin directory."
+    )
+
     # Omnisci server parameters
     omnisci.add_argument(
         "-executable", dest="executable", required=True, help="Path to omnisci_server executable."
@@ -403,11 +408,19 @@ def main():
         combinate_requirements(ibis_requirements, args.ci_requirements, requirements_file)
         conda_env.create(args.env_check, requirements_file=requirements_file)
 
+        if args.modin_path:
+            install_modin_reqs_cmdline = ["pip", "install", "-r", "requirements.txt"]
+            conda_env.run(install_modin_reqs_cmdline, cwd=args.modin_path, print_output=False)
+
         if tasks["build"]:
-            install_ibis_cmdline = ["python3", os.path.join("setup.py"), "install"]
+            install_cmdline = ["python3", "setup.py", "install"]
 
             print("IBIS INSTALLATION")
-            conda_env.run(install_ibis_cmdline, cwd=args.ibis_path, print_output=False)
+            conda_env.run(install_cmdline, cwd=args.ibis_path, print_output=False)
+
+            if args.modin_path:
+                print("MODIN INSTALLATION")
+                conda_env.run(install_cmdline, cwd=args.modin_path, print_output=False)
 
         if tasks["test"]:
             ibis_data_script = os.path.join(args.ibis_path, "ci", "datamgr.py")
