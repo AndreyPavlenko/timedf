@@ -520,7 +520,7 @@ def main():
                 "fragments_size",
                 "omnisci_run_kwargs",
                 "commit_omniscripts",
-                "extended_functionality"
+                "extended_functionality",
             ]
             args_dict = vars(args)
             args_dict["data_file"] = f"'{args_dict['data_file']}'"

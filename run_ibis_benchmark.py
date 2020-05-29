@@ -151,7 +151,6 @@ def main():
         help="Eextends functionality of H2O benchmark by adding 'chk' functions and verbose local reporting of results",
     )
 
-
     # MySQL database parameters
     optional.add_argument(
         "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server.",

@@ -51,7 +51,7 @@ def execute_groupby_query_chk_expr_v8(ans):  # q10
     return [ans["v3"].sum(), ans["v1"].sum()]
 
 
-def execute_join_query_chk_expr_v1(ans):  # q1, q2, q3, q4, q5
+def execute_join_query_chk_expr(ans):  # q1, q2, q3, q4, q5
     return [ans["v1"].sum(), ans["v2"].sum()]
 
 
@@ -66,11 +66,11 @@ groupby_queries_chk_funcs = {
     "groupby_query8": execute_groupby_query_chk_expr_v6,
     "groupby_query9": execute_groupby_query_chk_expr_v7,
     "groupby_query10": execute_groupby_query_chk_expr_v8,
-    "join_query1": execute_join_query_chk_expr_v1,
-    "join_query2": execute_join_query_chk_expr_v1,
-    "join_query3": execute_join_query_chk_expr_v1,
-    "join_query4": execute_join_query_chk_expr_v1,
-    "join_query5": execute_join_query_chk_expr_v1,
+    "join_query1": execute_join_query_chk_expr,
+    "join_query2": execute_join_query_chk_expr,
+    "join_query3": execute_join_query_chk_expr,
+    "join_query4": execute_join_query_chk_expr,
+    "join_query5": execute_join_query_chk_expr,
 }
 
 
@@ -518,7 +518,11 @@ def queries_modin(filename, pandas_mode, extended_functionality):
         data_file_sizes = {x: x_data_file_size for x in queries.keys()}
         data_file_import_times = {x: x_data_file_import_time for x in queries.keys()}
 
-        queries_parameters = {"x": x, "queries_results": queries_results, "extended_functionality": extended_functionality}
+        queries_parameters = {
+            "x": x,
+            "queries_results": queries_results,
+            "extended_functionality": extended_functionality,
+        }
 
     if join_queries_files_number:
         data_name = next(
@@ -611,7 +615,9 @@ def run_benchmark(parameters):
                 ray_memory=parameters["ray_memory"],
             )
             queries_results = queries_modin(
-                filename=parameters["data_file"], pandas_mode=parameters["pandas_mode"], extended_functionality=parameters["extended_functionality"]
+                filename=parameters["data_file"],
+                pandas_mode=parameters["pandas_mode"],
+                extended_functionality=parameters["extended_functionality"],
             )
 
         return {"ETL": [queries_results], "ML": []}
