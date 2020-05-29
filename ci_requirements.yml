@@ -14,3 +14,7 @@ dependencies:
   - scikit-learn<0.23.0   # in 0.23.0 we see undefined symbols: ImportError: cannot import name '_infer_dimension_' from 'sklearn.decomposition._pca'
   - pip
   - psutil
+  - pip3
+  - pip3:
+    - pip3 install git+https://github.com/modin-project/modin
+

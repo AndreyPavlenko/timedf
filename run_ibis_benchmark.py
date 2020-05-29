@@ -15,7 +15,7 @@ from utils_base_env import (
 )
 from utils import (
     remove_fields_from_dict,
-    refactore_results_for_reporting,
+    refactor_results_for_reporting,
 )
 
 
@@ -405,7 +405,7 @@ def main():
                 "ETL": {"Iteration": iter_num, "run_id": run_id},
                 "ML": {"Iteration": iter_num, "run_id": run_id},
             }
-            refactore_results_for_reporting(
+            refactor_results_for_reporting(
                 benchmark_results=benchmark_results,
                 etl_ml_results={"ETL": etl_results, "ML": ml_results},
                 ignore_fields_for_results_unit_conversion=ignore_fields_for_results_unit_conversion,

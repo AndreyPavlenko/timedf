@@ -393,7 +393,7 @@ def memory_usage():
     return process.memory_info().rss / (1024 ** 3)  # GB units
 
 
-def refactore_results_for_reporting(
+def refactor_results_for_reporting(
     benchmark_results,
     etl_ml_results,
     ignore_fields_for_results_unit_conversion=None,

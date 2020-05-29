@@ -19,7 +19,7 @@ from .utils import (
     get_ny_taxi_dataset_size,
     make_chk,
     memory_usage,
-    refactore_results_for_reporting,
+    refactor_results_for_reporting,
     join_to_tbls,
     get_tmp_filepath,
     FilesCombiner,
