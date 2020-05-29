@@ -15,7 +15,6 @@ from utils_base_env import (
 )
 from utils import (
     remove_fields_from_dict,
-    convert_units,
     refactor_results_for_reporting,
 )
 
