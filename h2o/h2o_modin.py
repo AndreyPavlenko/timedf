@@ -126,56 +126,28 @@ queries_funcs = {
 }
 
 
-def execute_query(query_args, queries_results, query_name, question, extended_functionality=False):
-    gc.collect()
-    t_start = timer()
-    ans = queries_funcs[query_name](**query_args)
-    print(ans.shape)
-    queries_results[query_name]["t_run1"] = timer() - t_start
-    if extended_functionality:
-        m = memory_usage()
-        t_start = timer()
-        chk = groupby_queries_chk_funcs[query_name](ans)
-        queries_results[query_name]["chk_t_run1"] = timer() - t_start
-        chk = make_chk(chk)
-        print(
-            query_name,
-            ", question:",
-            question,
-            ", run1",
-            ", in_rows:",
-            query_args["x"].shape[0],
-            ", out_rows:",
-            ans.shape[0],
-            ", out_cols:",
-            ans.shape[1],
-            ", time_sec:",
-            queries_results[query_name]["t_run1"],
-            ", mem_gb:",
-            m,
-            ", chk:",
-            chk,
-            ", chk_time_sec:",
-            queries_results[query_name]["chk_t_run1"],
-        )
-    del ans
+def execute_query_run(
+    query_args, queries_results, query_name, question, run_number, extended_functionality=False
+):
+    if run_number < 1 or run_number > 2:
+        raise ValueError(f"Accepted run_number values are 1 and 2, actually passed {run_number}")
 
     gc.collect()
     t_start = timer()
     ans = queries_funcs[query_name](**query_args)
     print(ans.shape)
-    queries_results[query_name]["t_run2"] = timer() - t_start
+    queries_results[query_name]["t_run" + str(run_number)] = timer() - t_start
     if extended_functionality:
         m = memory_usage()
         t_start = timer()
         chk = groupby_queries_chk_funcs[query_name](ans)
-        queries_results[query_name]["chk_t_run2"] = timer() - t_start
+        queries_results[query_name]["chk_t_run" + str(run_number)] = timer() - t_start
         chk = make_chk(chk)
         print(
             query_name,
             ", question:",
             question,
-            ", run2",
+            ", run" + str(run_number),
             ", in_rows:",
             query_args["x"].shape[0],
             ", out_rows:",
@@ -183,15 +155,34 @@ def execute_query(query_args, queries_results, query_name, question, extended_fu
             ", out_cols:",
             ans.shape[1],
             ", time_sec:",
-            queries_results[query_name]["t_run2"],
+            queries_results[query_name]["t_run" + str(run_number)],
             ", mem_gb:",
             m,
             ", chk:",
             chk,
             ", chk_time_sec:",
-            queries_results[query_name]["chk_t_run2"],
+            queries_results[query_name]["chk_t_run" + str(run_number)],
         )
     del ans
+
+
+def execute_query(query_args, queries_results, query_name, question, extended_functionality=False):
+    execute_query_run(
+        query_args,
+        queries_results,
+        query_name,
+        question,
+        run_number=1,
+        extended_functionality=False,
+    )
+    execute_query_run(
+        query_args,
+        queries_results,
+        query_name,
+        question,
+        run_number=2,
+        extended_functionality=False,
+    )
 
 
 def groupby_query1_modin(x, queries_results, extended_functionality):
