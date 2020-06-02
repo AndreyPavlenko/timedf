@@ -439,6 +439,26 @@ def refactor_results_for_reporting(
     reporting_unit="ms",
 ):
 
+    """Refactore benchmarks results in the way they can be easily reported to MySQL database.
+
+    Parameters
+    ----------
+    benchmark_results: dict
+        Dictionary with results reported by benchmark.
+        Dictionary should follow the next pattern: {"ETL": [<dicts_with_etl_results>], "ML": [<dicts_with_ml_results>]}.
+    etl_ml_results: dict
+        Dictionary for storing results for reporting to MySQL database.
+        Dictionary should contain "ETL" and "ML" keys.
+    ignore_fields_for_results_unit_conversion: list
+        list of fields that should be ignored during results unit conversion.
+    additional_fields: dict
+        Dictionary with fields that should be additionally reported to MySQL database.
+        Dictionary should follow the next pattern: {"ETL": [<dicts_with_etl_fields>], "ML": [<dicts_with_ml_fields>]}.
+    reporting_unit: str
+        Time unit name for results reporting to MySQL database. Accepted values are "ms", "s", "m".
+
+    """
+
     for results_category, results in benchmark_results.items():  # ETL or ML part
         for backend_result in results:  # backend result
             backend_result_converted = []
