@@ -439,8 +439,8 @@ def refactor_results_for_reporting(
     reporting_unit="ms",
 ):
 
-    for result_category in benchmark_results.keys():  # ETL or ML part
-        for backend_result in benchmark_results[result_category]:  # backend result
+    for results_category, results in benchmark_results.items():  # ETL or ML part
+        for backend_result in results:  # backend result
             backend_result_converted = []
             if backend_result is not None and isinstance(
                 list(backend_result.values())[0], dict
@@ -458,8 +458,8 @@ def refactor_results_for_reporting(
                         ignore_fields=ignore_fields_for_results_unit_conversion,
                         unit=reporting_unit,
                     )
-                    category_additional_fields = additional_fields.get(result_category, None)
+                    category_additional_fields = additional_fields.get(results_category, None)
                     if category_additional_fields:
                         for field in category_additional_fields.keys():
                             result[field] = category_additional_fields[field]
-                    etl_ml_results[result_category].append(result)
+                    etl_ml_results[results_category].append(result)
