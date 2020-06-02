@@ -12,4 +12,4 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                    \
                           ${ADDITIONAL_OPTS}                                                                                   \
                           ${ADDITIONAL_OPTS_NIGHTLY}                                                                           \
-                          ${DB_COMMON_OPTS} ${DB_SANTANDER_OPTS}
+                          ${DB_COMMON_OPTS} ${DB_H2O_OPTS}

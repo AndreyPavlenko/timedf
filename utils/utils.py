@@ -428,16 +428,25 @@ def refactor_results_for_reporting(
 
 
 def join_to_tbls(data_name):
+    """Prepare H2O join queries data files names basing on the merge left data file name.
+
+    Parameters
+    ----------
+    data_name: str
+        Merge left data file name, should contain "NA" component.
+
+    Returns
+    -------
+    list
+        List with data files paths.
+
+    """
     data_dir = os.path.dirname(os.path.abspath(data_name))
     data_file = data_name.replace(data_dir, "")
     x_n = int(float(data_file.split("_")[1]))
     y_n = ["{:.0e}".format(x_n / 1e6), "{:.0e}".format(x_n / 1e3), "{:.0e}".format(x_n)]
     y_n = [y.replace("+0", "") for y in y_n]
-    return [
-        data_name.replace("NA", y_n[0]),
-        data_name.replace("NA", y_n[1]),
-        data_name.replace("NA", y_n[2]),
-    ]
+    return [data_name.replace("NA", y) for y in y_n]
 
 
 def get_tmp_filepath(filename, tmp_dir=None):

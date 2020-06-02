@@ -144,45 +144,31 @@ def execute_query_run(
         queries_results[query_name]["chk_t_run" + str(run_number)] = timer() - t_start
         chk = make_chk(chk)
         print(
-            query_name,
-            ", question:",
-            question,
-            ", run" + str(run_number),
-            ", in_rows:",
-            query_args["x"].shape[0],
-            ", out_rows:",
-            ans.shape[0],
-            ", out_cols:",
-            ans.shape[1],
-            ", time_sec:",
-            queries_results[query_name]["t_run" + str(run_number)],
-            ", mem_gb:",
-            m,
-            ", chk:",
-            chk,
-            ", chk_time_sec:",
-            queries_results[query_name]["chk_t_run" + str(run_number)],
+            f"query name: {query_name}",
+            f"question: {question}",
+            "run" + str(run_number),
+            f"in_rows: {query_args['x'].shape[0]}",
+            f"out_rows: {ans.shape[0]}",
+            f"out_cols: {ans.shape[1]}",
+            f"time_sec: {queries_results[query_name]['t_run' + str(run_number)]}",
+            f"mem_gb: {m}",
+            f"chk: {chk}",
+            f"chk_time_sec: {queries_results[query_name]['chk_t_run' + str(run_number)]}",
+            sep=", "
         )
     del ans
 
 
 def execute_query(query_args, queries_results, query_name, question, extended_functionality=False):
-    execute_query_run(
-        query_args,
-        queries_results,
-        query_name,
-        question,
-        run_number=1,
-        extended_functionality=False,
-    )
-    execute_query_run(
-        query_args,
-        queries_results,
-        query_name,
-        question,
-        run_number=2,
-        extended_functionality=False,
-    )
+    for run_number in [1, 2]:
+        execute_query_run(
+            query_args,
+            queries_results,
+            query_name,
+            question,
+            run_number=run_number,
+            extended_functionality=extended_functionality,
+        )
 
 
 def groupby_query1_modin(x, queries_results, extended_functionality):
