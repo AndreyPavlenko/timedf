@@ -428,7 +428,7 @@ def refactor_results_for_reporting(
 
 
 def join_to_tbls(data_name):
-    """Prepare H2O join queries data files names basing on the merge left data file name.
+    """Prepare H2O join queries data files (for merge right parts) names basing on the merge left data file name.
 
     Parameters
     ----------
@@ -437,8 +437,10 @@ def join_to_tbls(data_name):
 
     Returns
     -------
-    list
-        List with data files paths.
+    data_files_paths: dict
+        Dictionary with data files paths, dictionary keys: "x", "small", "medium", "big".
+    data_files_sizes: dict
+        Dictionary with data files sizes, dictionary keys: "x", "small", "medium", "big".
 
     """
     data_dir = os.path.dirname(os.path.abspath(data_name))
@@ -446,7 +448,13 @@ def join_to_tbls(data_name):
     x_n = int(float(data_file.split("_")[1]))
     y_n = ["{:.0e}".format(x_n / 1e6), "{:.0e}".format(x_n / 1e3), "{:.0e}".format(x_n)]
     y_n = [y.replace("+0", "") for y in y_n]
-    return [data_name.replace("NA", y) for y in y_n]
+    y_n = [data_name.replace("NA", y) for y in y_n]
+    data_files_paths = {"x": data_name, "small": y_n[0], "medium": y_n[1], "big": y_n[2]}
+    data_files_sizes = {
+        data_id: os.path.getsize(data_file) / 1024 / 1024
+        for data_id, data_file in data_files_paths.items()
+    }
+    return data_files_paths, data_files_sizes
 
 
 def get_tmp_filepath(filename, tmp_dir=None):

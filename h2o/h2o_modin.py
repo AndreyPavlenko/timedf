@@ -14,6 +14,7 @@ from utils import (
     memory_usage,
     files_names_from_pattern,
     join_to_tbls,
+    check_support,
 )
 
 warnings.filterwarnings("ignore")
@@ -154,7 +155,7 @@ def execute_query_run(
             f"mem_gb: {m}",
             f"chk: {chk}",
             f"chk_time_sec: {queries_results[query_name]['chk_t_run' + str(run_number)]}",
-            sep=", "
+            sep=", ",
         )
     del ans
 
@@ -492,8 +493,8 @@ def queries_modin(filename, pandas_mode, extended_functionality):
         }
         queries_results = {x: {y: 0.0 for y in queries_results_fields} for x in queries.keys()}
         x_data_file_size = os.path.getsize(data_for_groupby_queries[0]) / 1024 / 1024
-        data_file_sizes = {x: x_data_file_size for x in queries.keys()}
-        data_file_import_times = {x: x_data_file_import_time for x in queries.keys()}
+        query_data_file_sizes = {x: x_data_file_size for x in queries.keys()}
+        query_data_file_import_times = {x: x_data_file_import_time for x in queries.keys()}
 
         queries_parameters = {
             "x": x,
@@ -505,30 +506,19 @@ def queries_modin(filename, pandas_mode, extended_functionality):
         data_name = next(
             (f for f in data_for_join_queries if "NA" in f), None
         )  # gets the file name with "NA" component
-        y_data_name = join_to_tbls(data_name)
+        data_files_paths, data_files_sizes = join_to_tbls(data_name)
 
-        t0 = timer()
-        x = pd.read_csv(data_name)
-        x_data_file_import_time = timer() - t0
-        t0 = timer()
-        small = pd.read_csv(y_data_name[0])
-        small_data_file_import_time = timer() - t0
-        t0 = timer()
-        medium = pd.read_csv(y_data_name[1])
-        medium_data_file_import_time = timer() - t0
-        t0 = timer()
-        big = pd.read_csv(y_data_name[2])
-        big_data_file_import_time = timer() - t0
+        data_files_import_times = {}
+        data_df = {}
+        for data_id, data_path in data_files_paths.items():
+            t0 = timer()
+            data_df[data_id] = pd.read_csv(data_path)
+            data_files_import_times[data_id] = timer() - t0
 
-        x_data_file_size = os.path.getsize(data_name) / 1024 / 1024
-        small_data_file_size = os.path.getsize(y_data_name[0]) / 1024 / 1024
-        medium_data_file_size = os.path.getsize(y_data_name[1]) / 1024 / 1024
-        big_data_file_size = os.path.getsize(y_data_name[2]) / 1024 / 1024
-
-        print(len(x.index), flush=True)
-        print(len(small.index), flush=True)
-        print(len(medium.index), flush=True)
-        print(len(big.index), flush=True)
+        print(len(data_df["x"].index), flush=True)
+        print(len(data_df["small"].index), flush=True)
+        print(len(data_df["medium"].index), flush=True)
+        print(len(data_df["big"].index), flush=True)
         queries = {
             "join_query1": join_query1_modin,
             "join_query2": join_query2_modin,
@@ -538,25 +528,25 @@ def queries_modin(filename, pandas_mode, extended_functionality):
         }
         queries_results = {x: {y: 0.0 for y in queries_results_fields} for x in queries.keys()}
         queries_parameters = {
-            "x": x,
-            "ys": [small, medium, big],
+            "x": data_df["x"],
+            "ys": [data_df["small"], data_df["medium"], data_df["big"]],
             "queries_results": queries_results,
             "extended_functionality": extended_functionality,
         }
 
-        data_file_sizes = {
-            "join_query1": x_data_file_size + small_data_file_size,
-            "join_query2": x_data_file_size + medium_data_file_size,
-            "join_query3": x_data_file_size + medium_data_file_size,
-            "join_query4": x_data_file_size + medium_data_file_size,
-            "join_query5": x_data_file_size + big_data_file_size,
+        query_data_file_sizes = {
+            "join_query1": data_files_sizes["x"] + data_files_sizes["small"],
+            "join_query2": data_files_sizes["x"] + data_files_sizes["medium"],
+            "join_query3": data_files_sizes["x"] + data_files_sizes["medium"],
+            "join_query4": data_files_sizes["x"] + data_files_sizes["medium"],
+            "join_query5": data_files_sizes["x"] + data_files_sizes["big"],
         }
-        data_file_import_times = {
-            "join_query1": x_data_file_import_time + small_data_file_import_time,
-            "join_query2": x_data_file_import_time + medium_data_file_import_time,
-            "join_query3": x_data_file_import_time + medium_data_file_import_time,
-            "join_query4": x_data_file_import_time + medium_data_file_import_time,
-            "join_query5": x_data_file_import_time + big_data_file_import_time,
+        query_data_file_import_times = {
+            "join_query1": data_files_import_times["x"] + data_files_import_times["small"],
+            "join_query2": data_files_import_times["x"] + data_files_import_times["medium"],
+            "join_query3": data_files_import_times["x"] + data_files_import_times["medium"],
+            "join_query4": data_files_import_times["x"] + data_files_import_times["medium"],
+            "join_query5": data_files_import_times["x"] + data_files_import_times["big"],
         }
 
     for query_name, query_func in queries.items():
@@ -564,22 +554,24 @@ def queries_modin(filename, pandas_mode, extended_functionality):
         print(f"{pandas_mode} {query_name} results:")
         print_results(results=queries_results[query_name], unit="s")
         queries_results[query_name]["Backend"] = pandas_mode
-        queries_results[query_name]["t_readcsv"] = data_file_import_times[query_name]
-        queries_results[query_name]["dataset_size"] = data_file_sizes[query_name]
+        queries_results[query_name]["t_readcsv"] = query_data_file_import_times[query_name]
+        queries_results[query_name]["dataset_size"] = query_data_file_sizes[query_name]
 
     return queries_results
 
 
 def run_benchmark(parameters):
-    ignored_parameters = {
-        "dfiles_num": parameters["dfiles_num"],
-        "gpu_memory": parameters["gpu_memory"],
-        "no_ml": parameters["no_ml"],
-        "no_ibis": parameters["no_ibis"],
-        "optimizer": parameters["optimizer"],
-        "validation": parameters["validation"],
-    }
-    warnings.warn(f"Parameters {ignored_parameters} are irnored", RuntimeWarning)
+    check_support(
+        parameters,
+        unsupported_params=[
+            "dfiles_num",
+            "gpu_memory",
+            "no_ml",
+            "no_ibis",
+            "optimizer",
+            "validation",
+        ],
+    )
 
     parameters["data_file"] = parameters["data_file"].replace("'", "")
 
