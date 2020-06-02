@@ -306,7 +306,7 @@ def main():
         dest="extended_functionality",
         default=False,
         type=str_arg_to_bool,
-        help="Eextends functionality of H2O benchmark by adding 'chk' functions and verbose local reporting of results",
+        help="Extends functionality of H2O benchmark by adding 'chk' functions and verbose local reporting of results",
     )
     # MySQL database parameters
     mysql.add_argument(
