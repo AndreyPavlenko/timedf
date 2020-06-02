@@ -129,7 +129,7 @@ queries_funcs = {
 def execute_query_run(
     query_args, queries_results, query_name, question, run_number, extended_functionality=False
 ):
-    if run_number < 1 or run_number > 2:
+    if run_number not in [1, 2]:
         raise ValueError(f"Accepted run_number values are 1 and 2, actually passed {run_number}")
 
     gc.collect()
