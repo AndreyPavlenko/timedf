@@ -448,12 +448,12 @@ def refactor_results_for_reporting(
         Dictionary should follow the next pattern: {"ETL": [<dicts_with_etl_results>], "ML": [<dicts_with_ml_results>]}.
     etl_ml_results: dict
         Dictionary for storing results for reporting to MySQL database.
-        Dictionary should contain "ETL" and "ML" keys.
+        Dictionary should follow the next pattern: {"ETL": [<etl_results>], "ML": [<ml_results>]}
     ignore_fields_for_results_unit_conversion: list
         list of fields that should be ignored during results unit conversion.
     additional_fields: dict
         Dictionary with fields that should be additionally reported to MySQL database.
-        Dictionary should follow the next pattern: {"ETL": [<dicts_with_etl_fields>], "ML": [<dicts_with_ml_fields>]}.
+        Dictionary should follow the next pattern: {"ETL": {<dicts_with_etl_fields>}, "ML": {<dicts_with_ml_fields>}}.
     reporting_unit: str
         Time unit name for results reporting to MySQL database. Accepted values are "ms", "s", "m".
 
