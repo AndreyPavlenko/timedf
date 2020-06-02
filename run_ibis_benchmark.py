@@ -32,6 +32,7 @@ def main():
         "mortgage": "mortgage",
         "h2o": "h2o",
     }
+    benchmarks_with_ibis_queries = ["ny_taxi", "santander", "census", "plasticc", "mortgage"]
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
@@ -321,6 +322,10 @@ def main():
 
         args = parser.parse_args()
 
+        launch_omnisci_server = (
+            not args.no_ibis and args.bench_name in benchmarks_with_ibis_queries
+        )
+
         if args.port == port_default_value:
             args.port = find_free_port()
         if args.http_port == port_default_value:
@@ -345,7 +350,7 @@ def main():
             "extended_functionality": args.extended_functionality,
         }
 
-        if not args.no_ibis:
+        if launch_omnisci_server:
             if args.executable is None:
                 parser.error(
                     "Omnisci executable should be specified with -e/--executable for Ibis part"
@@ -386,7 +391,7 @@ def main():
         for iter_num in range(1, args.iterations + 1):
             print(f"Iteration #{iter_num}")
 
-            if not args.no_ibis:
+            if launch_omnisci_server:
                 from server_worker import OmnisciServerWorker
 
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
@@ -396,7 +401,7 @@ def main():
 
             benchmark_results = run_benchmark(parameters)
 
-            if not args.no_ibis:
+            if launch_omnisci_server:
                 omnisci_server_worker.terminate()
                 omnisci_server.terminate()
 

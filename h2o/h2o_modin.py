@@ -468,10 +468,9 @@ def queries_modin(filename, pandas_mode, extended_functionality):
             "Data files for join queries should contain file (only one) with NA component in the file name"
         )
 
-    print(f"loading datasets {data_files_names}")
-
     queries_results_fields = ["t_run1", "chk_t_run1", "t_run2", "chk_t_run2"]
     if groupby_queries_files_number:
+        print(f"loading dataset {data_for_groupby_queries[0]}")
         t0 = timer()
         x = pd.read_csv(data_for_groupby_queries[0])
         x_data_file_import_time = timer() - t0
@@ -510,6 +509,7 @@ def queries_modin(filename, pandas_mode, extended_functionality):
 
         data_files_import_times = {}
         data_df = {}
+        print(f"loading dataset {[path for path in data_files_paths.values()]}")
         for data_id, data_path in data_files_paths.items():
             t0 = timer()
             data_df[data_id] = pd.read_csv(data_path)
