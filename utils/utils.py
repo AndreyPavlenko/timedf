@@ -462,8 +462,12 @@ def refactor_results_for_reporting(
     for results_category, results in benchmark_results.items():  # ETL or ML part
         for backend_result in results:  # backend result
             backend_result_converted = []
+            backend_result_values_list = list(backend_result.values()) if backend_result else None
             if backend_result is not None and all(
-                [isinstance(backend_result[i], dict) for i in range(len(backend_result))]
+                [
+                    isinstance(backend_result_values_list[i], dict)
+                    for i in range(len(backend_result_values_list))
+                ]
             ):  # True if subqueries are used
                 for query_name, query_results in backend_result.items():
                     query_results.update({"query_name": query_name})
