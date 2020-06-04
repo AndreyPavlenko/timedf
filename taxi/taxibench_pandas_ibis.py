@@ -1,3 +1,4 @@
+# Original SQL queries can be found here https://tech.marksblogg.com/billion-nyc-taxi-rides-nvidia-pascal-titan-x-mapd.html
 import sys
 import traceback
 from timeit import default_timer as timer
@@ -286,7 +287,7 @@ def q1_pandas(df):
 
 
 # SELECT passenger_count,
-#       count(total_amount)
+#       avg(total_amount)
 # FROM trips
 # GROUP BY passenger_count;
 def q2_pandas(df):
@@ -300,11 +301,11 @@ def q2_pandas(df):
 
 
 # SELECT passenger_count,
-#       EXTRACT(year from pickup_datetime) as year0,
+#       extract(year from pickup_datetime) as pickup_year,
 #       count(*)
 # FROM trips
 # GROUP BY passenger_count,
-#         year0;
+#         pickup_year;
 def q3_pandas(df):
     t0 = timer()
     transformed = pd.DataFrame(
@@ -322,15 +323,15 @@ def q3_pandas(df):
 
 
 # SELECT passenger_count,
-#       EXTRACT(year from pickup_datetime) as year0,
-#       round(trip_distance) distance,
-#       count(*) trips
+#       extract(year from pickup_datetime) as pickup_year,
+#       cast(trip_distance as int) AS distance,
+#       count(*) AS the_count
 # FROM trips
 # GROUP BY passenger_count,
-#         year0,
+#         pickup_year,
 #         distance
-# ORDER BY year0,
-#         trips desc;
+# ORDER BY pickup_year,
+#         the_count desc;
 def q4_pandas(df, validation):
     t0 = timer()
     transformed = pd.DataFrame(
