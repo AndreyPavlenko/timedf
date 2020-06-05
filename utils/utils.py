@@ -450,7 +450,7 @@ def refactor_results_for_reporting(
         Dictionary for storing results for reporting to MySQL database.
         Dictionary should follow the next pattern: {"ETL": [<etl_results>], "ML": [<ml_results>]}
     ignore_fields_for_results_unit_conversion: list
-        list of fields that should be ignored during results unit conversion.
+        List of fields that should be ignored during results unit conversion.
     additional_fields: dict
         Dictionary with fields that should be additionally reported to MySQL database.
         Dictionary should follow the next pattern: {"ETL": {<dicts_with_etl_fields>}, "ML": {<dicts_with_ml_fields>}}.
@@ -460,7 +460,7 @@ def refactor_results_for_reporting(
     """
 
     for results_category, results in benchmark_results.items():  # ETL or ML part
-        for backend_result in results:  # backend result
+        for backend_result in results:
             backend_result_converted = []
             backend_result_values_list = list(backend_result.values()) if backend_result else None
             if backend_result is not None and all(
