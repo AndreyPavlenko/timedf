@@ -432,12 +432,12 @@ class FilesCombiner:
 
 
 def refactor_results_for_reporting(
-    benchmark_results,
-    etl_ml_results,
-    ignore_fields_for_results_unit_conversion=None,
-    additional_fields=None,
-    reporting_unit="ms",
-):
+    benchmark_results: dict,
+    etl_ml_results: dict,
+    ignore_fields_for_results_unit_conversion: list = None,
+    additional_fields: dict = None,
+    reporting_unit: str = "ms",
+) -> dict:
 
     """Refactore benchmarks results in the way they can be easily reported to MySQL database.
 
@@ -457,9 +457,14 @@ def refactor_results_for_reporting(
     reporting_unit: str
         Time unit name for results reporting to MySQL database. Accepted values are "ms", "s", "m".
 
+    Return
+    ------
+    etl_ml_results: dict
+        Refactored benchmark results.
+
     """
 
-    for results_category, results in benchmark_results.items():  # ETL or ML part
+    for results_category, results in dict(benchmark_results).items():  # ETL or ML part
         for backend_result in results:
             backend_result_converted = []
             backend_result_values_list = list(backend_result.values()) if backend_result else None
@@ -487,3 +492,5 @@ def refactor_results_for_reporting(
                         for field in category_additional_fields.keys():
                             result[field] = category_additional_fields[field]
                     etl_ml_results[results_category].append(result)
+
+    return etl_ml_results
