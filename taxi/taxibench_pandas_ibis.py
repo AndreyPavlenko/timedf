@@ -4,6 +4,8 @@ import traceback
 from timeit import default_timer as timer
 
 import pandas as pd
+pd.set_option('precision', 15)
+# import math
 
 from utils import (  # noqa: F401 ("compare_dataframes" imported, but unused. Used in commented code.)
     check_fragments_size,
@@ -283,6 +285,8 @@ def q1_pandas(df):
     q1_pandas_output = df.groupby("cab_type")["cab_type"].count()
     query_time = timer() - t0
 
+    # q1_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q1_pd_result.csv")
+
     return query_time, q1_pandas_output
 
 
@@ -292,10 +296,12 @@ def q1_pandas(df):
 # GROUP BY passenger_count;
 def q2_pandas(df):
     t0 = timer()
-    q2_pandas_output = df.groupby("passenger_count", as_index=False).count()[
+    q2_pandas_output = df.groupby("passenger_count", as_index=False).mean()[
         ["passenger_count", "total_amount"]
     ]
     query_time = timer() - t0
+
+    # q2_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q2_pd_result.csv", index=False)
 
     return query_time, q2_pandas_output
 
@@ -318,6 +324,8 @@ def q3_pandas(df):
         {"passenger_count": ["count"]}
     )
     query_time = timer() - t0
+
+    # q3_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q3_pd_result.csv")
 
     return query_time, q3_pandas_output
 
@@ -348,6 +356,8 @@ def q4_pandas(df, validation):
         .sort_values(by=["pickup_datetime", 0], ascending=[True, False])
     ).astype({"trip_distance": "int64"}, copy=False)
     query_time = timer() - t0
+
+    # q4_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q4_pd_result.csv", index=False)
 
     if validation:
         import math
