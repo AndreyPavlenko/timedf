@@ -226,6 +226,10 @@ def etl_ibis(
                 etl_results["t_readcsv"] += timer() - t0
 
         elif import_mode == "pandas":
+            # vendor_id and payment_type fields should be int64 type
+            # for proper import by mapd load_data
+            columns_types[1] = "int64"
+            columns_types[20] = "int64"
             t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
                 table_name=table_name,
                 data_files_names=data_files_names,
