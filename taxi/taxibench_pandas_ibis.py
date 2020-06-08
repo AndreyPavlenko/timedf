@@ -131,17 +131,6 @@ def q3_ibis(table, input_for_validation):
 
     return t_query
 
-
-# SELECT passenger_count,
-#       extract(year from pickup_datetime) as pickup_year,
-#       cast(trip_distance as int) AS distance,
-#       count(*) AS the_count
-# FROM trips
-# GROUP BY passenger_count,
-#         pickup_year,
-#         distance
-# ORDER BY pickup_year,
-#         the_count desc;
 def q4_ibis(table, input_for_validation):
     t_query = 0
     t0 = timer()
