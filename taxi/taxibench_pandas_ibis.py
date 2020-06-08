@@ -4,8 +4,6 @@ import traceback
 from timeit import default_timer as timer
 
 import pandas as pd
-pd.set_option('precision', 15)
-# import math
 
 from utils import (  # noqa: F401 ("compare_dataframes" imported, but unused. Used in commented code.)
     check_fragments_size,
@@ -64,6 +62,9 @@ def q1_ibis(table, input_for_validation):
             ibis_dfs=[q1_output_pd_df], pandas_dfs=[q1_output_ibis], sort_cols=[], drop_cols=[]
         )
 
+        # Query result extraction for comparison with SQL version query
+        # q1_output_pd.to_csv("./q1_pd_result.csv")
+
     return t_query
 
 
@@ -72,7 +73,7 @@ def q2_ibis(table, input_for_validation):
     t0 = timer()
     q2_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
         table.groupby("passenger_count")
-        .aggregate(total_amount=table.total_amount.count())[["passenger_count", "total_amount"]]
+        .aggregate(total_amount=table.total_amount.mean())[["passenger_count", "total_amount"]]
         .execute()
     )
     t_query += timer() - t0
@@ -85,6 +86,9 @@ def q2_ibis(table, input_for_validation):
         compare_dataframes(
             ibis_dfs=[q2_output_pd], pandas_dfs=[q2_output_ibis], sort_cols=[], drop_cols=[]
         )
+
+        # Query result extraction for comparison with SQL version query
+        # q2_output_pd.to_csv("./q2_pd_result.csv", index=False)
 
     return t_query
 
@@ -122,20 +126,33 @@ def q3_ibis(table, input_for_validation):
             ibis_dfs=[q3_output_pd_casted], pandas_dfs=[q3_output_ibis], sort_cols=[], drop_cols=[]
         )
 
+        # Query result extraction for comparison with SQL version query
+        # q3_output_pd_casted.to_csv("./q3_pd_result.csv", index=False)
+
     return t_query
 
 
+# SELECT passenger_count,
+#       extract(year from pickup_datetime) as pickup_year,
+#       cast(trip_distance as int) AS distance,
+#       count(*) AS the_count
+# FROM trips
+# GROUP BY passenger_count,
+#         pickup_year,
+#         distance
+# ORDER BY pickup_year,
+#         the_count desc;
 def q4_ibis(table, input_for_validation):
     t_query = 0
     t0 = timer()
-    q4_ibis_sized = table.groupby(
+    q4_ibis_counted = table.groupby(
         [
             table.passenger_count,
             table.pickup_datetime.year().name("pickup_datetime"),
-            table.trip_distance.round().cast("int64").name("trip_distance"),
+            table.trip_distance.cast("int64").name("trip_distance"),
         ]
-    ).size()
-    q4_output_ibis = q4_ibis_sized.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
+    ).count()
+    q4_output_ibis = q4_ibis_counted.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
         [("pickup_datetime", True), ("count", False)]
     ).execute()
     t_query += timer() - t0
@@ -147,19 +164,25 @@ def q4_ibis(table, input_for_validation):
 
         # Casting of Pandas q4 output to Pandas.DataFrame type, which is compartible with
         # Ibis q4 output
-        q4_output_pd = q4_output_pd.rename(columns={0: "count"})
-        q4_output_ibis = q4_output_ibis.sort_values(
-            by=["passenger_count", "pickup_datetime", "trip_distance"],
-            ascending=[True, True, True],
+        # q4_output_pd_casted = q4_output_pd.rename(columns={0: "count"})
+        q4_output_ibis_casted = q4_output_ibis.sort_values(
+            by=["passenger_count", "pickup_datetime", "trip_distance", "count"],
+            ascending=[True, True, True, True],
         )
-        q4_output_pd = q4_output_pd.sort_values(
-            by=["passenger_count", "pickup_datetime", "trip_distance"],
-            ascending=[True, True, True],
+        q4_output_pd_casted = q4_output_pd.sort_values(
+            by=["passenger_count", "pickup_datetime", "trip_distance", "count"],
+            ascending=[True, True, True, True],
         )
 
         compare_dataframes(
-            ibis_dfs=[q4_output_ibis], pandas_dfs=[q4_output_pd], sort_cols=[], drop_cols=[]
+            ibis_dfs=[q4_output_ibis_casted], pandas_dfs=[q4_output_pd_casted], sort_cols=[], drop_cols=[]
         )
+
+        # Query result extraction for comparison with SQL version query
+        # q4_output_pd.to_csv("./q4_pd_result.csv", index=False)
+        # q4_output_pd_casted.to_csv(
+        #     "/localdisk/amyskov/taxi_outputs/q4_pd_result_sorted.csv", index=False
+        # )
 
     return t_query
 
@@ -285,8 +308,6 @@ def q1_pandas(df):
     q1_pandas_output = df.groupby("cab_type")["cab_type"].count()
     query_time = timer() - t0
 
-    # q1_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q1_pd_result.csv")
-
     return query_time, q1_pandas_output
 
 
@@ -300,8 +321,6 @@ def q2_pandas(df):
         ["passenger_count", "total_amount"]
     ]
     query_time = timer() - t0
-
-    # q2_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q2_pd_result.csv", index=False)
 
     return query_time, q2_pandas_output
 
@@ -325,8 +344,6 @@ def q3_pandas(df):
     )
     query_time = timer() - t0
 
-    # q3_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q3_pd_result.csv")
-
     return query_time, q3_pandas_output
 
 
@@ -340,37 +357,37 @@ def q3_pandas(df):
 #         distance
 # ORDER BY pickup_year,
 #         the_count desc;
-def q4_pandas(df, validation):
+
+# SQL query with sorting for results validation
+# SELECT passenger_count,
+#       extract(year from pickup_datetime) as pickup_year,
+#       cast(trip_distance as int) AS distance,
+#       count(*) AS the_count
+# FROM agent_test_ibis
+# GROUP BY passenger_count,
+#         pickup_year,
+#         distance
+# ORDER BY passenger_count, pickup_year, distance, the_count;
+def q4_pandas(df):
     t0 = timer()
     transformed = pd.DataFrame(
         {
             "passenger_count": df["passenger_count"],
             "pickup_datetime": df["pickup_datetime"].dt.year,
-            "trip_distance": df["trip_distance"].round(),
+            "trip_distance": df["trip_distance"].astype("int64"),
         }
     )
     q4_pandas_output = (
-        transformed.groupby(["passenger_count", "pickup_datetime", "trip_distance"])
-        .size()
+        transformed.groupby(["passenger_count", "pickup_datetime", "trip_distance"])[
+            "trip_distance"
+        ]
+        .value_counts()
+        .droplevel(level=-1, axis=0)
+        .rename("count")
         .reset_index()
-        .sort_values(by=["pickup_datetime", 0], ascending=[True, False])
-    ).astype({"trip_distance": "int64"}, copy=False)
+        .sort_values(by=["pickup_datetime", "count"], ascending=[True, False])
+    )
     query_time = timer() - t0
-
-    # q4_pandas_output.to_csv("/localdisk/amyskov/taxi_outputs/q4_pd_result.csv", index=False)
-
-    if validation:
-        import math
-
-        transformed["trip_distance"] = df["trip_distance"].transform(
-            lambda x: round(x) if round(math.modf(x)[0], 5) != 0.5 else math.modf(x + 1)[1]
-        )
-        q4_pandas_output = (
-            transformed.groupby(["passenger_count", "pickup_datetime", "trip_distance"])
-            .size()
-            .reset_index()
-            .sort_values(by=["pickup_datetime", 0], ascending=[True, False])
-        ).astype({"trip_distance": "int64"}, copy=False)
 
     return query_time, q4_pandas_output
 
@@ -403,16 +420,9 @@ def etl_pandas(
     etl_results["t_readcsv"] = timer() - t0
 
     queries_parameters = {
-        query_name: {"df": concatenated_df} for query_name in list(queries.keys())[:3]
+        query_name: {"df": concatenated_df} for query_name in list(queries.keys())
     }
-    queries_parameters.update(
-        {
-            "Query4": {
-                "df": concatenated_df,
-                "validation": True if output_for_validation is not None else False,
-            }
-        }
-    )
+
     return run_queries(
         queries=queries,
         parameters=queries_parameters,
