@@ -131,6 +131,7 @@ def q3_ibis(table, input_for_validation):
 
     return t_query
 
+
 def q4_ibis(table, input_for_validation):
     t_query = 0
     t0 = timer()
@@ -163,7 +164,10 @@ def q4_ibis(table, input_for_validation):
         )
 
         compare_dataframes(
-            ibis_dfs=[q4_output_ibis_casted], pandas_dfs=[q4_output_pd_casted], sort_cols=[], drop_cols=[]
+            ibis_dfs=[q4_output_ibis_casted],
+            pandas_dfs=[q4_output_pd_casted],
+            sort_cols=[],
+            drop_cols=[],
         )
 
         # Query result extraction for comparison with SQL version query
