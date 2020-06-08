@@ -153,7 +153,6 @@ def q4_ibis(table, input_for_validation):
 
         # Casting of Pandas q4 output to Pandas.DataFrame type, which is compartible with
         # Ibis q4 output
-        # q4_output_pd_casted = q4_output_pd.rename(columns={0: "count"})
         q4_output_ibis_casted = q4_output_ibis.sort_values(
             by=["passenger_count", "pickup_datetime", "trip_distance", "count"],
             ascending=[True, True, True, True],
@@ -170,7 +169,7 @@ def q4_ibis(table, input_for_validation):
         # Query result extraction for comparison with SQL version query
         # q4_output_pd.to_csv("./q4_pd_result.csv", index=False)
         # q4_output_pd_casted.to_csv(
-        #     "/localdisk/amyskov/taxi_outputs/q4_pd_result_sorted.csv", index=False
+        #     "./q4_pd_result_sorted.csv", index=False
         # )
 
     return t_query
