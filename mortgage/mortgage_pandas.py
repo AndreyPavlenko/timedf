@@ -405,7 +405,7 @@ class MortgagePandasBenchmark:
     @staticmethod
     def split_year_quarter(num):
         # num starts with 1 for 2000Q1
-        return 2000 + num // 4, num % 4
+        return 2000 + num // 4, num % 4 + 1
 
 
 def etl_pandas(
@@ -420,10 +420,12 @@ def etl_pandas(
         perf_schema.to_pandas(),
         leave_category_strings,
     )
-    year, quarter = MortgagePandasBenchmark.split_year_quarter(dfiles_num)
     pd_dfs = []
-    for fname in mb.list_perf_files(quarter=quarter, year=year):
-        pd_dfs.append(mb.run_cpu_workflow(quarter=quarter, year=year, perf_file=fname))
+    for data_file_num in range(dfiles_num):
+        year, quarter = MortgagePandasBenchmark.split_year_quarter(data_file_num)
+        for fname in mb.list_perf_files(quarter=quarter, year=year):
+            pd_dfs.append(mb.run_cpu_workflow(quarter=quarter, year=year, perf_file=fname))
+
     pd_df = pd_dfs[0] if len(pd_dfs) == 1 else pd.concat(pd_dfs)
     etl_times["t_readcsv"] = mb.t_read_csv
     # TODO: enable those only in verbose mode
