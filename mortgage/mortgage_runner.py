@@ -71,8 +71,8 @@ def run_benchmark(parameters):
     if not parameters["no_ibis"]:
         if parameters["import_mode"] not in ("fsi",):
             raise ValueError("Unsupported import mode: %s" % parameters["import_mode"])
-        if parameters["dfiles_num"] != 1:
-            raise NotImplementedError("Loading more than 1 file not implemented yet")
+        # if parameters["dfiles_num"] != 1:
+        #     raise NotImplementedError("Loading more than 1 file not implemented yet")
 
     if not parameters["no_pandas"]:
         import_pandas_into_module_namespace(
