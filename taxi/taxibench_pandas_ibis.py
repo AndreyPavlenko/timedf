@@ -18,6 +18,8 @@ from utils import (  # noqa: F401 ("compare_dataframes" imported, but unused. Us
     FilesCombiner,
 )
 
+accepted_data_files_for_pandas_import_mode = ["trips_xaa", "trips_xab", "trips_xac"]
+
 
 def run_queries(queries, parameters, etl_results, output_for_validation=None):
     for query_name, query_func in queries.items():
@@ -226,6 +228,24 @@ def etl_ibis(
                 etl_results["t_readcsv"] += timer() - t0
 
         elif import_mode == "pandas":
+            # pymapd load_table (that is called recursively by import_data_by_ibis)
+            # needs homogeneus data, and since vendor_id and payment_type fields
+            # from trips_xad file contain text data, next workaround and check are used
+            columns_types[1] = "int64"
+            columns_types[20] = "int64"
+            files_names = [
+                file_path.split("/")[-1].split(".")[0]
+                for file_path in data_files_names[:files_limit]
+            ]
+            if not all(
+                [
+                    file_name in accepted_data_files_for_pandas_import_mode
+                    for file_name in files_names
+                ]
+            ):
+                raise AttributeError(
+                    f"pandas import_mode is supported only for {accepted_data_files_for_pandas_import_mode} data files, actually passed {files_names}"
+                )
             t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
                 table_name=table_name,
                 data_files_names=data_files_names,
