@@ -200,7 +200,6 @@ def etl_ibis(
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
     mb = MortgagePandasBenchmark(dataset_path, "xgb")  # used for loading
 
-    ibis_df = None
     if create_new_table:  # Create table and import data
         dfs = []
         for data_file_num in range(dfiles_num):
@@ -263,18 +262,22 @@ def etl_ibis(
 
                     t_etl_start = timer()
                     df = run_ibis_workflow(acq_table, perf_table, leave_category_strings)
-                    dfs.append(df)
                     etl_times["t_etl"] += timer() - t_etl_start
+                    dfs.append(df)
                     # drop the performance table
+                    t0 = timer()
                     omnisci_server_worker.connect_to_server(database_name)
                     omnisci_server_worker.drop_table(table_name=f"{table_prefix}_perf")
+                    etl_times["t_connect"] += timer() - t0
                 # drop the acquisition table
+                t0 = timer()
                 omnisci_server_worker.connect_to_server(database_name)
                 omnisci_server_worker.drop_table(table_name=f"{table_prefix}_acq")
+                etl_times["t_connect"] += timer() - t0
         import pandas as pd
 
         ibis_df = dfs[0] if len(dfs) == 1 else pd.concat(dfs)
-    else:  # re-use existing tables for etl
+    else:  # use pre-populated tables for etl
         t0 = timer()
         omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
         acq_table = omnisci_server_worker.database(database_name).table(f"{table_prefix}_acq")
