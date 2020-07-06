@@ -143,7 +143,7 @@ def q4_ibis(table, input_for_validation):
             table.pickup_datetime.year().name("pickup_datetime"),
             table.trip_distance.cast("int64").name("trip_distance"),
         ]
-    ).count()
+    ).size()
     q4_output_ibis = q4_ibis_counted.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
         [("pickup_datetime", True), ("count", False)]
     ).execute()
@@ -161,9 +161,15 @@ def q4_ibis(table, input_for_validation):
             ascending=[True, True, True, True],
         )
         q4_output_pd_casted = q4_output_pd.sort_values(
-            by=["passenger_count", "pickup_datetime", "trip_distance", "count"],
+            by=["passenger_count", "pickup_datetime", "trip_distance", 0],
             ascending=[True, True, True, True],
         )
+        q4_output_pd_casted.columns = [
+            "passenger_count",
+            "pickup_datetime",
+            "trip_distance",
+            "count",
+        ]
 
         compare_dataframes(
             ibis_dfs=[q4_output_ibis_casted],
@@ -390,14 +396,10 @@ def q4_pandas(df):
         }
     )
     q4_pandas_output = (
-        transformed.groupby(["passenger_count", "pickup_datetime", "trip_distance"])[
-            "trip_distance"
-        ]
-        .value_counts()
-        .droplevel(level=-1, axis=0)
-        .rename("count")
+        transformed.groupby(["passenger_count", "pickup_datetime", "trip_distance"])
+        .size()
         .reset_index()
-        .sort_values(by=["pickup_datetime", "count"], ascending=[True, False])
+        .sort_values(by=["pickup_datetime", 0], ascending=[True, False])
     )
     query_time = timer() - t0
 
