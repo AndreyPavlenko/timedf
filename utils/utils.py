@@ -433,7 +433,6 @@ class FilesCombiner:
 
 def refactor_results_for_reporting(
     benchmark_results: dict,
-    etl_ml_results: dict,
     ignore_fields_for_results_unit_conversion: list = None,
     additional_fields: dict = None,
     reporting_unit: str = "ms",
@@ -446,9 +445,6 @@ def refactor_results_for_reporting(
     benchmark_results: dict
         Dictionary with results reported by benchmark.
         Dictionary should follow the next pattern: {"ETL": [<dicts_with_etl_results>], "ML": [<dicts_with_ml_results>]}.
-    etl_ml_results: dict
-        Dictionary for storing results for reporting to MySQL database.
-        Dictionary should follow the next pattern: {"ETL": [<etl_results>], "ML": [<ml_results>]}
     ignore_fields_for_results_unit_conversion: list
         List of fields that should be ignored during results unit conversion.
     additional_fields: dict
@@ -460,10 +456,12 @@ def refactor_results_for_reporting(
     Return
     ------
     etl_ml_results: dict
-        Refactored benchmark results.
+        Refactored benchmark results for reporting to MySQL database.
+        Dictionary follows the next pattern: {"ETL": [<etl_results>], "ML": [<ml_results>]}
 
     """
 
+    etl_ml_results = {"ETL": [], "ML": []}
     for results_category, results in dict(benchmark_results).items():  # ETL or ML part
         for backend_result in results:
             backend_result_converted = []
