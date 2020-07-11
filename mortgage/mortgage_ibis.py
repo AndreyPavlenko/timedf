@@ -210,7 +210,6 @@ def etl_ibis(
                 continue
 
             # read acq file
-            t0 = timer()
             if import_mode == "copy-from":
                 raise ValueError("COPY FROM does not work with Mortgage dataset")
             elif import_mode == "pandas":
@@ -218,6 +217,7 @@ def etl_ibis(
                     "Loading mortgage for ibis by Pandas not implemented yet"
                 )
             elif import_mode == "fsi":
+                t0 = timer()
                 omnisci_server_worker._conn.create_table_from_csv(
                     f"{table_prefix}_acq",
                     f"{mb.acq_data_path}/Acquisition_{year}Q{quarter}.txt",
@@ -237,6 +237,7 @@ def etl_ibis(
                 ]
                 for perf_file in perf_files:
                     print(f"Loading {perf_file}")
+                    t0 = timer()
                     omnisci_server_worker._conn.create_table_from_csv(
                         f"{table_prefix}_perf",
                         str(perf_file),
