@@ -5,7 +5,7 @@ from collections import OrderedDict
 from pathlib import Path
 from timeit import default_timer as timer
 import glob
-import mysql.connector
+# import mysql.connector
 
 import numpy as np
 
@@ -14,8 +14,8 @@ class MortgagePandasBenchmark:
     def __init__(
         self, mortgage_path, algo, acq_fields=None, perf_fields=None, leave_category_strings=False
     ):
-        self.acq_data_path = mortgage_path + "/acq"
-        self.perf_data_path = mortgage_path + "/perf"
+        self.acq_data_path = mortgage_path # + "/acq"
+        self.perf_data_path = mortgage_path # + "/perf"
         self.col_names_path = mortgage_path + "/names.csv"
         self.acq_fields = acq_fields
         self.perf_fields = perf_fields
@@ -37,8 +37,10 @@ class MortgagePandasBenchmark:
         self.ml_func = ML_FWS[algo]
 
     def null_workaround(self, df, **kwargs):
-        for column, data_type in df.dtypes.items():
+        print("null_workaround")
 
+        for column, data_type in df.dtypes.items():
+            print(f"column: {column}")
             t0 = timer()
             if not self.leave_category_strings and str(data_type) == "category":
                 df[column] = df[column].cat.codes
@@ -54,9 +56,11 @@ class MortgagePandasBenchmark:
         return df
 
     def list_perf_files(self, quarter=1, year=2000):
-        return glob.glob(f"{self.perf_data_path}/Performance_{year}Q{quarter}.txt*")
+        # return glob.glob(f"{self.perf_data_path}/Performance_{year}Q{quarter}.txt*")
+        return [f"{self.perf_data_path}/Performance_{year}Q{quarter}.csv"]
 
     def run_cpu_workflow(self, quarter=1, year=2000, perf_file="", **kwargs):
+        import pdb;pdb.set_trace()
         names = self.pd_load_names()
         acq_gdf = self.cpu_load_acquisition_csv(
             acquisition_path=f"{self.acq_data_path}/Acquisition_{year}Q{quarter}.txt",
@@ -75,6 +79,7 @@ class MortgagePandasBenchmark:
         self.t_drop_cols += t1 - t0
 
         cdf = self.cpu_load_performance_csv(perf_file, self.perf_fields)
+        print(f"t_read_csv: {self.t_read_csv}")
 
         joined_df = self.create_joined_df(cdf)
         df_features_12 = self.create_12_mon_features(joined_df)
@@ -97,9 +102,7 @@ class MortgagePandasBenchmark:
         }
         dates_only = [col for (col, valtype) in dtypes.items() if valtype.name == "datetime64[ns]"]
         t0 = timer()
-        df = pd.read_csv(
-            fname, dtype=all_but_dates, parse_dates=dates_only, skiprows=1, delimiter=",", **kw
-        )
+        df = pd.read_csv(fname, dtype=all_but_dates, parse_dates=dates_only, skiprows=1, **kw)
         t1 = timer()
         self.t_read_csv += t1 - t0
         return df
@@ -108,13 +111,13 @@ class MortgagePandasBenchmark:
         cols = [name for (name, dtype) in perf_fields]
         dtypes = OrderedDict(perf_fields)
         print(performance_path)
-        return self._parse_dtyped_csv(performance_path, dtypes, names=cols)
+        return self._parse_dtyped_csv(performance_path, dtypes, delimiter="|", names=cols)
 
     def cpu_load_acquisition_csv(self, acquisition_path, acq_fields, **kwargs):
         cols = [name for (name, dtype) in acq_fields]
         dtypes = OrderedDict(acq_fields)
         print(acquisition_path)
-        return self._parse_dtyped_csv(acquisition_path, dtypes, names=cols, index_col=False)
+        return self._parse_dtyped_csv(acquisition_path, dtypes, delimiter="|", names=cols, index_col=False)
 
     def pd_load_names(self, **kwargs):
         cols = ["seller_name", "new"]
@@ -129,15 +132,19 @@ class MortgagePandasBenchmark:
         return df
 
     def create_joined_df(self, gdf, **kwargs):
-        test = gdf.loc[
-            :,
-            [
+        print("create_joined_df")
+        from modin import _create_cloud_conn
+        conn = _create_cloud_conn()
+        loc_list = [
                 "loan_id",
                 "monthly_reporting_period",
                 "current_loan_delinquency_status",
                 "current_actual_upb",
-            ],
         ]
+        import rpyc
+        loc_list = rpyc.classic.deliver(conn, loc_list)
+        # import pdb;pdb.set_trace()
+        test = gdf.loc[:,loc_list]
         del gdf
         test["timestamp"] = test["monthly_reporting_period"]
 
@@ -180,21 +187,29 @@ class MortgagePandasBenchmark:
         return test
 
     def create_12_mon_features(self, joined_df, **kwargs):
+        print("create_12_mon_features")
+        from modin import _create_cloud_conn
+        conn = _create_cloud_conn()
+        loc_list = ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12"]
+        import rpyc
+        loc_list = rpyc.classic.deliver(conn, loc_list)
+
         testdfs = []
         n_months = 12
         for y in range(1, n_months + 1):
-            tmpdf = joined_df.loc[
-                :, ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12"]
-            ]
+            print(f"y: {y}")
+            tmpdf = joined_df.loc[:, loc_list]
 
             t0 = timer()
             tmpdf["josh_months"] = tmpdf["timestamp_year"] * 12 + tmpdf["timestamp_month"]
             tmpdf["josh_mody_n"] = np.floor(
                 (tmpdf["josh_months"].astype("float64") - 24000 - y) / 12
             )
-            tmpdf = tmpdf.groupby(["loan_id", "josh_mody_n"], as_index=False).agg(
-                {"delinquency_12": "max", "upb_12": "min"}
-            )
+            group_list = ["loan_id", "josh_mody_n"]
+            group_dict = {"delinquency_12": "max", "upb_12": "min"}
+            group_list = rpyc.classic.deliver(conn, ["loan_id", "josh_mody_n"])
+            group_dict = rpyc.classic.deliver(conn, {"delinquency_12": "max", "upb_12": "min"})
+            tmpdf = tmpdf.groupby(group_list, as_index=False).agg(group_dict)
             tmpdf["delinquency_12"] = (tmpdf["delinquency_12"] > 3).astype("int32")
             tmpdf["delinquency_12"] += (tmpdf["upb_12"] == 0).astype("int32")
             # tmpdf.drop('max_delinquency_12', axis=1)
@@ -219,6 +234,7 @@ class MortgagePandasBenchmark:
         return pd.concat(testdfs)
 
     def combine_joined_12_mon(self, joined_df, testdf, **kwargs):
+        print("combine_joined_12_mon")
         t0 = timer()
         joined_df = joined_df.drop(["delinquency_12"], axis=1)
         joined_df = joined_df.drop(["upb_12"], axis=1)
@@ -241,6 +257,7 @@ class MortgagePandasBenchmark:
         return df
 
     def final_performance_delinquency(self, gdf, joined_df, **kwargs):
+        print("final_performance_delinquency")
         merged = self.null_workaround(gdf)
         joined_df = self.null_workaround(joined_df)
 
@@ -270,6 +287,7 @@ class MortgagePandasBenchmark:
         return merged
 
     def join_perf_acq_gdfs(self, perf, acq, **kwargs):
+        print("join_perf_acq_gdfs")
         perf = self.null_workaround(perf)
         acq = self.null_workaround(acq)
 
@@ -281,6 +299,8 @@ class MortgagePandasBenchmark:
         return df
 
     def last_mile_cleaning(self, df, **kwargs):
+        print("last_mile_cleaning")
+
         drop_list = [
             "loan_id",
             "orig_date",
