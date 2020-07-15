@@ -30,11 +30,18 @@ def main():
         "census": "census",
         "plasticc": "plasticc",
         "mortgage": "mortgage",
+        "h2o": "h2o",
     }
+    benchmarks_with_ibis_queries = ["ny_taxi", "santander", "census", "plasticc", "mortgage"]
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
-    ignore_fields_for_results_unit_conversion = ["Backend", "dfiles_num", "dataset_size"]
+    ignore_fields_for_results_unit_conversion = [
+        "Backend",
+        "dfiles_num",
+        "dataset_size",
+        "query_name",
+    ]
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -137,6 +144,14 @@ def main():
         "(This controls the lines to be used. Also work for CPU version. )",
         default=None,
     )
+    optional.add_argument(
+        "-extended_functionality",
+        dest="extended_functionality",
+        default=False,
+        type=str_arg_to_bool,
+        help="Extends functionality of H2O benchmark by adding 'chk' functions and verbose local reporting of results",
+    )
+
     # MySQL database parameters
     optional.add_argument(
         "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server.",
@@ -307,6 +322,10 @@ def main():
 
         args = parser.parse_args()
 
+        launch_omnisci_server = (
+            not args.no_ibis and args.bench_name in benchmarks_with_ibis_queries
+        )
+
         if args.port == port_default_value:
             args.port = find_free_port()
         if args.http_port == port_default_value:
@@ -328,9 +347,10 @@ def main():
             "gpu_memory": args.gpu_memory,
             "validation": args.validation,
             "no_pandas": args.no_pandas,
+            "extended_functionality": args.extended_functionality,
         }
 
-        if not args.no_ibis:
+        if launch_omnisci_server:
             if args.executable is None:
                 parser.error(
                     "Omnisci executable should be specified with -e/--executable for Ibis part"
@@ -371,7 +391,7 @@ def main():
         for iter_num in range(1, args.iterations + 1):
             print(f"Iteration #{iter_num}")
 
-            if not args.no_ibis:
+            if launch_omnisci_server:
                 from server_worker import OmnisciServerWorker
 
                 omnisci_server_worker = OmnisciServerWorker(omnisci_server)
@@ -379,9 +399,9 @@ def main():
                 parameters["ipc_connection"] = args.ipc_conn
                 omnisci_server.launch()
 
-            result = run_benchmark(parameters)
+            benchmark_results = run_benchmark(parameters)
 
-            if not args.no_ibis:
+            if launch_omnisci_server:
                 omnisci_server_worker.terminate()
                 omnisci_server.terminate()
 
@@ -390,7 +410,7 @@ def main():
                 "ML": {"Iteration": iter_num, "run_id": run_id},
             }
             etl_ml_results = refactor_results_for_reporting(
-                benchmark_results=result,
+                benchmark_results=benchmark_results,
                 ignore_fields_for_results_unit_conversion=ignore_fields_for_results_unit_conversion,
                 additional_fields=additional_fields_for_reporting,
                 reporting_unit="ms",

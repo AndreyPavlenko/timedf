@@ -3,6 +3,7 @@ import os
 import warnings
 from timeit import default_timer as timer
 from collections import OrderedDict
+import psutil
 from tempfile import mkstemp
 
 conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
@@ -235,12 +236,13 @@ def print_times(times, backend=None):
         print("{} = {:.5f} s".format(time_name, time))
 
 
-def print_results(results, backend=None, unit=""):
+def print_results(results, backend=None, unit="", ignore_fields=[]):
     results_converted = convert_units(results, ignore_fields=[], unit=unit)
     if backend:
         print(f"{backend} results:")
     for result_name, result in results_converted.items():
-        print("    {} = {:.2f} {}".format(result_name, result, unit))
+        if result_name not in ignore_fields:
+            print("    {} = {:.2f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
@@ -373,6 +375,52 @@ def create_dir(dir_name):
 
 def get_ny_taxi_dataset_size(dfiles_num):
     return sum(list(ny_taxi_data_files_sizes_MB.values())[:dfiles_num])
+
+
+def make_chk(values):
+    s = ";".join(str_round(x) for x in values)
+    return s.replace(",", "_")  # comma is reserved for csv separator
+
+
+def str_round(x):
+    if type(x).__name__ in ["float", "float64"]:
+        x = round(x, 3)
+    return str(x)
+
+
+def memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / (1024 ** 3)  # GB units
+
+
+def join_to_tbls(data_name):
+    """Prepare H2O join queries data files (for merge right parts) names basing on the merge left data file name.
+
+    Parameters
+    ----------
+    data_name: str
+        Merge left data file name, should contain "NA" component.
+
+    Returns
+    -------
+    data_files_paths: dict
+        Dictionary with data files paths, dictionary keys: "x", "small", "medium", "big".
+    data_files_sizes: dict
+        Dictionary with data files sizes, dictionary keys: "x", "small", "medium", "big".
+
+    """
+    data_dir = os.path.dirname(os.path.abspath(data_name))
+    data_file = data_name.replace(data_dir, "")
+    x_n = int(float(data_file.split("_")[1]))
+    y_n = ["{:.0e}".format(x_n / 1e6), "{:.0e}".format(x_n / 1e3), "{:.0e}".format(x_n)]
+    y_n = [y.replace("+0", "") for y in y_n]
+    y_n = [data_name.replace("NA", y) for y in y_n]
+    data_files_paths = {"x": data_name, "small": y_n[0], "medium": y_n[1], "big": y_n[2]}
+    data_files_sizes = {
+        data_id: os.path.getsize(data_file) / 1024 / 1024
+        for data_id, data_file in data_files_paths.items()
+    }
+    return data_files_paths, data_files_sizes
 
 
 def get_tmp_filepath(filename, tmp_dir=None):
