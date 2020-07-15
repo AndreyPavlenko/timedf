@@ -429,3 +429,66 @@ class FilesCombiner:
                 os.remove(self._data_file_path)
             except FileNotFoundError:
                 pass
+
+
+def refactor_results_for_reporting(
+    benchmark_results: dict,
+    ignore_fields_for_results_unit_conversion: list = None,
+    additional_fields: dict = None,
+    reporting_unit: str = "ms",
+) -> dict:
+
+    """Refactore benchmarks results in the way they can be easily reported to MySQL database.
+
+    Parameters
+    ----------
+    benchmark_results: dict
+        Dictionary with results reported by benchmark.
+        Dictionary should follow the next pattern: {"ETL": [<dicts_with_etl_results>], "ML": [<dicts_with_ml_results>]}.
+    ignore_fields_for_results_unit_conversion: list
+        List of fields that should be ignored during results unit conversion.
+    additional_fields: dict
+        Dictionary with fields that should be additionally reported to MySQL database.
+        Dictionary should follow the next pattern: {"ETL": {<dicts_with_etl_fields>}, "ML": {<dicts_with_ml_fields>}}.
+    reporting_unit: str
+        Time unit name for results reporting to MySQL database. Accepted values are "ms", "s", "m".
+
+    Return
+    ------
+    etl_ml_results: dict
+        Refactored benchmark results for reporting to MySQL database.
+        Dictionary follows the next pattern: {"ETL": [<etl_results>], "ML": [<ml_results>]}
+
+    """
+
+    etl_ml_results = {"ETL": [], "ML": []}
+    for results_category, results in dict(benchmark_results).items():  # ETL or ML part
+        for backend_result in results:
+            backend_result_converted = []
+            backend_result_values_list = list(backend_result.values()) if backend_result else None
+            if backend_result is not None and all(
+                [
+                    isinstance(backend_result_values_list[i], dict)
+                    for i in range(len(backend_result_values_list))
+                ]
+            ):  # True if subqueries are used
+                for query_name, query_results in backend_result.items():
+                    query_results.update({"query_name": query_name})
+                    backend_result_converted.append(query_results)
+            else:
+                backend_result_converted.append(backend_result)
+
+            for result in backend_result_converted:
+                if result:
+                    result = convert_units(
+                        result,
+                        ignore_fields=ignore_fields_for_results_unit_conversion,
+                        unit=reporting_unit,
+                    )
+                    category_additional_fields = additional_fields.get(results_category, None)
+                    if category_additional_fields:
+                        for field in category_additional_fields.keys():
+                            result[field] = category_additional_fields[field]
+                    etl_ml_results[results_category].append(result)
+
+    return etl_ml_results

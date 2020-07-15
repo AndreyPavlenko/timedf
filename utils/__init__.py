@@ -19,4 +19,5 @@ from .utils import (
     get_ny_taxi_dataset_size,
     get_tmp_filepath,
     FilesCombiner,
+    refactor_results_for_reporting,
 )

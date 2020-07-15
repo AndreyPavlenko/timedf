@@ -15,7 +15,7 @@ from utils_base_env import (
 )
 from utils import (
     remove_fields_from_dict,
-    convert_units,
+    refactor_results_for_reporting,
 )
 
 
@@ -385,26 +385,18 @@ def main():
                 omnisci_server_worker.terminate()
                 omnisci_server.terminate()
 
-            for backend_res in result["ETL"]:
-                if backend_res:
-                    backend_res = convert_units(
-                        backend_res,
-                        ignore_fields=ignore_fields_for_results_unit_conversion,
-                        unit="ms",
-                    )
-                    backend_res["Iteration"] = iter_num
-                    backend_res["run_id"] = run_id
-                    etl_results.append(backend_res)
-            for backend_res in result["ML"]:
-                if backend_res:
-                    backend_res = convert_units(
-                        backend_res,
-                        ignore_fields=ignore_fields_for_results_unit_conversion,
-                        unit="ms",
-                    )
-                    backend_res["Iteration"] = iter_num
-                    backend_res["run_id"] = run_id
-                    ml_results.append(backend_res)
+            additional_fields_for_reporting = {
+                "ETL": {"Iteration": iter_num, "run_id": run_id},
+                "ML": {"Iteration": iter_num, "run_id": run_id},
+            }
+            etl_ml_results = refactor_results_for_reporting(
+                benchmark_results=result,
+                ignore_fields_for_results_unit_conversion=ignore_fields_for_results_unit_conversion,
+                additional_fields=additional_fields_for_reporting,
+                reporting_unit="ms",
+            )
+            etl_results = list(etl_ml_results["ETL"])
+            ml_results = list(etl_ml_results["ML"])
 
             # Reporting to MySQL database
             if args.db_user is not None:
