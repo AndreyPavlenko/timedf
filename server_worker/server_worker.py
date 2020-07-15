@@ -217,7 +217,9 @@ class OmnisciServerWorker:
             )
         else:
             self._imported_pd_df[table_name] = self._read_csv_datafile(
-                data_files_names,
+                data_files_names[0]
+                if isinstance(data_files_names, (list, tuple))
+                else data_files_names,
                 columns_names=columns_names,
                 columns_types=columns_types_pd,
                 header=header,

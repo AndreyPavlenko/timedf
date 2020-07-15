@@ -17,7 +17,6 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -executable "${PWD}/../omniscidb/build/bin/omnisci_server"                                           \
                           -user admin -password HyperInteractive                                                               \
                           -database_name ${DATABASE_NAME} -table taxi -bench_name ny_taxi -iterations 1                        \
-                          -import_mode copy-from                                                                               \
                           -data_file '${DATASETS_PWD}/taxi/trips_xa{a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t}.csv.gz'           \
                           -pandas_mode Pandas -ray_tmpdir /tmp                                                                 \
                           -commit_omnisci ${BUILD_REVISION}                                                                    \

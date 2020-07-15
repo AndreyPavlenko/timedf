@@ -23,4 +23,5 @@ from .utils import (
     join_to_tbls,
     get_tmp_filepath,
     FilesCombiner,
+    refactor_results_for_reporting,
 )

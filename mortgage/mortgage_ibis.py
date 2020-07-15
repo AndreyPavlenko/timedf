@@ -4,6 +4,8 @@ import ibis
 
 from .mortgage_pandas import MortgagePandasBenchmark  # used for loading
 from utils import check_fragments_size
+from pathlib import Path
+import os
 
 
 class Timer:
@@ -198,46 +200,92 @@ def etl_ibis(
     omnisci_server_worker.create_database(database_name, delete_if_exists=delete_old_database)
     mb = MortgagePandasBenchmark(dataset_path, "xgb")  # used for loading
 
-    # Create table and import data
-    if create_new_table:
+    if create_new_table:  # Create table and import data
+        dfs = []
+        for data_file_num in range(dfiles_num):
+            year, quarter = MortgagePandasBenchmark.split_year_quarter(data_file_num)
+
+            # check if the file exist
+            if not os.path.isfile(f"{mb.acq_data_path}/Acquisition_{year}Q{quarter}.txt"):
+                continue
+
+            # read acq file
+            if import_mode == "copy-from":
+                raise ValueError("COPY FROM does not work with Mortgage dataset")
+            elif import_mode == "pandas":
+                raise NotImplementedError(
+                    "Loading mortgage for ibis by Pandas not implemented yet"
+                )
+            elif import_mode == "fsi":
+                t0 = timer()
+                omnisci_server_worker._conn.create_table_from_csv(
+                    f"{table_prefix}_acq",
+                    f"{mb.acq_data_path}/Acquisition_{year}Q{quarter}.txt",
+                    acq_schema,
+                    database_name,
+                    delimiter=",",
+                    header="true",
+                    fragment_size=fragments_size[0],
+                )
+                etl_times["t_readcsv"] += timer() - t0
+                etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
+                # iterate perf files
+                perf_files = [
+                    f
+                    for f in Path(mb.perf_data_path).iterdir()
+                    if f.match(f"Performance_{year}Q{quarter}.txt*")
+                ]
+                for perf_file in perf_files:
+                    print(f"Loading {perf_file}")
+                    t0 = timer()
+                    omnisci_server_worker._conn.create_table_from_csv(
+                        f"{table_prefix}_perf",
+                        str(perf_file),
+                        perf_schema,
+                        database_name,
+                        delimiter=",",
+                        header=True,
+                        fragment_size=fragments_size[1],
+                    )
+                    etl_times["t_readcsv"] += timer() - t0
+                    etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
+
+                    # Second connection - this is ibis's ipc connection for DML
+                    t0 = timer()
+                    omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
+                    acq_table = omnisci_server_worker.database(database_name).table(
+                        f"{table_prefix}_acq"
+                    )
+                    perf_table = omnisci_server_worker.database(database_name).table(
+                        f"{table_prefix}_perf"
+                    )
+                    etl_times["t_connect"] += timer() - t0
+
+                    t_etl_start = timer()
+                    df = run_ibis_workflow(acq_table, perf_table, leave_category_strings)
+                    etl_times["t_etl"] += timer() - t_etl_start
+                    dfs.append(df)
+                    # drop the performance table
+                    t0 = timer()
+                    omnisci_server_worker.connect_to_server(database_name)
+                    omnisci_server_worker.drop_table(table_name=f"{table_prefix}_perf")
+                    etl_times["t_connect"] += timer() - t0
+                # drop the acquisition table
+                t0 = timer()
+                omnisci_server_worker.connect_to_server(database_name)
+                omnisci_server_worker.drop_table(table_name=f"{table_prefix}_acq")
+                etl_times["t_connect"] += timer() - t0
+        import pandas as pd
+
+        ibis_df = dfs[0] if len(dfs) == 1 else pd.concat(dfs)
+    else:  # use pre-populated tables for etl
         t0 = timer()
-        if import_mode == "copy-from":
-            raise ValueError("COPY FROM does not work with Mortgage dataset")
-        elif import_mode == "pandas":
-            raise NotImplementedError("Loading mortgage for ibis by Pandas not implemented yet")
-        elif import_mode == "fsi":
-            year, quarter = MortgagePandasBenchmark.split_year_quarter(dfiles_num)
-            omnisci_server_worker._conn.create_table_from_csv(
-                f"{table_prefix}_acq",
-                f"{mb.acq_data_path}/Acquisition_{year}Q{quarter}.txt",
-                acq_schema,
-                database_name,
-                delimiter=",",
-                header="true",
-                fragment_size=fragments_size[0],
-            )
-            # FIXME: handle cases when quarter perf is split in two files
-            omnisci_server_worker._conn.create_table_from_csv(
-                f"{table_prefix}_perf",
-                f"{mb.perf_data_path}/Performance_{year}Q{quarter}.txt",
-                perf_schema,
-                database_name,
-                delimiter=",",
-                header=True,
-                fragment_size=fragments_size[1],
-            )
-        etl_times["t_readcsv"] = timer() - t0
-        etl_times["t_connect"] += omnisci_server_worker.get_conn_creation_time()
-
-    # Second connection - this is ibis's ipc connection for DML
-    t0 = timer()
-    omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
-    acq_table = omnisci_server_worker.database(database_name).table(f"{table_prefix}_acq")
-    perf_table = omnisci_server_worker.database(database_name).table(f"{table_prefix}_perf")
-    etl_times["t_connect"] += timer() - t0
-
-    t_etl_start = timer()
-    ibis_df = run_ibis_workflow(acq_table, perf_table, leave_category_strings)
-    etl_times["t_etl"] = timer() - t_etl_start
+        omnisci_server_worker.connect_to_server(database_name, ipc=ipc_connection)
+        acq_table = omnisci_server_worker.database(database_name).table(f"{table_prefix}_acq")
+        perf_table = omnisci_server_worker.database(database_name).table(f"{table_prefix}_perf")
+        etl_times["t_connect"] += timer() - t0
+        t_etl_start = timer()
+        ibis_df = run_ibis_workflow(acq_table, perf_table, leave_category_strings)
+        etl_times["t_etl"] += timer() - t_etl_start
 
     return ibis_df, mb, etl_times
