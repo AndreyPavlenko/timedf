@@ -393,40 +393,6 @@ def memory_usage():
     return process.memory_info().rss / (1024 ** 3)  # GB units
 
 
-def refactor_results_for_reporting(
-    benchmark_results,
-    etl_ml_results,
-    ignore_fields_for_results_unit_conversion=None,
-    additional_fields=None,
-    reporting_unit="ms",
-):
-
-    for result_category in benchmark_results.keys():  # ETL or ML part
-        for backend_result in benchmark_results[result_category]:  # backend result
-            backend_result_converted = []
-            if backend_result is not None and isinstance(
-                list(backend_result.values())[0], dict
-            ):  # True if subqueries are used
-                for query_name, query_results in backend_result.items():
-                    query_results.update({"query_name": query_name})
-                    backend_result_converted.append(query_results)
-            else:
-                backend_result_converted.append(backend_result)
-
-            for result in backend_result_converted:
-                if result:
-                    result = convert_units(
-                        result,
-                        ignore_fields=ignore_fields_for_results_unit_conversion,
-                        unit=reporting_unit,
-                    )
-                    category_additional_fields = additional_fields.get(result_category, None)
-                    if category_additional_fields:
-                        for field in category_additional_fields.keys():
-                            result[field] = category_additional_fields[field]
-                    etl_ml_results[result_category].append(result)
-
-
 def join_to_tbls(data_name):
     """Prepare H2O join queries data files (for merge right parts) names basing on the merge left data file name.
 
