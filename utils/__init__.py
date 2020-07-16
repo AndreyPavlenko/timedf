@@ -17,6 +17,10 @@ from .utils import (
     write_to_csv_by_chunks,
     create_dir,
     get_ny_taxi_dataset_size,
+    make_chk,
+    memory_usage,
+    join_to_tbls,
     get_tmp_filepath,
     FilesCombiner,
+    refactor_results_for_reporting,
 )
