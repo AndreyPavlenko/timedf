@@ -240,7 +240,7 @@ def print_results(results, backend=None, unit=""):
     if backend:
         print(f"{backend} results:")
     for result_name, result in results_converted.items():
-        print("    {} = {:.2f} {}".format(result_name, result, unit))
+        print("    {} = {:.5f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
