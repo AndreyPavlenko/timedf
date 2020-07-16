@@ -451,7 +451,7 @@ class FilesCombiner:
         data_file_path = self._data_files_names[0]
 
         _, data_files_extension = os.path.splitext(data_file_path)
-        if data_files_extension == "gz" or len(data_files_names) > 1:
+        if data_files_extension == ".gz" or len(data_files_names) > 1:
             data_file_path = os.path.abspath(
                 os.path.join(os.path.dirname(data_files_names[0]), combined_filename)
             )
