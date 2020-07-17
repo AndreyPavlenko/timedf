@@ -71,7 +71,7 @@ def run_benchmark(parameters):
     if not parameters["no_ibis"]:
         if parameters["import_mode"] not in ("fsi",):
             raise ValueError("Unsupported import mode: %s" % parameters["import_mode"])
-    """
+
     if not parameters["no_pandas"]:
         import_pandas_into_module_namespace(
             namespace=[run_benchmark.__globals__, etl_pandas.__globals__],
@@ -79,7 +79,7 @@ def run_benchmark(parameters):
             ray_tmpdir=parameters["ray_tmpdir"],
             ray_memory=parameters["ray_memory"],
         )
-    """
+
     acq_schema = ibis.Schema(
         names=(
             "loan_id",

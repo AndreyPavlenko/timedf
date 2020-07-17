@@ -6,7 +6,10 @@ from pathlib import Path
 from timeit import default_timer as timer
 import glob
 
-# import mysql.connector
+try:
+    import mysql.connector
+except ImportError:
+    print("Cannot import mysql.connector, will not be able to report stats by itself")
 
 import numpy as np
 
@@ -15,8 +18,10 @@ class MortgagePandasBenchmark:
     def __init__(
         self, mortgage_path, algo, acq_fields=None, perf_fields=None, leave_category_strings=False
     ):
-        self.acq_data_path = mortgage_path  # + "/acq"
-        self.perf_data_path = mortgage_path  # + "/perf"
+        # some hack - do not append things if mortgage_path is a URL
+        self._is_remote_dataset = "://" in mortgage_path
+        self.acq_data_path = mortgage_path + ("/acq" if not self._is_remote_dataset else "")
+        self.perf_data_path = mortgage_path + ("/perf" if not self._is_remote_dataset else "")
         self.col_names_path = mortgage_path + "/names.csv"
         self.acq_fields = acq_fields
         self.perf_fields = perf_fields
@@ -38,10 +43,10 @@ class MortgagePandasBenchmark:
         self.ml_func = ML_FWS[algo]
 
     def null_workaround(self, df, **kwargs):
-        print("null_workaround")
+        print(f"null_workaround ({len(df.dtypes)} columns)")
 
-        for column, data_type in df.dtypes.items():
-            print(f"column: {column}")
+        for idx, (column, data_type) in enumerate(df.dtypes.items()):
+            print(f"\tcolumn {idx + 1}: {column}")
             t0 = timer()
             if not self.leave_category_strings and str(data_type) == "category":
                 df[column] = df[column].cat.codes
@@ -57,8 +62,9 @@ class MortgagePandasBenchmark:
         return df
 
     def list_perf_files(self, quarter=1, year=2000):
-        # return glob.glob(f"{self.perf_data_path}/Performance_{year}Q{quarter}.txt*")
-        return [f"{self.perf_data_path}/Performance_{year}Q{quarter}.csv"]
+        if self._is_remote_dataset:
+            return [f"{self.perf_data_path}/Performance_{year}Q{quarter}.csv"]
+        return glob.glob(f"{self.perf_data_path}/Performance_{year}Q{quarter}.txt*")
 
     def run_cpu_workflow(self, quarter=1, year=2000, perf_file="", **kwargs):
         names = self.pd_load_names()
@@ -102,7 +108,14 @@ class MortgagePandasBenchmark:
         }
         dates_only = [col for (col, valtype) in dtypes.items() if valtype.name == "datetime64[ns]"]
         t0 = timer()
-        df = pd.read_csv(fname, dtype=all_but_dates, parse_dates=dates_only, skiprows=1, **kw)
+        df = pd.read_csv(
+            fname,
+            dtype=all_but_dates,
+            parse_dates=dates_only,
+            delimiter="|" if self._is_remote_dataset else ",",
+            skiprows=1,
+            **kw,
+        )
         t1 = timer()
         self.t_read_csv += t1 - t0
         return df
@@ -111,15 +124,13 @@ class MortgagePandasBenchmark:
         cols = [name for (name, dtype) in perf_fields]
         dtypes = OrderedDict(perf_fields)
         print(performance_path)
-        return self._parse_dtyped_csv(performance_path, dtypes, delimiter="|", names=cols)
+        return self._parse_dtyped_csv(performance_path, dtypes, names=cols)
 
     def cpu_load_acquisition_csv(self, acquisition_path, acq_fields, **kwargs):
         cols = [name for (name, dtype) in acq_fields]
         dtypes = OrderedDict(acq_fields)
         print(acquisition_path)
-        return self._parse_dtyped_csv(
-            acquisition_path, dtypes, delimiter="|", names=cols, index_col=False
-        )
+        return self._parse_dtyped_csv(acquisition_path, dtypes, names=cols, index_col=False)
 
     def pd_load_names(self, **kwargs):
         cols = ["seller_name", "new"]
@@ -135,14 +146,15 @@ class MortgagePandasBenchmark:
 
     def create_joined_df(self, gdf, **kwargs):
         print("create_joined_df")
-        loc_list = [
-            "loan_id",
-            "monthly_reporting_period",
-            "current_loan_delinquency_status",
-            "current_actual_upb",
+        test = gdf.loc[
+            :,
+            [
+                "loan_id",
+                "monthly_reporting_period",
+                "current_loan_delinquency_status",
+                "current_actual_upb",
+            ],
         ]
-
-        test = gdf.loc[:, loc_list]
         del gdf
         test["timestamp"] = test["monthly_reporting_period"]
 
@@ -186,22 +198,22 @@ class MortgagePandasBenchmark:
 
     def create_12_mon_features(self, joined_df, **kwargs):
         print("create_12_mon_features")
-        loc_list = ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12"]
-
         testdfs = []
         n_months = 12
         for y in range(1, n_months + 1):
-            print(f"y: {y}")
-            tmpdf = joined_df.loc[:, loc_list]
+            print(f"\ty: {y}")
+            tmpdf = joined_df.loc[
+                :, ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12"]
+            ]
 
             t0 = timer()
             tmpdf["josh_months"] = tmpdf["timestamp_year"] * 12 + tmpdf["timestamp_month"]
             tmpdf["josh_mody_n"] = np.floor(
                 (tmpdf["josh_months"].astype("float64") - 24000 - y) / 12
             )
-            group_list = ["loan_id", "josh_mody_n"]
-            group_dict = {"delinquency_12": "max", "upb_12": "min"}
-            tmpdf = tmpdf.groupby(group_list, as_index=False).agg(group_dict)
+            tmpdf = tmpdf.groupby(["loan_id", "josh_mody_n"], as_index=False).agg(
+                {"delinquency_12": "max", "upb_12": "min"}
+            )
             tmpdf["delinquency_12"] = (tmpdf["delinquency_12"] > 3).astype("int32")
             tmpdf["delinquency_12"] += (tmpdf["upb_12"] == 0).astype("int32")
             # tmpdf.drop('max_delinquency_12', axis=1)
