@@ -5,6 +5,7 @@ from collections import OrderedDict
 from pathlib import Path
 from timeit import default_timer as timer
 import glob
+
 # import mysql.connector
 
 import numpy as np
@@ -14,8 +15,8 @@ class MortgagePandasBenchmark:
     def __init__(
         self, mortgage_path, algo, acq_fields=None, perf_fields=None, leave_category_strings=False
     ):
-        self.acq_data_path = mortgage_path # + "/acq"
-        self.perf_data_path = mortgage_path # + "/perf"
+        self.acq_data_path = mortgage_path  # + "/acq"
+        self.perf_data_path = mortgage_path  # + "/perf"
         self.col_names_path = mortgage_path + "/names.csv"
         self.acq_fields = acq_fields
         self.perf_fields = perf_fields
@@ -60,7 +61,6 @@ class MortgagePandasBenchmark:
         return [f"{self.perf_data_path}/Performance_{year}Q{quarter}.csv"]
 
     def run_cpu_workflow(self, quarter=1, year=2000, perf_file="", **kwargs):
-        import pdb;pdb.set_trace()
         names = self.pd_load_names()
         acq_gdf = self.cpu_load_acquisition_csv(
             acquisition_path=f"{self.acq_data_path}/Acquisition_{year}Q{quarter}.txt",
@@ -117,7 +117,9 @@ class MortgagePandasBenchmark:
         cols = [name for (name, dtype) in acq_fields]
         dtypes = OrderedDict(acq_fields)
         print(acquisition_path)
-        return self._parse_dtyped_csv(acquisition_path, dtypes, delimiter="|", names=cols, index_col=False)
+        return self._parse_dtyped_csv(
+            acquisition_path, dtypes, delimiter="|", names=cols, index_col=False
+        )
 
     def pd_load_names(self, **kwargs):
         cols = ["seller_name", "new"]
@@ -133,18 +135,14 @@ class MortgagePandasBenchmark:
 
     def create_joined_df(self, gdf, **kwargs):
         print("create_joined_df")
-        from modin import _create_cloud_conn
-        conn = _create_cloud_conn()
         loc_list = [
-                "loan_id",
-                "monthly_reporting_period",
-                "current_loan_delinquency_status",
-                "current_actual_upb",
+            "loan_id",
+            "monthly_reporting_period",
+            "current_loan_delinquency_status",
+            "current_actual_upb",
         ]
-        import rpyc
-        loc_list = rpyc.classic.deliver(conn, loc_list)
-        # import pdb;pdb.set_trace()
-        test = gdf.loc[:,loc_list]
+
+        test = gdf.loc[:, loc_list]
         del gdf
         test["timestamp"] = test["monthly_reporting_period"]
 
@@ -188,11 +186,7 @@ class MortgagePandasBenchmark:
 
     def create_12_mon_features(self, joined_df, **kwargs):
         print("create_12_mon_features")
-        from modin import _create_cloud_conn
-        conn = _create_cloud_conn()
         loc_list = ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12"]
-        import rpyc
-        loc_list = rpyc.classic.deliver(conn, loc_list)
 
         testdfs = []
         n_months = 12
@@ -207,8 +201,6 @@ class MortgagePandasBenchmark:
             )
             group_list = ["loan_id", "josh_mody_n"]
             group_dict = {"delinquency_12": "max", "upb_12": "min"}
-            group_list = rpyc.classic.deliver(conn, ["loan_id", "josh_mody_n"])
-            group_dict = rpyc.classic.deliver(conn, {"delinquency_12": "max", "upb_12": "min"})
             tmpdf = tmpdf.groupby(group_list, as_index=False).agg(group_dict)
             tmpdf["delinquency_12"] = (tmpdf["delinquency_12"] > 3).astype("int32")
             tmpdf["delinquency_12"] += (tmpdf["upb_12"] == 0).astype("int32")
