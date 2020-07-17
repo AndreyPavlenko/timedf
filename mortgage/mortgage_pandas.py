@@ -5,7 +5,11 @@ from collections import OrderedDict
 from pathlib import Path
 from timeit import default_timer as timer
 import glob
-import mysql.connector
+
+try:
+    import mysql.connector
+except ImportError:
+    print("Cannot import mysql.connector, will not be able to report stats by itself")
 
 import numpy as np
 
@@ -14,8 +18,10 @@ class MortgagePandasBenchmark:
     def __init__(
         self, mortgage_path, algo, acq_fields=None, perf_fields=None, leave_category_strings=False
     ):
-        self.acq_data_path = mortgage_path + "/acq"
-        self.perf_data_path = mortgage_path + "/perf"
+        # some hack - do not append things if mortgage_path is a URL
+        self._is_remote_dataset = "://" in mortgage_path
+        self.acq_data_path = mortgage_path + ("/acq" if not self._is_remote_dataset else "")
+        self.perf_data_path = mortgage_path + ("/perf" if not self._is_remote_dataset else "")
         self.col_names_path = mortgage_path + "/names.csv"
         self.acq_fields = acq_fields
         self.perf_fields = perf_fields
@@ -37,8 +43,10 @@ class MortgagePandasBenchmark:
         self.ml_func = ML_FWS[algo]
 
     def null_workaround(self, df, **kwargs):
-        for column, data_type in df.dtypes.items():
+        print(f"null_workaround ({len(df.dtypes)} columns)")
 
+        for idx, (column, data_type) in enumerate(df.dtypes.items()):
+            print(f"\tcolumn {idx + 1}: {column}")
             t0 = timer()
             if not self.leave_category_strings and str(data_type) == "category":
                 df[column] = df[column].cat.codes
@@ -54,6 +62,8 @@ class MortgagePandasBenchmark:
         return df
 
     def list_perf_files(self, quarter=1, year=2000):
+        if self._is_remote_dataset:
+            return [f"{self.perf_data_path}/Performance_{year}Q{quarter}.csv"]
         return glob.glob(f"{self.perf_data_path}/Performance_{year}Q{quarter}.txt*")
 
     def run_cpu_workflow(self, quarter=1, year=2000, perf_file="", **kwargs):
@@ -75,6 +85,7 @@ class MortgagePandasBenchmark:
         self.t_drop_cols += t1 - t0
 
         cdf = self.cpu_load_performance_csv(perf_file, self.perf_fields)
+        print(f"t_read_csv: {self.t_read_csv}")
 
         joined_df = self.create_joined_df(cdf)
         df_features_12 = self.create_12_mon_features(joined_df)
@@ -98,7 +109,12 @@ class MortgagePandasBenchmark:
         dates_only = [col for (col, valtype) in dtypes.items() if valtype.name == "datetime64[ns]"]
         t0 = timer()
         df = pd.read_csv(
-            fname, dtype=all_but_dates, parse_dates=dates_only, skiprows=1, delimiter=",", **kw
+            fname,
+            dtype=all_but_dates,
+            parse_dates=dates_only,
+            delimiter="|" if self._is_remote_dataset else ",",
+            skiprows=1,
+            **kw,
         )
         t1 = timer()
         self.t_read_csv += t1 - t0
@@ -129,6 +145,7 @@ class MortgagePandasBenchmark:
         return df
 
     def create_joined_df(self, gdf, **kwargs):
+        print("create_joined_df")
         test = gdf.loc[
             :,
             [
@@ -180,9 +197,11 @@ class MortgagePandasBenchmark:
         return test
 
     def create_12_mon_features(self, joined_df, **kwargs):
+        print("create_12_mon_features")
         testdfs = []
         n_months = 12
         for y in range(1, n_months + 1):
+            print(f"\ty: {y}")
             tmpdf = joined_df.loc[
                 :, ["loan_id", "timestamp_year", "timestamp_month", "delinquency_12", "upb_12"]
             ]
@@ -219,6 +238,7 @@ class MortgagePandasBenchmark:
         return pd.concat(testdfs)
 
     def combine_joined_12_mon(self, joined_df, testdf, **kwargs):
+        print("combine_joined_12_mon")
         t0 = timer()
         joined_df = joined_df.drop(["delinquency_12"], axis=1)
         joined_df = joined_df.drop(["upb_12"], axis=1)
@@ -241,6 +261,7 @@ class MortgagePandasBenchmark:
         return df
 
     def final_performance_delinquency(self, gdf, joined_df, **kwargs):
+        print("final_performance_delinquency")
         merged = self.null_workaround(gdf)
         joined_df = self.null_workaround(joined_df)
 
@@ -270,6 +291,7 @@ class MortgagePandasBenchmark:
         return merged
 
     def join_perf_acq_gdfs(self, perf, acq, **kwargs):
+        print("join_perf_acq_gdfs")
         perf = self.null_workaround(perf)
         acq = self.null_workaround(acq)
 
@@ -281,6 +303,8 @@ class MortgagePandasBenchmark:
         return df
 
     def last_mile_cleaning(self, df, **kwargs):
+        print("last_mile_cleaning")
+
         drop_list = [
             "loan_id",
             "orig_date",
