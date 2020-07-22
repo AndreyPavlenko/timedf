@@ -298,6 +298,13 @@ def main():
         default="1234567890123456789012345678901234567890",
         help="Omniscripts commit hash to use for tests.",
     )
+    optional.add_argument(
+        "-debug_mode",
+        dest="debug_mode",
+        default=False,
+        type=str_arg_to_bool,
+        help="Enable debug mode.",
+    )
 
     try:
         os.environ["PYTHONIOENCODING"] = "UTF-8"
@@ -328,6 +335,7 @@ def main():
             "gpu_memory": args.gpu_memory,
             "validation": args.validation,
             "no_pandas": args.no_pandas,
+            "debug_mode": args.debug_mode,
         }
 
         if not args.no_ibis:

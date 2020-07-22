@@ -38,7 +38,7 @@ def run_queries(queries, parameters, etl_results, output_for_validation=None):
 
 
 # Queries definitions
-def q1_ibis(table, input_for_validation):
+def q1_ibis(table, input_for_validation, debug_mode):
     t_query = 0
     t0 = timer()
     q1_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
@@ -65,12 +65,13 @@ def q1_ibis(table, input_for_validation):
         )
 
         # Query result extraction for comparison with SQL version query
-        # q1_output_pd.to_csv("./q1_pd_result.csv")
+        if debug_mode:
+            q1_output_pd.to_csv("./q1_pd_result.csv")
 
     return t_query
 
 
-def q2_ibis(table, input_for_validation):
+def q2_ibis(table, input_for_validation, debug_mode):
     t_query = 0
     t0 = timer()
     q2_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
@@ -90,12 +91,13 @@ def q2_ibis(table, input_for_validation):
         )
 
         # Query result extraction for comparison with SQL version query
-        # q2_output_pd.to_csv("./q2_pd_result.csv", index=False)
+        if debug_mode:
+            q2_output_pd.to_csv("./q2_pd_result.csv", index=False)
 
     return t_query
 
 
-def q3_ibis(table, input_for_validation):
+def q3_ibis(table, input_for_validation, debug_mode):
     t_query = 0
     t0 = timer()
     q3_output_ibis = (  # noqa: F841 (assigned, but unused. Used in commented code.)
@@ -129,22 +131,23 @@ def q3_ibis(table, input_for_validation):
         )
 
         # Query result extraction for comparison with SQL version query
-        # q3_output_pd_casted.to_csv("./q3_pd_result.csv", index=False)
+        if debug_mode:
+            q3_output_pd_casted.to_csv("./q3_pd_result.csv", index=False)
 
     return t_query
 
 
-def q4_ibis(table, input_for_validation):
+def q4_ibis(table, input_for_validation, debug_mode):
     t_query = 0
     t0 = timer()
-    q4_ibis_counted = table.groupby(
+    q4_ibis_sized = table.groupby(
         [
             table.passenger_count,
             table.pickup_datetime.year().name("pickup_datetime"),
             table.trip_distance.cast("int64").name("trip_distance"),
         ]
     ).size()
-    q4_output_ibis = q4_ibis_counted.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
+    q4_output_ibis = q4_ibis_sized.sort_by(  # noqa: F841 (assigned, but unused. Used in commented code.)
         [("pickup_datetime", True), ("count", False)]
     ).execute()
     t_query += timer() - t0
@@ -179,10 +182,9 @@ def q4_ibis(table, input_for_validation):
         )
 
         # Query result extraction for comparison with SQL version query
-        # q4_output_pd.to_csv("./q4_pd_result.csv", index=False)
-        # q4_output_pd_casted.to_csv(
-        #     "./q4_pd_result_sorted.csv", index=False
-        # )
+        if debug_mode:
+            q4_output_pd.to_csv("./q4_pd_result.csv", index=False)
+            q4_output_pd_casted.to_csv("./q4_pd_result_sorted.csv", index=False)
 
     return t_query
 
@@ -201,6 +203,7 @@ def etl_ibis(
     input_for_validation,
     import_mode,
     fragments_size,
+    debug_mode,
 ):
     import ibis
 
@@ -310,7 +313,11 @@ def etl_ibis(
     etl_results["t_connect"] += timer() - t0
 
     queries_parameters = {
-        query_name: {"table": table, "input_for_validation": input_for_validation}
+        query_name: {
+            "table": table,
+            "input_for_validation": input_for_validation,
+            "debug_mode": debug_mode,
+        }
         for query_name in queries.keys()
     }
     return run_queries(queries=queries, parameters=queries_parameters, etl_results=etl_results)
@@ -601,6 +608,7 @@ def run_benchmark(parameters):
                 input_for_validation=pd_queries_outputs,
                 import_mode=parameters["import_mode"],
                 fragments_size=parameters["fragments_size"],
+                debug_mode=parameters["debug_mode"],
             )
 
             print_results(results=etl_results_ibis, backend="Ibis", unit="ms")
