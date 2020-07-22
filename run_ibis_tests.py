@@ -29,7 +29,7 @@ def main():
     commits = parser.add_argument_group("commits")
 
     possible_tasks = ["build", "test", "benchmark"]
-    benchmarks = ["ny_taxi", "santander", "census", "plasticc", "mortgage"]
+    benchmarks = ["ny_taxi", "santander", "census", "plasticc", "mortgage", "h2o"]
 
     # Task
     required.add_argument(
@@ -92,6 +92,11 @@ def main():
         help="Run tests which match the given substring test names and their parent "
         "classes. Example: 'test_other', while 'not test_method' matches those "
         "that don't contain 'test_method' in their names.",
+    )
+
+    # Modin
+    optional.add_argument(
+        "-m", "--modin_path", dest="modin_path", default=None, help="Path to modin directory."
     )
 
     # Omnisci server parameters
@@ -296,6 +301,13 @@ def main():
         "(This controls the lines to be used. Also work for CPU version. )",
         default=None,
     )
+    benchmark.add_argument(
+        "-extended_functionality",
+        dest="extended_functionality",
+        default=False,
+        type=str_arg_to_bool,
+        help="Extends functionality of H2O benchmark by adding 'chk' functions and verbose local reporting of results",
+    )
     # MySQL database parameters
     mysql.add_argument(
         "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server."
@@ -403,11 +415,19 @@ def main():
         combinate_requirements(ibis_requirements, args.ci_requirements, requirements_file)
         conda_env.create(args.env_check, requirements_file=requirements_file)
 
+        if args.modin_path:
+            install_modin_reqs_cmdline = ["pip", "install", "-r", "requirements.txt"]
+            conda_env.run(install_modin_reqs_cmdline, cwd=args.modin_path, print_output=False)
+
         if tasks["build"]:
-            install_ibis_cmdline = ["python3", os.path.join("setup.py"), "install"]
+            install_cmdline = ["python3", "setup.py", "install"]
 
             print("IBIS INSTALLATION")
-            conda_env.run(install_ibis_cmdline, cwd=args.ibis_path, print_output=False)
+            conda_env.run(install_cmdline, cwd=args.ibis_path, print_output=False)
+
+            if args.modin_path:
+                print("MODIN INSTALLATION")
+                conda_env.run(install_cmdline, cwd=args.modin_path, print_output=False)
 
         if tasks["test"]:
             ibis_data_script = os.path.join(args.ibis_path, "ci", "datamgr.py")
@@ -521,6 +541,7 @@ def main():
                 "omnisci_run_kwargs",
                 "commit_omniscripts",
                 "debug_mode",
+                "extended_functionality",
             ]
             args_dict = vars(args)
             args_dict["data_file"] = f"'{args_dict['data_file']}'"

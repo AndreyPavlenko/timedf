@@ -3,6 +3,7 @@ import os
 import warnings
 from timeit import default_timer as timer
 from collections import OrderedDict
+import psutil
 from tempfile import mkstemp
 
 conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
@@ -235,12 +236,13 @@ def print_times(times, backend=None):
         print("{} = {:.5f} s".format(time_name, time))
 
 
-def print_results(results, backend=None, unit=""):
+def print_results(results, backend=None, unit="", ignore_fields=[]):
     results_converted = convert_units(results, ignore_fields=[], unit=unit)
     if backend:
         print(f"{backend} results:")
     for result_name, result in results_converted.items():
-        print("    {} = {:.2f} {}".format(result_name, result, unit))
+        if result_name not in ignore_fields:
+            print("    {} = {:.5f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
@@ -375,6 +377,52 @@ def get_ny_taxi_dataset_size(dfiles_num):
     return sum(list(ny_taxi_data_files_sizes_MB.values())[:dfiles_num])
 
 
+def make_chk(values):
+    s = ";".join(str_round(x) for x in values)
+    return s.replace(",", "_")  # comma is reserved for csv separator
+
+
+def str_round(x):
+    if type(x).__name__ in ["float", "float64"]:
+        x = round(x, 3)
+    return str(x)
+
+
+def memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / (1024 ** 3)  # GB units
+
+
+def join_to_tbls(data_name):
+    """Prepare H2O join queries data files (for merge right parts) names basing on the merge left data file name.
+
+    Parameters
+    ----------
+    data_name: str
+        Merge left data file name, should contain "NA" component.
+
+    Returns
+    -------
+    data_files_paths: dict
+        Dictionary with data files paths, dictionary keys: "x", "small", "medium", "big".
+    data_files_sizes: dict
+        Dictionary with data files sizes, dictionary keys: "x", "small", "medium", "big".
+
+    """
+    data_dir = os.path.dirname(os.path.abspath(data_name))
+    data_file = data_name.replace(data_dir, "")
+    x_n = int(float(data_file.split("_")[1]))
+    y_n = ["{:.0e}".format(x_n / 1e6), "{:.0e}".format(x_n / 1e3), "{:.0e}".format(x_n)]
+    y_n = [y.replace("+0", "") for y in y_n]
+    y_n = [data_name.replace("NA", y) for y in y_n]
+    data_files_paths = {"x": data_name, "small": y_n[0], "medium": y_n[1], "big": y_n[2]}
+    data_files_sizes = {
+        data_id: os.path.getsize(data_file) / 1024 / 1024
+        for data_id, data_file in data_files_paths.items()
+    }
+    return data_files_paths, data_files_sizes
+
+
 def get_tmp_filepath(filename, tmp_dir=None):
     if tmp_dir is None:
         tmp_dir = create_dir("tmp")
@@ -403,7 +451,7 @@ class FilesCombiner:
         data_file_path = self._data_files_names[0]
 
         _, data_files_extension = os.path.splitext(data_file_path)
-        if data_files_extension == "gz" or len(data_files_names) > 1:
+        if data_files_extension == ".gz" or len(data_files_names) > 1:
             data_file_path = os.path.abspath(
                 os.path.join(os.path.dirname(data_files_names[0]), combined_filename)
             )
@@ -429,3 +477,66 @@ class FilesCombiner:
                 os.remove(self._data_file_path)
             except FileNotFoundError:
                 pass
+
+
+def refactor_results_for_reporting(
+    benchmark_results: dict,
+    ignore_fields_for_results_unit_conversion: list = None,
+    additional_fields: dict = None,
+    reporting_unit: str = "ms",
+) -> dict:
+
+    """Refactore benchmarks results in the way they can be easily reported to MySQL database.
+
+    Parameters
+    ----------
+    benchmark_results: dict
+        Dictionary with results reported by benchmark.
+        Dictionary should follow the next pattern: {"ETL": [<dicts_with_etl_results>], "ML": [<dicts_with_ml_results>]}.
+    ignore_fields_for_results_unit_conversion: list
+        List of fields that should be ignored during results unit conversion.
+    additional_fields: dict
+        Dictionary with fields that should be additionally reported to MySQL database.
+        Dictionary should follow the next pattern: {"ETL": {<dicts_with_etl_fields>}, "ML": {<dicts_with_ml_fields>}}.
+    reporting_unit: str
+        Time unit name for results reporting to MySQL database. Accepted values are "ms", "s", "m".
+
+    Return
+    ------
+    etl_ml_results: dict
+        Refactored benchmark results for reporting to MySQL database.
+        Dictionary follows the next pattern: {"ETL": [<etl_results>], "ML": [<ml_results>]}
+
+    """
+
+    etl_ml_results = {"ETL": [], "ML": []}
+    for results_category, results in dict(benchmark_results).items():  # ETL or ML part
+        for backend_result in results:
+            backend_result_converted = []
+            backend_result_values_list = list(backend_result.values()) if backend_result else None
+            if backend_result is not None and all(
+                [
+                    isinstance(backend_result_values_list[i], dict)
+                    for i in range(len(backend_result_values_list))
+                ]
+            ):  # True if subqueries are used
+                for query_name, query_results in backend_result.items():
+                    query_results.update({"query_name": query_name})
+                    backend_result_converted.append(query_results)
+            else:
+                backend_result_converted.append(backend_result)
+
+            for result in backend_result_converted:
+                if result:
+                    result = convert_units(
+                        result,
+                        ignore_fields=ignore_fields_for_results_unit_conversion,
+                        unit=reporting_unit,
+                    )
+                    category_additional_fields = additional_fields.get(results_category, None)
+                    if category_additional_fields:
+                        for field in category_additional_fields.keys():
+                            result[field] = category_additional_fields[field]
+                    etl_ml_results[results_category].append(result)
+
+    return etl_ml_results
