@@ -230,7 +230,15 @@ def files_names_from_pattern(filename):
     from braceexpand import braceexpand
 
     data_files_names = list(braceexpand(filename))
-    data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
+
+    _is_remote_dataset = "://" in filename
+    if _is_remote_dataset:
+        import s3fs
+
+        fs = s3fs.S3FileSystem(anon=True)
+        data_files_names = sorted([f"s3://{x}" for f in data_files_names for x in fs.glob(f)])
+    else:
+        data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
 
 
