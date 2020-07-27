@@ -4,6 +4,7 @@ channels:
 dependencies:
   - pytest-html
   - braceexpand
+  - s3fs
   - mysql
   - mysql-connector-python
   - numpy>=1.11

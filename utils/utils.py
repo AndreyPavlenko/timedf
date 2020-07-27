@@ -259,7 +259,37 @@ def files_names_from_pattern(filename):
     from braceexpand import braceexpand
 
     data_files_names = list(braceexpand(filename))
-    data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
+
+    _is_remote_dataset = "://" in filename
+    if _is_remote_dataset:
+        import s3fs
+
+        fs = s3fs.S3FileSystem(anon=True)
+
+        if filename.startswith("https://"):
+            s3_aws_com = ".s3.amazonaws.com"
+            if s3_aws_com not in filename:
+                raise ValueError(
+                    "https format of S3 links supported only for aws; bad https link: {filename}"
+                )
+
+            def http_glob(filename):
+                new_filename = filename.replace("https://", "")
+                new_filename = new_filename.replace(s3_aws_com, "")
+                bucket_name = new_filename.split("/")[0]
+                return [
+                    f"https://{x.replace(bucket_name, bucket_name+s3_aws_com)}"
+                    for x in fs.glob(new_filename)
+                ]
+
+            data_files_names = sorted([x for f in data_files_names for x in http_glob(f)])
+
+        elif filename.startswith("s3://"):
+            data_files_names = sorted([f"s3://{x}" for f in data_files_names for x in fs.glob(f)])
+        else:
+            raise ValueError(f"bad filename: '{filename}'; prefix should be 'https://' or 's3://'")
+    else:
+        data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
 
 
