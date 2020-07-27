@@ -255,39 +255,58 @@ def load_data_modin_on_omnisci(
     return pd.read_csv(filename, names=columns_names, dtype=all_but_dates, parse_dates=dates_only,)
 
 
-def files_names_from_pattern(filename):
-    from braceexpand import braceexpand
+class S3Client:
+    s3_aws_com = ".s3.amazonaws.com"
 
-    data_files_names = list(braceexpand(filename))
-
-    _is_remote_dataset = "://" in filename
-    if _is_remote_dataset:
+    def __init__(self):
         import s3fs
 
-        fs = s3fs.S3FileSystem(anon=True)
+        self.fs = s3fs.S3FileSystem(anon=True)
 
-        if filename.startswith("https://"):
-            s3_aws_com = ".s3.amazonaws.com"
-            if s3_aws_com not in filename:
+    def s3like(self, filename: str):
+        if filename.startswith("s3://"):
+            return True
+        elif filename.startswith("https://"):
+            if self.s3_aws_com not in filename:
                 raise ValueError(
-                    "https format of S3 links supported only for aws; bad https link: {filename}"
+                    f"https format of S3 links supported only for aws; bad https link: '{filename}'"
                 )
-
-            def http_glob(filename):
-                new_filename = filename.replace("https://", "")
-                new_filename = new_filename.replace(s3_aws_com, "")
-                bucket_name = new_filename.split("/")[0]
-                return [
-                    f"https://{x.replace(bucket_name, bucket_name+s3_aws_com)}"
-                    for x in fs.glob(new_filename)
-                ]
-
-            data_files_names = sorted([x for f in data_files_names for x in http_glob(f)])
-
-        elif filename.startswith("s3://"):
-            data_files_names = sorted([f"s3://{x}" for f in data_files_names for x in fs.glob(f)])
+            return True
         else:
-            raise ValueError(f"bad filename: '{filename}'; prefix should be 'https://' or 's3://'")
+            return False
+
+    def _prepare_s3_link(self, https_link: str):
+        filename = https_link.replace("https://", "")
+        filename = filename.replace(self.s3_aws_com, "")
+        bucket_name = filename.split("/")[0]
+        return bucket_name, filename
+
+    def getsize(self, filename: str):
+        if filename.startswith("https://"):
+            s3_filename = self._prepare_s3_link(filename)
+        return self.fs.info(s3_filename)["Size"]
+
+    def glob(self, files_pattern: str):
+        if files_pattern.startswith("https://"):
+            bucket_name, s3_files_pattern = self._prepare_s3_link(files_pattern)
+            return [
+                f"https://{filename.replace(bucket_name, bucket_name+self.s3_aws_com)}"
+                for filename in self.fs.glob(s3_files_pattern)
+            ]
+        else:
+            return [f"s3://{filename}" for filename in self.fs.glob(files_pattern)]
+
+
+s3_client = S3Client()
+
+
+def files_names_from_pattern(files_pattern):
+    from braceexpand import braceexpand
+
+    data_files_names = list(braceexpand(files_pattern))
+
+    if all(map(s3_client.s3like, data_files_names)):
+        data_files_names = sorted([x for f in data_files_names for x in s3_client.glob(f)])
     else:
         data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
@@ -457,6 +476,14 @@ def memory_usage():
     return process.memory_info().rss / (1024 ** 3)  # GB units
 
 
+def getsize(filename: str):
+    """Return size of filename in MB"""
+    if s3_client.s3like(filename):
+        return s3_client.getsize(filename) / 1024 / 1024
+    else:
+        return os.path.getsize(filename) / 1024 / 1024
+
+
 def join_to_tbls(data_name):
     """Prepare H2O join queries data files (for merge right parts) names basing on the merge left data file name.
 
@@ -481,8 +508,7 @@ def join_to_tbls(data_name):
     y_n = [data_name.replace("NA", y) for y in y_n]
     data_files_paths = {"x": data_name, "small": y_n[0], "medium": y_n[1], "big": y_n[2]}
     data_files_sizes = {
-        data_id: os.path.getsize(data_file) / 1024 / 1024
-        for data_id, data_file in data_files_paths.items()
+        data_id: getsize(data_file) for data_id, data_file in data_files_paths.items()
     }
     return data_files_paths, data_files_sizes
 
