@@ -236,7 +236,25 @@ def files_names_from_pattern(filename):
         import s3fs
 
         fs = s3fs.S3FileSystem(anon=True)
-        data_files_names = sorted([f"s3://{x}" for f in data_files_names for x in fs.glob(f)])
+
+        if filename.startswith("https://"):
+
+            def http_glob(filename):
+                s3_aws_com = ".s3.amazonaws.com"
+                new_filename = filename.replace("https://", "")
+                new_filename = new_filename.replace(s3_aws_com, "")
+                bucket_name = new_filename.split("/")[0]
+                return [
+                    f"https://{x.replace(bucket_name, bucket_name+s3_aws_com)}"
+                    for x in fs.glob(new_filename)
+                ]
+
+            data_files_names = sorted([x for f in data_files_names for x in http_glob(f)])
+
+        elif filename.startswith("s3://"):
+            data_files_names = sorted([f"s3://{x}" for f in data_files_names for x in fs.glob(f)])
+        else:
+            raise ValueError(f"bad filename: '{filename}'; prefix should be 'https://' or 's3://'")
     else:
         data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
