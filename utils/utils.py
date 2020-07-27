@@ -238,9 +238,13 @@ def files_names_from_pattern(filename):
         fs = s3fs.S3FileSystem(anon=True)
 
         if filename.startswith("https://"):
+            s3_aws_com = ".s3.amazonaws.com"
+            if s3_aws_com not in filename:
+                raise ValueError(
+                    "https format of S3 links supported only for aws; bad https link: {filename}"
+                )
 
             def http_glob(filename):
-                s3_aws_com = ".s3.amazonaws.com"
                 new_filename = filename.replace("https://", "")
                 new_filename = new_filename.replace(s3_aws_com, "")
                 bucket_name = new_filename.split("/")[0]
