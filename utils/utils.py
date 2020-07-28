@@ -5,6 +5,7 @@ from timeit import default_timer as timer
 from collections import OrderedDict
 import psutil
 from tempfile import mkstemp
+import s3fs
 
 conversions = {"ms": 1000, "s": 1, "m": 1 / 60, "": 1}
 repository_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -259,18 +260,15 @@ class S3Client:
     s3_aws_com = ".s3.amazonaws.com"
 
     def __init__(self):
-        import s3fs
-
         self.fs = s3fs.S3FileSystem(anon=True)
 
-    def s3like(self, filename: str):
+    @classmethod
+    def s3like(cls, filename: str):
         if filename.startswith("s3://"):
             return True
         elif filename.startswith("https://"):
-            if self.s3_aws_com not in filename:
-                raise ValueError(
-                    f"https format of S3 links supported only for aws; bad https link: '{filename}'"
-                )
+            if cls.s3_aws_com not in filename:
+                return False
             return True
         else:
             return False
@@ -283,7 +281,7 @@ class S3Client:
 
     def getsize(self, filename: str):
         if filename.startswith("https://"):
-            s3_filename = self._prepare_s3_link(filename)
+            _, s3_filename = self._prepare_s3_link(filename)
         return self.fs.info(s3_filename)["Size"]
 
     def glob(self, files_pattern: str):
@@ -305,8 +303,10 @@ def files_names_from_pattern(files_pattern):
 
     data_files_names = list(braceexpand(files_pattern))
 
-    if all(map(s3_client.s3like, data_files_names)):
-        data_files_names = sorted([x for f in data_files_names for x in s3_client.glob(f)])
+    if "://" in files_pattern:
+        if all(map(s3_client.s3like, data_files_names)):
+            data_files_names = sorted([x for f in data_files_names for x in s3_client.glob(f)])
+        raise ValueError(f"some of s3like links are bad: {data_files_names}")
     else:
         data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
@@ -478,8 +478,10 @@ def memory_usage():
 
 def getsize(filename: str):
     """Return size of filename in MB"""
-    if s3_client.s3like(filename):
-        return s3_client.getsize(filename) / 1024 / 1024
+    if "://" in filename:
+        if s3_client.s3like(filename):
+            return s3_client.getsize(filename) / 1024 / 1024
+        raise ValueError(f"bad s3like link: {filename}")
     else:
         return os.path.getsize(filename) / 1024 / 1024
 
