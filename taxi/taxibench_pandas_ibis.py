@@ -210,12 +210,7 @@ def etl_ibis(
 
     fragments_size = check_fragments_size(fragments_size, count_table=1, import_mode=import_mode)
 
-    queries = {
-        "Query1": q1_ibis,
-        "Query2": q2_ibis,
-        "Query3": q3_ibis,
-        "Query4": q4_ibis,
-    }
+    queries = {"Query1": q1_ibis, "Query2": q2_ibis, "Query3": q3_ibis, "Query4": q4_ibis}
     etl_results = {x: 0.0 for x in queries.keys()}
     etl_results["t_readcsv"] = 0.0
     etl_results["t_connect"] = 0.0
@@ -436,7 +431,7 @@ def q4_pandas(df, pandas_mode):
 
 
 def etl_pandas(
-    filename, files_limit, columns_names, columns_types, output_for_validation, pandas_mode,
+    filename, files_limit, columns_names, columns_types, output_for_validation, pandas_mode
 ):
 
     if pandas_mode == "Modin_on_omnisci" and any(f.endswith(".gz") for f in filename):
@@ -444,12 +439,7 @@ def etl_pandas(
             "Modin_on_omnisci mode doesn't support import of compressed files yet"
         )
 
-    queries = {
-        "Query1": q1_pandas,
-        "Query2": q2_pandas,
-        "Query3": q3_pandas,
-        "Query4": q4_pandas,
-    }
+    queries = {"Query1": q1_pandas, "Query2": q2_pandas, "Query3": q3_pandas, "Query4": q4_pandas}
     etl_results = {x: 0.0 for x in queries.keys()}
 
     t0 = timer()
@@ -480,7 +470,9 @@ def etl_pandas(
         ]
 
     concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
-    etl_results["t_readcsv"] = timer() - t0
+    if pandas_mode == "Modin_on_omnisci":
+        concatenated_df.shape  # this is to execute concat
+    etl_results["t_read_csv"] = timer() - t0
 
     queries_parameters = {
         query_name: {
