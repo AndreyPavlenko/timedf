@@ -306,7 +306,8 @@ def files_names_from_pattern(files_pattern):
     if "://" in files_pattern:
         if all(map(s3_client.s3like, data_files_names)):
             data_files_names = sorted([x for f in data_files_names for x in s3_client.glob(f)])
-        raise ValueError(f"some of s3like links are bad: {data_files_names}")
+        else:
+            raise ValueError(f"some of s3like links are bad: {data_files_names}")
     else:
         data_files_names = sorted([x for f in data_files_names for x in glob.glob(f)])
     return data_files_names
