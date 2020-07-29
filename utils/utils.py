@@ -281,8 +281,8 @@ class S3Client:
 
     def getsize(self, filename: str):
         if filename.startswith("https://"):
-            _, s3_filename = self._prepare_s3_link(filename)
-        return self.fs.info(s3_filename)["Size"]
+            _, filename = self._prepare_s3_link(filename)
+        return self.fs.info(filename)["Size"]
 
     def glob(self, files_pattern: str):
         if files_pattern.startswith("https://"):
