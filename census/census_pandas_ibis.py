@@ -71,9 +71,9 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
     ]
     df = df[keep_cols]
 
-    df = df.query("INCTOT != 9999999")
-    df = df.query("EDUC != -1")
-    df = df.query("EDUCD != -1")
+    df = df[df["INCTOT"] != 9999999]
+    df = df[df["EDUC"] != -1]
+    df = df[df["EDUCD"] != -1]
 
     df["INCTOT"] = df["INCTOT"] * df["CPI99"]
 
