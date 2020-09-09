@@ -116,14 +116,11 @@ def q3_ibis(table, input_for_validation, debug_mode):
         q3_output_pd = input_for_validation["Query3"]
         # Casting of Pandas q3 output to Pandas.DataFrame type, which is compartible with
         # Ibis q3 output
-        passenger_count_col = q3_output_pd.index.droplevel(level="pickup_datetime")
-        pickup_datetime_col = q3_output_pd.index.droplevel(level="passenger_count")
-        count_col = q3_output_pd[("passenger_count", "count")].to_numpy()
         q3_output_pd_casted = pd.DataFrame(
             {
-                "passenger_count": passenger_count_col,
-                "pickup_datetime": pickup_datetime_col,
-                "count": count_col,
+                "passenger_count": q3_output_pd["passenger_count"],
+                "pickup_datetime": q3_output_pd["pickup_datetime"],
+                "count": q3_output_pd[0],
             }
         )
 
@@ -368,8 +365,8 @@ def q3_pandas(df, pandas_mode):
                 "pickup_datetime": df["pickup_datetime"].dt.year,
             }
         )
-        q3_pandas_output = transformed.groupby(["pickup_datetime", "passenger_count"]).agg(
-            {"passenger_count": ["count"]}
+        q3_pandas_output = (
+            transformed.groupby(["pickup_datetime", "passenger_count"]).size().reset_index()
         )
     else:
         df["pickup_datetime"] = df["pickup_datetime"].dt.year
