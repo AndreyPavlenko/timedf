@@ -20,3 +20,4 @@ dependencies:
   - Cython
   - pyarrow<0.17
   - arrow-cpp<0.17
+  - cmake>=3.15

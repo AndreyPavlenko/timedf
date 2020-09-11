@@ -473,7 +473,7 @@ def main():
 
             # trying to install dbe extension if omnisci generated it
             executables_path = os.path.dirname(args.executable)
-            dbe_path = os.path.join(os.path.dirname(executables_path), "Embedded")
+            dbe_path = os.path.join(os.path.abspath(f"{executables_path}/.."), "Embedded")
             initdb_path = os.path.join(executables_path, "initdb")
             data_dir = os.path.join(os.path.dirname(__file__), "data")
             initdb_cmdline = [initdb_path, "--data", data_dir]
@@ -485,6 +485,9 @@ def main():
 
             if os.path.exists(dbe_path):
                 print("DBE INSTALLATION")
+                cmake_cmdline = ["cmake", "--install", "build", "--component", "DBE", "--prefix", os.environ["CONDA_PREFIX"]]
+                omniscidb_root = os.path.abspath(f"{executables_path}/../../")
+                conda_env.run(cmake_cmdline, cwd=omniscidb_root, print_output=False)
                 conda_env.run(install_cmdline, cwd=dbe_path, print_output=False)
             else:
                 print("Using Omnisci server")
