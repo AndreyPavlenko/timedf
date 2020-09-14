@@ -13,6 +13,7 @@ from utils import (
     compare_dataframes,
     import_pandas_into_module_namespace,
     load_data_pandas,
+    load_data_modin_on_omnisci,
     mse,
     print_results,
     split,
@@ -26,19 +27,28 @@ warnings.filterwarnings("ignore")
 # https://rapidsai-data.s3.us-east-2.amazonaws.com/datasets/ipums_education2income_1970-2010.csv.gz
 
 
-def etl_pandas(filename, columns_names, columns_types, etl_keys):
+def etl_pandas(filename, columns_names, columns_types, etl_keys, pandas_mode):
     etl_times = {key: 0.0 for key in etl_keys}
 
     t0 = timer()
-    df = load_data_pandas(
-        filename=filename,
-        columns_names=columns_names,
-        columns_types=columns_types,
-        header=0,
-        nrows=None,
-        use_gzip=filename.endswith(".gz"),
-        pd=run_benchmark.__globals__["pd"],
-    )
+    if pandas_mode == "Modin_on_omnisci":
+        df = load_data_modin_on_omnisci(
+            filename=filename,
+            columns_names=columns_names,
+            columns_types=columns_types,
+            skiprows=1,
+            pd=run_benchmark.__globals__["pd"],
+        )
+    else:
+        df = load_data_pandas(
+            filename=filename,
+            columns_names=columns_names,
+            columns_types=columns_types,
+            header=0,
+            nrows=None,
+            use_gzip=filename.endswith(".gz"),
+            pd=run_benchmark.__globals__["pd"],
+        )
     etl_times["t_readcsv"] = timer() - t0
 
     t_etl_start = timer()
@@ -84,6 +94,11 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
 
     y = df["EDUC"]
     X = df.drop(columns=["EDUC", "CPI99"])
+
+    # trigger computation
+    df.shape
+    y.shape
+    X.shape
 
     etl_times["t_etl"] = timer() - t_etl_start
     print("DataFrame shape:", X.shape)
@@ -486,6 +501,7 @@ def run_benchmark(parameters):
                 columns_names=columns_names,
                 columns_types=columns_types,
                 etl_keys=etl_keys,
+                pandas_mode=parameters["pandas_mode"],
             )
 
             print_results(results=etl_times, backend=parameters["pandas_mode"], unit="s")

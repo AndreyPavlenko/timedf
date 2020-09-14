@@ -438,7 +438,7 @@ def main():
                 conda_env.run(install_cmdline, cwd=args.ibis_path, print_output=False)
 
             if args.modin_path:
-                install_modin_reqs_cmdline = ["pip", "install", "-r", "requirements.txt"]
+                install_modin_reqs_cmdline = ["pip", "install", "-e", ".[all]"]
                 if args.modin_pkgs_dir:
                     # If your home directory is space limited, you can be unable to install all Modin
                     # dependencies in home directory, so using of --target flag can solve this problem
