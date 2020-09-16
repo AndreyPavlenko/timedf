@@ -471,7 +471,7 @@ def etl_pandas(
     concatenated_df = pd.concat(df_from_each_file, ignore_index=True)
     if pandas_mode == "Modin_on_omnisci":
         concatenated_df.shape  # this is to execute concat
-    etl_results["t_read_csv"] = timer() - t0
+    etl_results["t_readcsv"] = timer() - t0
 
     queries_parameters = {
         query_name: {
@@ -630,6 +630,8 @@ def run_benchmark(parameters):
 
             print_results(results=etl_results, backend=parameters["pandas_mode"], unit="ms")
             etl_results["Backend"] = parameters["pandas_mode"]
+            etl_results["dfiles_num"] = parameters["dfiles_num"]
+            etl_results["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])
 
         if not parameters["no_ibis"]:
             etl_results_ibis = etl_ibis(
