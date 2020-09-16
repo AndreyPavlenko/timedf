@@ -258,7 +258,6 @@ def load_data_modin_on_omnisci(
         }
         dates_only = [col for (col, valtype) in dtypes.items() if valtype in parse_dates]
 
-
     return pd.read_csv(
         filename,
         names=columns_names,
