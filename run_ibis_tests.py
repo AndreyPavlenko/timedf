@@ -115,7 +115,7 @@ def main():
 
     # Omnisci server parameters
     omnisci.add_argument(
-        "-executable", dest="executable", required=True, help="Path to omnisci_server executable."
+        "-executable", dest="executable", required=False, help="Path to omnisci_server executable."
     )
     omnisci.add_argument(
         "-omnisci_cwd",
