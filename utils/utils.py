@@ -87,6 +87,9 @@ def import_pandas_into_module_namespace(namespace, mode, ray_tmpdir=None, ray_me
             raise ValueError(f"Unknown pandas mode {mode}")
         import modin.pandas as pd
 
+        # Some components of Modin with OmniSci engine are initialized only
+        # at the moment of query execution, so for proper benchmarks performance
+        # measurement we need to initialize these parts before any measurements
         if mode == "Modin_on_omnisci":
             init_modin_on_omnisci(pd)
     if not isinstance(namespace, (list, tuple)):
