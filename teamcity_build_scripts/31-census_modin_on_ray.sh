@@ -1,5 +1,6 @@
 #!/bin/bash
 
+mkdir -p ${PWD}/tmp
 python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env True --python_version 3.7 -task benchmark         \
                           --ci_requirements "${PWD}/ci_requirements.yml"                                                       \
                           -executable "${PWD}/../omniscidb/build/bin/omnisci_server"                                           \

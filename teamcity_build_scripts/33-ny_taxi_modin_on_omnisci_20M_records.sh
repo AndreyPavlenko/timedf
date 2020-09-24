@@ -3,10 +3,10 @@
 mkdir -p ${PWD}/tmp
 python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env True --python_version 3.7 -task benchmark         \
                           --ci_requirements "${PWD}/ci_requirements.yml"                                                       \
-                          -bench_name h2o -data_file '${DATASETS_PWD}/h2o/G1_1e9_1e2_0_0.csv'                                  \
-                          -pandas_mode Modin_on_omnisci -ray_tmpdir ${PWD}/tmp                                                 \
+                          -bench_name ny_taxi -iterations 1                                                                    \
+                          -data_file '${DATASETS_PWD}/taxi/trips_xa{a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t}.csv'              \
+                          -dfiles_num 1 -pandas_mode Modin_on_omnisci -ray_tmpdir ${PWD}/tmp                                   \
                           -commit_omnisci ${BUILD_REVISION}                                                                    \
                           -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                    \
                           ${ADDITIONAL_OPTS}                                                                                   \
-                          ${ADDITIONAL_OPTS_NIGHTLY}                                                                           \
-                          ${DB_COMMON_OPTS} ${DB_H2O_OPTS}
+                          ${DB_COMMON_OPTS} ${DB_TAXI_OPTS}
