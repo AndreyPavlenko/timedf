@@ -363,19 +363,25 @@ def main():
         "-commit_omnisci",
         dest="commit_omnisci",
         default="1234567890123456789012345678901234567890",
-        help="Omnisci commit hash to use for tests.",
+        help="Omnisci commit hash used for tests.",
     )
     commits.add_argument(
         "-commit_ibis",
         dest="commit_ibis",
         default="1234567890123456789012345678901234567890",
-        help="Ibis commit hash to use for tests.",
+        help="Ibis commit hash used for tests.",
     )
     commits.add_argument(
         "-commit_omniscripts",
         dest="commit_omniscripts",
         default="1234567890123456789012345678901234567890",
-        help="Omniscripts commit hash to use for tests.",
+        help="Omniscripts commit hash used for tests.",
+    )
+    commits.add_argument(
+        "-commit_modin",
+        dest="commit_modin",
+        default="1234567890123456789012345678901234567890",
+        help="Modin commit hash used for tests.",
     )
     optional.add_argument(
         "-debug_mode",
@@ -614,6 +620,7 @@ def main():
                 "commit_omniscripts",
                 "debug_mode",
                 "extended_functionality",
+                "commit_modin",
             ]
             args_dict = vars(args)
             args_dict["data_file"] = f"'{args_dict['data_file']}'"

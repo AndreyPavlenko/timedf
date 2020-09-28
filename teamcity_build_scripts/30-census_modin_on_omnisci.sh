@@ -9,6 +9,7 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -pandas_mode Modin_on_omnisci -ray_tmpdir /tmp                                                       \
                           -commit_omnisci ${BUILD_REVISION}                                                                    \
                           -commit_omniscripts ${BUILD_OMNISCRIPTS_REVISION}                                                    \
+                          -commit_modin ${BUILD_MODIN_REVISION}                                                                \
                           ${ADDITIONAL_OPTS}                                                                                   \
                           ${ADDITIONAL_OPTS_NIGHTLY}                                                                           \
                           ${DB_COMMON_OPTS} ${DB_CENSUS_OPTS}
