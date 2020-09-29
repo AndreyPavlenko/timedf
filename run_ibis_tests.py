@@ -445,11 +445,16 @@ def main():
                 conda_env.run(["pip", "install", "--upgrade", "protobuf"], print_output=False)
 
             if args.modin_path:
-                install_modin_reqs_cmdline = ["pip", "install", "-e", ".[all]"]
+                install_modin_reqs_cmdline = [
+                    "conda",
+                    "env",
+                    "update",
+                    "--name",
+                    f"{args.env_name}",
+                    "--file",
+                    "environment.yml",
+                ]
                 if args.modin_pkgs_dir:
-                    # If your home directory is space limited, you can be unable to install all Modin
-                    # dependencies in home directory, so using of --target flag can solve this problem
-                    install_modin_reqs_cmdline += ["--target", args.modin_pkgs_dir]
                     os.environ["PYTHONPATH"] = (
                         os.getenv("PYTHONPATH") + os.pathsep + args.modin_pkgs_dir
                         if os.getenv("PYTHONPATH")
