@@ -147,7 +147,7 @@ def etl_cpu_pandas(df, df_meta, etl_times):
 
     df_meta = df_meta.merge(agg_df, on="object_id", how="left")
 
-    _ = df_meta.shape 
+    _ = df_meta.shape
     etl_times["t_etl"] += timer() - t_etl_start
 
     return df_meta
