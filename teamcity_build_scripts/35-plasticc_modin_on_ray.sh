@@ -10,4 +10,4 @@ python3 run_ibis_tests.py --env_name ${ENV_NAME} --env_check True --save_env Tru
                           -commit_modin ${BUILD_MODIN_REVISION}                                                                \
                           ${ADDITIONAL_OPTS}                                                                                   \
                           ${ADDITIONAL_OPTS_NIGHTLY}                                                                           \
-                          ${DB_COMMON_OPTS} ${DB_CENSUS_OPTS}
+                          ${DB_COMMON_OPTS} ${DB_PLASTICC_OPTS}
