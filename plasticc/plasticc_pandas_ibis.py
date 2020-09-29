@@ -114,7 +114,10 @@ def etl_cpu_ibis(table, table_meta, etl_times):
 def etl_cpu_pandas(df, df_meta, etl_times):
     t_etl_start = timer()
 
-    df["flux_ratio_sq"] = np.power(df["flux"] / df["flux_err"], 2.0)
+    # workaround for both Modin_on_ray and Modin_on_omnisci modes. Eventually this should be fixed
+    df["flux_ratio_sq"] = (df["flux"] / df["flux_err"]) * (
+        df["flux"] / df["flux_err"]
+    )  # np.power(df["flux"] / df["flux_err"], 2.0)
     df["flux_by_flux_ratio_sq"] = df["flux"] * df["flux_ratio_sq"]
 
     aggs = {
@@ -349,15 +352,24 @@ def load_data_ibis(
     )
 
 
-def load_data_pandas(dataset_path, skip_rows, dtypes, meta_dtypes):
+def load_data_pandas(dataset_path, skip_rows, dtypes, meta_dtypes, pandas_mode):
     train = pd.read_csv("%s/training_set.csv" % dataset_path, dtype=dtypes)
-    test = pd.read_csv(
-        # this should be replaced on test_set_skiprows.csv
-        "%s/test_set.csv" % dataset_path,
-        names=list(dtypes.keys()),
-        dtype=dtypes,
-        skiprows=skip_rows,
-    )
+    # Currently we need to avoid skip_rows in Mode_on_omnisci mode since
+    # pyarrow uses it in incompatible way
+    if pandas_mode == "Modin_on_omnisci":
+        test = pd.read_csv(
+            "%s/test_set_skiprows.csv" % dataset_path,
+            names=list(dtypes.keys()),
+            dtype=dtypes,
+            header=0,
+        )
+    else:
+        test = pd.read_csv(
+            "%s/test_set.csv" % dataset_path,
+            names=list(dtypes.keys()),
+            dtype=dtypes,
+            skiprows=skip_rows,
+        )
 
     train_meta = pd.read_csv("%s/training_set_metadata.csv" % dataset_path, dtype=meta_dtypes)
     target = meta_dtypes.pop("target")
@@ -439,13 +451,17 @@ def etl_all_ibis(
     return train_final, test_final, etl_times
 
 
-def etl_all_pandas(dataset_path, skip_rows, dtypes, meta_dtypes, etl_keys):
+def etl_all_pandas(dataset_path, skip_rows, dtypes, meta_dtypes, etl_keys, pandas_mode):
     print("Pandas version")
     etl_times = {key: 0.0 for key in etl_keys}
 
     t0 = timer()
     train, train_meta, test, test_meta = load_data_pandas(
-        dataset_path=dataset_path, skip_rows=skip_rows, dtypes=dtypes, meta_dtypes=meta_dtypes
+        dataset_path=dataset_path,
+        skip_rows=skip_rows,
+        dtypes=dtypes,
+        meta_dtypes=meta_dtypes,
+        pandas_mode=pandas_mode,
     )
     etl_times["t_readcsv"] += timer() - t0
 
@@ -642,6 +658,7 @@ def run_benchmark(parameters):
                 dtypes=dtypes,
                 meta_dtypes=meta_dtypes,
                 etl_keys=etl_keys,
+                pandas_mode=parameters["pandas_mode"],
             )
 
             print_results(results=etl_times, backend=parameters["pandas_mode"], unit="s")
