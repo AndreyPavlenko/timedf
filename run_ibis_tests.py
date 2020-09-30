@@ -506,8 +506,38 @@ def main():
                     "--prefix",
                     "$CONDA_PREFIX",
                 ]
+                cmake_qe_cmdline = [
+                    "cmake",
+                    "--install",
+                    "build",
+                    "--component",
+                    "QE",
+                    "--prefix",
+                    "$CONDA_PREFIX",
+                ]
+                cmake_thrift_cmdline = [
+                    "cmake",
+                    "--install",
+                    "build",
+                    "--component",
+                    "thrift",
+                    "--prefix",
+                    "$CONDA_PREFIX",
+                ]
+                cmake_jar_cmdline = [
+                    "cmake",
+                    "--install",
+                    "build",
+                    "--component",
+                    "jar",
+                    "--prefix",
+                    "$CONDA_PREFIX",
+                ]
                 omniscidb_root = os.path.abspath(f"{executables_path}/../../")
                 conda_env.run(cmake_cmdline, cwd=omniscidb_root, print_output=False)
+                conda_env.run(cmake_qe_cmdline, cwd=omniscidb_root, print_output=False)
+                conda_env.run(cmake_thrift_cmdline, cwd=omniscidb_root, print_output=False)
+                conda_env.run(cmake_jar_cmdline, cwd=omniscidb_root, print_output=False)
                 conda_env.run(install_cmdline, cwd=dbe_path, print_output=False)
             else:
                 print("Using Omnisci server")
