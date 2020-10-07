@@ -381,7 +381,7 @@ class SklearnImport:
             self.current_optimizer = optimizer
 
             if optimizer == "intel":
-                import daal4py  # noqa: F401 (imported but unused) FIXME
+                import daal4py
 
                 daal4py.sklearn.patch_sklearn()
                 from sklearn.model_selection import train_test_split
