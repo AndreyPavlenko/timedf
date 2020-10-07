@@ -385,17 +385,14 @@ class SklearnImport:
 
                 daal4py.sklearn.patch_sklearn()
                 from sklearn.model_selection import train_test_split
-
-                self.train_test_split = train_test_split
             elif optimizer == "stock":
                 from sklearn.model_selection import train_test_split
-
-                self.train_test_split = train_test_split
             else:
                 raise ValueError(
                     f"Intel optimized and stock sklearn are supported. \
                     {optimizer} can't be recognized"
                 )
+            self.train_test_split = train_test_split
 
         return self.train_test_split
 
