@@ -369,18 +369,39 @@ def cod(y_test, y_pred):
     return 1 - (residuals / total)
 
 
+# SklearnImport imports sklearn (intel or stock version) only if it is not done previously
+class SklearnImport:
+    def __init__(self):
+        self.current_optimizer = None
+        self.train_test_split = None
+
+    def get_train_test_split(self, optimizer):
+        assert optimizer is not None, "optimizer parameter should be specified"
+        if self.current_optimizer is not optimizer:
+            self.current_optimizer = optimizer
+
+            if optimizer == "intel":
+                import daal4py
+
+                daal4py.sklearn.patch_sklearn()
+                from sklearn.model_selection import train_test_split
+            elif optimizer == "stock":
+                from sklearn.model_selection import train_test_split
+            else:
+                raise ValueError(
+                    f"Intel optimized and stock sklearn are supported. \
+                    {optimizer} can't be recognized"
+                )
+            self.train_test_split = train_test_split
+
+        return self.train_test_split
+
+
+sklearn_import = SklearnImport()
+
+
 def split(X, y, test_size=0.1, stratify=None, random_state=None, optimizer="intel"):
-    if optimizer == "intel":
-        import daal4py  # noqa: F401 (imported but unused) FIXME
-        from daal4py import sklearn  # noqa: F401 (imported but unused) FIXME
-        from sklearn.model_selection import train_test_split
-    elif optimizer == "stock":
-        from sklearn.model_selection import train_test_split
-    else:
-        raise ValueError(
-            f"Intel optimized and stock sklearn are supported. \
-            {optimizer} can't be recognized"
-        )
+    train_test_split = sklearn_import.get_train_test_split(optimizer)
 
     t0 = timer()
     X_train, X_test, y_train, y_test = train_test_split(
