@@ -384,7 +384,6 @@ class SklearnImport:
                 import daal4py  # noqa: F401 (imported but unused) FIXME
 
                 daal4py.sklearn.patch_sklearn()
-                from daal4py import sklearn  # noqa: F401 (imported but unused) FIXME
                 from sklearn.model_selection import train_test_split
 
                 self.train_test_split = train_test_split
