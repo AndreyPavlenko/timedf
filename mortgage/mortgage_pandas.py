@@ -456,6 +456,14 @@ def etl_pandas(
     leave_category_strings=False,
     pandas_mode="Pandas",
 ):
+    # For Pandas version of etl queries used original dataset
+    # without any data format transformation
+    datasets_pwd = (
+        os.path.dirname(os.path.dirname(dataset_path))
+        if dataset_path.endswith("/")
+        else os.path.dirname(dataset_path)
+    )
+    dataset_path = os.path.join(datasets_pwd, "mortgage")
     etl_times = {key: 0.0 for key in etl_keys}
 
     mb = MortgagePandasBenchmark(
