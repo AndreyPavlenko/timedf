@@ -1,0 +1,36 @@
+#
+#  This is benchmark execution recipe for Bearysta.
+#
+#  Install Bearysta:
+#     python -m pip install git+https://github.com/IntelPython/bearysta.git
+#
+#  Run recipe:
+#     python -m bearysta.run --bench-path run-omnisci-scalability.yml
+#
+
+variables:
+    batch: [1, 2]
+    config:
+        - memset
+        - memcpy
+        - simple-scan --width 8
+        - taxi-q1 --width 8
+        - taxi-q2 --width 8
+        - taxi-q3 --width 8
+        - taxi-q4 --width 8
+        - taxi-q4 --width 16
+        - taxi-q4 --width 32
+        - tpc-h-q1
+        - tpc-h-q5
+        - tpc-h-q11
+        - tpc-h-q5 --order
+        - tpc-h-q11 --order
+    affinity: all
+    numa: -a
+    OMP_NUM_THREADS: [1,10,20,30,35,40,45,46,50,55,60,65,70]
+
+# roofline script creates .csv file, thus meta info goes into $outprefix.csv.meta
+meta-suffix: ".csv"
+
+commands:
+    roofline: sh -c "build/roofline $config --iters 2 --threads=$OMP_NUM_THREADS --pin-threads on --yaml-file $outprefix.yml 2>&1; build/roofline report --no-sys-params --yaml-file $outprefix.yml | tee $outprefix.csv"
