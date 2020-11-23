@@ -47,9 +47,9 @@ variants:
     - hostname
 
 precomputed:
-    query: "read_csv('explain-queryID.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['queryID'], row['queryID'])"
+    query: "read_csv('omnisci-query-explainID.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['queryID'], row['queryID'])"
     # bytes_perp_iter * rows(M) / ms / 1G(1`000`000`000)
-    GB_s: "row['rows']/row['execution_time_ms']*read_csv('query-bytes4iter.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['query'], -1)"
+    GB_s: "row['rows']/row['execution_time_ms']*read_csv('omnisci-query-bytes4iter.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['query'], -1)"
 
 # Are higher values better?
 higher-is-better: false

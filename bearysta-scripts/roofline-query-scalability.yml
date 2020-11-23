@@ -25,10 +25,10 @@ axis:
     - config
     - operation
     - part
+    - numa
 
 series:
     - threads
-    - numa
     - affinity
 
 values:
