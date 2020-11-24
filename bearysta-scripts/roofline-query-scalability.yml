@@ -14,7 +14,6 @@ input:
     format: csv
 
 rename:
-#    OMP_NUM_THREADS: threads
     GiB/s: GB_s
 
 # Aggregation method (e.g. min, median, max, mean)
@@ -23,13 +22,13 @@ aggregation: max
 # Axis and series column names
 axis:
     - config
-    - operation
+    #- operation
     - part
-    - numa
-
-series:
     - threads
     - affinity
+
+series:
+    - numa
 
 values:
     - GB_s

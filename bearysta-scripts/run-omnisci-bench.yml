@@ -25,8 +25,7 @@ variables:
         - 5000000
     numa:
         - ' -a'
-        #- '-m 0'
-        #- '-m 1'
+        - '-m 0'
         - '-i 0,1'
     OMP_NUM_THREADS: $(./list_cpu_affinity.py --total $affinity)
     cpus: $(./list_cpu_affinity.py $affinity)

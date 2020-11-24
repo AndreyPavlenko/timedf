@@ -29,11 +29,10 @@ aggregation: max
 axis:
     - query
     - threads
+    - affinity
     - frags
 
 series:
-    #- cpus
-    #- affinity
     - numa
 
 values:

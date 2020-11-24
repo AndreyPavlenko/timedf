@@ -29,7 +29,7 @@ variables:
         - tpc-h-q11
 
     numa:
-        - -a
+        - ' -a'
         - -i 0,1
     OMP_NUM_THREADS: $(./list_cpu_affinity.py --total $affinity)
     cpus: $(./list_cpu_affinity.py $affinity)

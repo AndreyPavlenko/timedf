@@ -26,7 +26,9 @@ variables:
         - tpc-h-q5 --order
         - tpc-h-q11 --order
     affinity: all
-    numa: -a
+    numa:
+        - ' -a'
+        - '-i 0,1'
     OMP_NUM_THREADS: [1,10,20,30,35,40,45,46,50,55,60,65,70]
 
 # roofline script creates .csv file, thus meta info goes into $outprefix.csv.meta

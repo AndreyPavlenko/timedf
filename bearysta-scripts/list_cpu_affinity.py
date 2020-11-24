@@ -12,7 +12,7 @@ def main():
         "--no-ht", default=False, action="store_true", help="do not use Hyper Threading"
     )
     parser.add_argument(
-        "--n0-only", default=False, action="store_true", help="operate within single node"
+        "--N0-only", default=False, action="store_true", help="operate within single node"
     )
     parser.add_argument(
         "--each", default=False, action="store_true", help="print each number without ranges"
@@ -43,7 +43,7 @@ def main():
         df = df.groupby("Core").min()
 
     nd0 = df[df["Node"] == 0]["# CPU"].values
-    if args.n0_only:
+    if args.N0_only:
         cpus = list(nd0)
     else:
         nd1 = df[df["Node"] == 1]["# CPU"].values
