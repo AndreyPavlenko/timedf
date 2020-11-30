@@ -9,7 +9,7 @@
 #
 
 variables:
-    batch: [1, 2]
+    batch: [1, 2, 3]
     config:
         - memset
         - memcpy
@@ -18,21 +18,35 @@ variables:
         - taxi-q2 --width 8
         - taxi-q3 --width 8
         - taxi-q4 --width 8
-        - taxi-q4 --width 16
         - taxi-q4 --width 32
         - tpc-h-q1
         - tpc-h-q5
         - tpc-h-q11
         - tpc-h-q5 --order
         - tpc-h-q11 --order
-    affinity: all
+    affinity:
+        - 'all'
+        - 'all --no-ht'
+        - 'all --N0-only'
+        - 'all --N0-only --no-ht'
+        - 'half --no-ht'
+        - '10'
+        - '20'
+        - '30'
+        - '40'
+        - '50'
+        - '60'
+        - '70'
+        - '1'
     numa:
-        - ' -a'
+        - '-a'
+        - '-p 0'
         - '-i 0,1'
-    OMP_NUM_THREADS: [1,10,20,30,35,40,45,46,50,55,60,65,70]
+    OMP_NUM_THREADS: $(./list_cpu_affinity.py --total $affinity)
+    cpus: $(./list_cpu_affinity.py $affinity)
 
 # roofline script creates .csv file, thus meta info goes into $outprefix.csv.meta
 meta-suffix: ".csv"
 
 commands:
-    roofline: sh -c "build/roofline $config --iters 2 --threads=$OMP_NUM_THREADS --pin-threads on --yaml-file $outprefix.yml 2>&1; build/roofline report --no-sys-params --yaml-file $outprefix.yml | tee $outprefix.csv"
+    roofline: sh -c "numactl $numa -C $cpus $roofline_exe $config --iters 3 --threads=$OMP_NUM_THREADS --pin-threads off --yaml-file $outprefix.yml 2>&1; $roofline_exe report --no-sys-params --yaml-file $outprefix.yml | tee $outprefix.csv"

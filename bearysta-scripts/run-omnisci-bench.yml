@@ -33,4 +33,4 @@ variables:
 
 commands:
     taxi: ./run-omnisci.sh
-    #directly it is: numactl $numa -C $cpus ../../build/bin/omnisci_server --config omnisci-bench-nyct-$rows.conf 2>&1
+    #directly it is: numactl $numa -C $cpus ../../build/bin/omnisci_server --config omnisci-bench-taxi-$rows.conf 2>&1

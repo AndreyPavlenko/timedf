@@ -5,31 +5,35 @@
 #     python -m pip install git+https://github.com/IntelPython/bearysta.git
 #
 #  Run aggregation:
-#     python -m bearysta.aggregate omnisci-query-scalability.yml -P
+#     python -m bearysta.aggregate query-taxi.yml -P
 #
 
 input:
-    path: runs/*/run-roofline-*/*/*.csv
-    # csv header is: operation,part,threads,GiB/s,IPS(M)
+    config:
+        - omnisci-query-scalability.yml
+        - roofline-query-scalability.yml
+    path: theoretical-bdw.csv
     format: csv
 
-rename:
-    GiB/s: GB_s
-    operation: query
+filter-in:
+    query:
+        - theoretical bandwidth
+        - taxi-q1
+        - taxi-q2
+        - taxi-q3
+        - taxi-q4
 
 # Aggregation method (e.g. min, median, max, mean)
 aggregation: max
 
 # Axis and series column names
 axis:
-    - config
-    #- operation
-    - part
+    - query
     - threads
-    - affinity
 
 series:
-    - numa
+    - impl
+#    - numa
 
 values:
     - GB_s
@@ -38,8 +42,11 @@ values:
 variants:
     - hostname
 
+precomputed:
+    impl: "row['File'].split('-')[0]"
+
 # Are higher values better?
-higher-is-better: true
+higher-is-better: false
 
 # Number format in Python str.format() style, or the number of digits of
 # precision to show in numbers in pretty-printed pivot tables
