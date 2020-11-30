@@ -34,4 +34,4 @@ variables:
     omnisci_server: '../../../omniscidb/build/bin/omnisci_server'
 
 commands:
-    tpc_h: ./run-tpc-h.sh
+    tpch: ./run-tpc-h.sh

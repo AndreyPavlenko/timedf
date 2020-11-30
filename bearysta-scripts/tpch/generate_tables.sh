@@ -10,7 +10,7 @@ mv *.tbl ../generated
 
 for q in 1 5 11; do 
 	DSS_QUERY=../query_templates ./qgen $q -s $1 > ../generated/$q.sql
-	dos2unix -o ../generaged/$q.sql
+	dos2unix -o ../generated/$q.sql
 done;
 
 popd

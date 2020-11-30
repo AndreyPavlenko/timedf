@@ -44,6 +44,7 @@ variables:
         - '-i 0,1'
     OMP_NUM_THREADS: $(./list_cpu_affinity.py --total $affinity)
     cpus: $(./list_cpu_affinity.py $affinity)
+    roofline_exe: ../../roofline/build/roofline
 
 # roofline script creates .csv file, thus meta info goes into $outprefix.csv.meta
 meta-suffix: ".csv"
