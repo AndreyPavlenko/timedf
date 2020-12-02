@@ -5,7 +5,7 @@ if [ ! -d "gen_$1" ]; then
     pushd tpch-dbgen
     make
     ./dbgen -s $1 -f
-    sed -i 's/.$//' *.tbl
+    sed -ri 's/\|\s*$//' *.tbl
 
     mv *.tbl ../gen_$1/
 
