@@ -50,8 +50,8 @@ CREATE TABLE ORDERS  ( O_ORDERKEY       INTEGER NOT NULL,
                            O_ORDERSTATUS    CHAR(1) NOT NULL,
                            O_TOTALPRICE     DECIMAL(15,2) NOT NULL,
                            O_ORDERDATE      DATE NOT NULL,
-                           O_ORDERPRIORITY  CHAR(15) NOT NULL,  
-                           O_CLERK          CHAR(15) NOT NULL, 
+                           O_ORDERPRIORITY  CHAR(15) NOT NULL,
+                           O_CLERK          CHAR(15) NOT NULL,
                            O_SHIPPRIORITY   INTEGER NOT NULL,
                            O_COMMENT        VARCHAR(79) NOT NULL) WITH (FRAGMENT_SIZE={orders_fs});
 
@@ -72,18 +72,19 @@ CREATE TABLE LINEITEM ( L_ORDERKEY    INTEGER NOT NULL,
                              L_SHIPMODE     CHAR(10) NOT NULL,
                              L_COMMENT      VARCHAR(44) NOT NULL) WITH (FRAGMENT_SIZE={lineitem_fs});
 
-COPY customer FROM 'generated/customer.tbl' WITH (header='false',delimiter='|');
-COPY lineitem FROM 'generated/lineitem.tbl' WITH (header='false',delimiter='|');
-COPY nation FROM 'generated/nation.tbl' WITH (header='false',delimiter='|');
-COPY orders FROM 'generated/orders.tbl' WITH (header='false',delimiter='|');
-COPY partsupp FROM 'generated/partsupp.tbl' WITH (header='false',delimiter='|');
-COPY part FROM 'generated/part.tbl' WITH (header='false',delimiter='|');
-COPY region FROM 'generated/region.tbl' WITH (header='false',delimiter='|');
-COPY supplier FROM 'generated/supplier.tbl' WITH (header='false',delimiter='|');
+COPY customer FROM '{data_folder}/customer.tbl' WITH (header='false',delimiter='|');
+COPY lineitem FROM '{data_folder}/lineitem.tbl' WITH (header='false',delimiter='|');
+COPY nation FROM '{data_folder}/nation.tbl' WITH (header='false',delimiter='|');
+COPY orders FROM '{data_folder}/orders.tbl' WITH (header='false',delimiter='|');
+COPY partsupp FROM '{data_folder}/partsupp.tbl' WITH (header='false',delimiter='|');
+COPY part FROM '{data_folder}/part.tbl' WITH (header='false',delimiter='|');
+COPY region FROM '{data_folder}/region.tbl' WITH (header='false',delimiter='|');
+COPY supplier FROM '{data_folder}/supplier.tbl' WITH (header='false',delimiter='|');
 }}
 """
 
-num_threads = sys.argv[1]
+data_folder = sys.argv[1]
+num_threads = sys.argv[2]
 
 
 def get_line_count(filename):
@@ -96,7 +97,9 @@ def get_line_count(filename):
 
 fragment_sizes = {
     table
-    + "_fs": max([1000000, get_line_count("generated/{}.tbl".format(table)) // int(num_threads)])
+    + "_fs": max(
+        [get_line_count("{}/{}.tbl".format(data_folder, table)) // int(num_threads), 1000000]
+    )
     for table in [
         "customer",
         "lineitem",
@@ -111,5 +114,5 @@ fragment_sizes = {
 
 
 print(fragment_sizes)
-with open("generated/create_tables.sql", "w") as f:
-    f.write(query_template.format(**fragment_sizes))
+with open(data_folder + "/create_tables.sql", "w") as f:
+    f.write(query_template.format(**fragment_sizes, data_folder=data_folder))
