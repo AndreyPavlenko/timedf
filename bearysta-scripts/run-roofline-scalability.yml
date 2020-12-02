@@ -17,8 +17,9 @@ variables:
         - taxi-q1 --width 8
         - taxi-q2 --width 8
         - taxi-q3 --width 8
+        - taxi-q3 --width 32
+        - taxi-q3 --width 64
         - taxi-q4 --width 8
-        - taxi-q4 --width 32
         - tpc-h-q1
         - tpc-h-q5
         - tpc-h-q11

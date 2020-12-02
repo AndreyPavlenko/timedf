@@ -1,4 +1,6 @@
-if [ ! -d "gen_$1" ]; then 
+#!/bin/bash
+set -xe
+if [ ! -d "gen_$1" ]; then
     mkdir gen_$1
     pushd tpch-dbgen
     make

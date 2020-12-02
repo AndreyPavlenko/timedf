@@ -10,7 +10,7 @@
 
 input:
     # direct logs are in 'data/mapd_log/omnisci_server.INFO.*.log'
-    path: runs/*/run-tpc-h-bench/*/*.out
+    path: runs/*/run-tpc-h-*/*/*.out
     format: csv
     csv-header: 'op,logID,queryID,execution_time_ms,total_time_ms'
     # Transform lines from log text into csv format. Drop other, unused lines
@@ -28,17 +28,16 @@ aggregation: max
 # Axis and series column names
 axis:
     - query
-    - frags
+    - threads
+#   - cpus
+    - affinity
 
 series:
-    - threads
-    - cpus
-    - affinity
     - numa
 
 values:
-    #- GB_s
-    - execution_time_ms
+    - GB_s
+#    - execution_time_ms
 #    - total_time_ms
 
 # Create another table (or Excel filter) for each value in these columns
@@ -47,8 +46,8 @@ variants:
 
 precomputed:
     query: "read_csv('tpc-h-queryID.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['queryID'], row['queryID'])"
-    # bytes_perp_iter * rows(M) / ms / 1G(1`000`000`000)
-    # GB_s: "row['execution_time_ms']*read_csv('tpc-h-bytes4iter.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['query'], -1)"
+    # scale * total_size(M) / ms / 1G(1`000`000`000)
+    GB_s: "row['scale']*read_csv('tpc-h-bytes4scale.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['query'], -1)/row['execution_time_ms']"
 
 # Are higher values better?
 higher-is-better: false
