@@ -20,8 +20,10 @@ if [ ! -d "gen_$1" ]; then
 
     for q in 1 5 11; do
         cat gen_$1/$q.sql >> gen_$1/queries.sql
+        echo "/itt_resume">> gen_$1/queries.sql
         cat gen_$1/$q.sql >> gen_$1/queries.sql
         cat gen_$1/$q.sql >> gen_$1/queries.sql
+        echo "/itt_pause" >> gen_$1/queries.sql
     done;
 
     echo "}" >> gen_$1/queries.sql
