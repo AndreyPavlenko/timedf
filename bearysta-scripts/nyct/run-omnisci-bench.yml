@@ -27,9 +27,9 @@ variables:
         - ' -a'
         - '-m 0'
         - '-i 0,1'
-    OMP_NUM_THREADS: $(./list_cpu_affinity.py --total $affinity)
+    OMP_NUM_THREADS: $(../list_cpu_affinity.py --total $affinity)
     cpus: $(./list_cpu_affinity.py $affinity)
-    omnisci_server: '../../omniscidb/build/bin/omnisci_server'
+    omnisci_server: '../../../omniscidb/build/bin/omnisci_server'
 
 commands:
     taxi: ./run-omnisci.sh

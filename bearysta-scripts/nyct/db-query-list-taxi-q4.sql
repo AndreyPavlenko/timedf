@@ -1,5 +1,6 @@
 USER admin omnisci {
-
+--itt_pause
+--DROP TABLE trips IF EXISTS;
 CREATE TEMPORARY TABLE trips (
     trip_id BIGINT,
     vendor_id TEXT ENCODING NONE,
@@ -52,10 +53,10 @@ CREATE TEMPORARY TABLE trips (
     dropoff_ntacode TEXT ENCODING NONE,
     dropoff_ntaname TEXT ENCODING NONE,
     dropoff_puma INT
-) WITH (storage_type='CSV:trips-header-200.csv', fragment_size=2500000);
+) WITH (storage_type='CSV:trips-header-20.csv', fragment_size=2500000);
 
 SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(trip_distance as int) AS distance, count(*) AS the_count FROM trips GROUP BY passenger_count, pickup_year, distance ORDER BY pickup_year, the_count desc;
-/itt_resume
+--itt_resume
 SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(trip_distance as int) AS distance, count(*) AS the_count FROM trips GROUP BY passenger_count, pickup_year, distance ORDER BY pickup_year, the_count desc;
 SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(trip_distance as int) AS distance, count(*) AS the_count FROM trips GROUP BY passenger_count, pickup_year, distance ORDER BY pickup_year, the_count desc;
 SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(trip_distance as int) AS distance, count(*) AS the_count FROM trips GROUP BY passenger_count, pickup_year, distance ORDER BY pickup_year, the_count desc;
@@ -66,5 +67,6 @@ SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(
 SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(trip_distance as int) AS distance, count(*) AS the_count FROM trips GROUP BY passenger_count, pickup_year, distance ORDER BY pickup_year, the_count desc;
 SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(trip_distance as int) AS distance, count(*) AS the_count FROM trips GROUP BY passenger_count, pickup_year, distance ORDER BY pickup_year, the_count desc;
 SELECT passenger_count, extract(year from pickup_datetime) AS pickup_year, cast(trip_distance as int) AS distance, count(*) AS the_count FROM trips GROUP BY passenger_count, pickup_year, distance ORDER BY pickup_year, the_count desc;
+--itt_pause
 
 }
