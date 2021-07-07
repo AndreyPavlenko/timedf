@@ -1,4 +1,11 @@
-FROM amyachev-test:latest
+# Create images from this container like this (up from modin and omniscripts repo roots):
+#
+# tar cf omniscripts/docker/modin-and-omniscripts.tar modin omniscripts
+#
+# omniscripts/docker/microbenchmarks-omnisci/build-docker-image.sh
+
+ARG image_name=microbenchmarks-omnisci-intermediate
+FROM ${image_name}:latest
 
 # include also workaround for incompatible ray
 RUN conda activate modin_on_omnisci \
