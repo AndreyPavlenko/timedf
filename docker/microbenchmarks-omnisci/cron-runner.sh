@@ -2,10 +2,11 @@
 
 # it is supposed to run from $HOME/cron/
 
-echo "\n\n\n"
+echo -e "\n\n\n"
 echo `date`
 
 cd "$(dirname "$0")"
+echo CWD - `pwd`
 
 CURRENT_FOLDER=cron-run-env
 if [ -d $CURRENT_FOLDER ]; then
