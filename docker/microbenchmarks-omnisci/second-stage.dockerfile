@@ -25,8 +25,10 @@ RUN cd modin/asv_bench \
 
 RUN cd modin/asv_bench \
  && conda activate modin_on_omnisci \
- && asv machine --machine docker-python \
+ && asv machine --machine docker-pandas \
     --os "Ubuntu 20.04.2 LTS" \
     --arch "x86_64" \
     --cpu 112 \
     --ram 1000GB
+
+ENV DB_COMMON_OPTS ${DB_COMMON_OPTS}

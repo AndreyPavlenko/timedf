@@ -2,6 +2,7 @@
 
 IMAGE_NAME=$1
 CONTAINER_NAME=$2
+SHM_MEM=$3
 
 if [ -z "$IMAGE_NAME" ]; then
     # use default name for docker image
@@ -14,7 +15,7 @@ if [ -z "$CONTAINER_NAME" ]; then
 fi
 
 # TODO: increase /dev/shm
-docker run --rm --name $CONTAINER_NAME $IMAGE_NAME \
+docker run --shm-size $SHM_MEM --rm --name $CONTAINER_NAME $IMAGE_NAME \
     bash --login omniscripts/docker/microbenchmarks-omnisci/asv-runner.sh
 
 # docker run --rm --name $CONTAINER_NAME $IMAGE_NAME \
