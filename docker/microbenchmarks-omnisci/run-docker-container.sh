@@ -14,7 +14,6 @@ if [ -z "$CONTAINER_NAME" ]; then
     CONTAINER_NAME=$IMAGE_NAME-container
 fi
 
-# TODO: increase /dev/shm
 docker run --shm-size $SHM_MEM --rm --name $CONTAINER_NAME $IMAGE_NAME \
     bash --login omniscripts/docker/microbenchmarks-omnisci/asv-runner.sh
 
