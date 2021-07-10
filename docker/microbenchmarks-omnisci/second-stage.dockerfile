@@ -13,24 +13,13 @@ RUN conda activate modin_on_omnisci \
  && conda uninstall ray-core -c conda-forge \
  && pip install ray==1.4.0
 
-# TODO: add more automatization
-# OS=`cat /etc/os-release | grep PRETTY_NAME | grep -o '\".*\"'`
+# BUG: https://github.com/airspeed-velocity/asv/issues/944 in `asv machine`
+# command in noninteractive mode;
 RUN cd modin/asv_bench \
  && conda activate modin_on_omnisci \
- && asv machine --machine docker-omnisci \
-    --os "Ubuntu 20.04.2 LTS" \
-    --arch "x86_64" \
-    --cpu "Intel(R) Xeon(R)" \
-    --num_cpu 112 \
-    --ram "1000GB"
-# BUG: https://github.com/airspeed-velocity/asv/issues/944
-RUN cd modin/asv_bench \
- && conda activate modin_on_omnisci \
- && asv machine --machine "docker-pandas" \
-    --os "Ubuntu 20.04.2 LTS" \
-    --arch "x86_64" \
-    --cpu "Intel(R) Xeon(R)" \
-    --num_cpu 112 \
-    --ram "1000GB"
+ && asv machine --yes \
+ && asv machine --machine docker-omnisci --yes \
+ && asv machine --machine docker-pandas --yes
 
+ARG DB_COMMON_OPTS
 ENV DB_COMMON_OPTS ${DB_COMMON_OPTS}
