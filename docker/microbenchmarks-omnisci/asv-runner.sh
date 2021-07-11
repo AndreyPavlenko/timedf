@@ -12,7 +12,7 @@ OMNISCI_MACHINE_NAME=$HOST_NAME-omnisci
 PANDAS_MACHINE_NAME=$HOST_NAME-pandas
 
 asv run --launch-method=forkserver --config asv.conf.omnisci.json \
-    -b omnisci.benchmarks.TimeAppend --machine $OMNISCI_MACHINE_NAME -a repeat=3 \
+    -b ^omnisci --machine $OMNISCI_MACHINE_NAME -a repeat=3 \
     --show-stderr --python=same --set-commit-hash HEAD
 OMNISCI_RESULT_NAME=`ls .asv/results/$OMNISCI_MACHINE_NAME/ | grep existing`
 
