@@ -20,7 +20,7 @@ OMNISCI_RESULT_NAME=`ls .asv/results/$OMNISCI_MACHINE_NAME/ | grep existing`
 export MODIN_ASV_USE_IMPL=pandas
 
 asv run --launch-method=forkserver --config asv.conf.omnisci.json \
-    -b omnisci.benchmarks.TimeAppend --machine $PANDAS_MACHINE_NAME -a repeat=3 \
+    -b ^omnisci --machine $PANDAS_MACHINE_NAME -a repeat=3 \
     --show-stderr --python=same --set-commit-hash HEAD
 PANDAS_RESULT_NAME=`ls .asv/results/$PANDAS_MACHINE_NAME/ | grep existing`
 
