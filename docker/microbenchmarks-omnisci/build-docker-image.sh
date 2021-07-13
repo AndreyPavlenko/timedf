@@ -13,7 +13,8 @@ echo "first docker stage image name - $FIRST_STAGE_NAME"
 echo "result image name - $NAME"
 
 docker build -t $FIRST_STAGE_NAME -f omniscripts/docker/Dockerfile.omnisci-from-conda \
-    --build-arg https_proxy --build-arg http_proxy omniscripts/docker
+    --build-arg https_proxy --build-arg http_proxy --build-arg INSTALL_OMNISCRIPTS_REQS=false \
+    omniscripts/docker
 
 mkdir empty-context
 docker build -t $NAME -f omniscripts/docker/microbenchmarks-omnisci/second-stage.dockerfile \
