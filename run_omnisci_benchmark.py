@@ -269,7 +269,6 @@ optional.add_argument(
 
 # MySQL database parameters
 add_mysql_arguments(optional)
-
 optional.add_argument(
     "-commit",
     default="1234567890123456789012345678901234567890",
