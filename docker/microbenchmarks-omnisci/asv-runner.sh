@@ -11,8 +11,10 @@ conda activate modin_on_omnisci
 OMNISCI_MACHINE_NAME=$HOST_NAME-omnisci
 PANDAS_MACHINE_NAME=$HOST_NAME-pandas
 
+# 'number=1' allows for each bench run to get tables with different names (in `trigger_import`),
+# which eliminates caching inside OmniSci (`setup` is called before every run)
 asv run --launch-method=forkserver --config asv.conf.omnisci.json \
-    -b ^omnisci --machine $OMNISCI_MACHINE_NAME -a repeat=3 \
+    -b ^omnisci --machine $OMNISCI_MACHINE_NAME -a repeat=3 -a number=1 \
     --show-stderr --python=same --set-commit-hash HEAD
 OMNISCI_RESULT_NAME=`ls .asv/results/$OMNISCI_MACHINE_NAME/ | grep existing`
 
