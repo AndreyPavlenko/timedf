@@ -83,7 +83,6 @@ class CondaEnvironment:
 
     def run(self, cmdline, name=None, cwd=None, print_output=False):
         env_name = name if name else self.name
-
         if print_output:
             cmd_print_list = ["conda", "list", "-n", env_name]
             print("PRINTING LIST OF PACKAGES")
@@ -107,3 +106,10 @@ class CondaEnvironment:
             )
             if return_code != 0:
                 raise Exception(f"Conda run returned {return_code}.")
+
+    def update(self, env_name, req_file, cwd=None):
+        assert env_name is not None, req_file is not None
+        update_cmd = ["conda", "env", "update"]
+        update_cmd.extend(["--name", env_name])
+        update_cmd.extend(["--file", req_file])
+        self.run(update_cmd, cwd=cwd)

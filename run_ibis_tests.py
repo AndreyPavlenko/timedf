@@ -435,32 +435,14 @@ def main():
                 ibis_requirements = os.path.join(
                     args.ibis_path, "ci", f"requirements-{args.python_version}-dev.yml"
                 )
-                install_ibis_reqs_cmdline = [
-                    "conda",
-                    "env",
-                    "update",
-                    "--name",
-                    f"{args.env_name}",
-                    "--file",
-                    ibis_requirements,
-                ]
 
                 print("INSTALLATION OF IBIS DEPENDENCIES")
-                conda_env.run(install_ibis_reqs_cmdline, print_output=False)
+                conda_env.update(str(args.env_name), ibis_requirements)
 
                 print("IBIS INSTALLATION")
-                conda_env.run(install_cmdline, cwd=args.ibis_path, print_output=False)
+                conda_env.run(install_cmdline, cwd=args.ibis_path)
 
             if args.modin_path:
-                install_modin_reqs_cmdline = [
-                    "conda",
-                    "env",
-                    "update",
-                    "--name",
-                    f"{args.env_name}",
-                    "--file",
-                    "environment-dev.yml",
-                ]
                 if args.modin_pkgs_dir:
                     os.environ["PYTHONPATH"] = (
                         os.getenv("PYTHONPATH") + os.pathsep + args.modin_pkgs_dir
@@ -468,23 +450,10 @@ def main():
                         else args.modin_pkgs_dir
                     )
                 print("INSTALLATION OF MODIN DEPENDENCIES")
-                # Installation of Modin dependencies can proceed with errors. If error occurs, please try to
-                # rebase your branch to the current Modin master
-                try:
-                    conda_env.run(
-                        install_modin_reqs_cmdline, cwd=args.modin_path, print_output=False
-                    )
-                except Exception:
-                    print("INSTALLATION OF MODIN DEPENDENCIES PROCESSED WITH ERRORS")
+                conda_env.update(str(args.env_name), "environment-dev.yml", cwd=args.modin_path)
 
                 print("MODIN INSTALLATION")
-                # Modin installation handled this way because "conda run --name env_name python3 setup.py install"
-                # (called by "conda_env.run") processed with warning that is not raised via "python3 setup.py install".
-                # This warning is handled by omniscripts as error, that causing exception raise.
-                try:
-                    conda_env.run(install_cmdline, cwd=args.modin_path, print_output=False)
-                except Exception:
-                    print("MODIN INSTALLATION PROCESSED WITH ERRORS")
+                conda_env.run(install_cmdline, cwd=args.modin_path)
 
             # trying to install dbe extension if omnisci generated it
             executables_path = os.path.dirname(args.executable)
@@ -496,7 +465,7 @@ def main():
             if not os.path.isdir(data_dir) and args.manage_dbe_dir:
                 print("MANAGING OMNISCI DATA DIR", data_dir)
                 os.makedirs(data_dir)
-                conda_env.run(initdb_cmdline, print_output=False)
+                conda_env.run(initdb_cmdline)
 
             if os.path.exists(dbe_path):
                 print("DBE INSTALLATION")
@@ -537,11 +506,11 @@ def main():
                     "$CONDA_PREFIX",
                 ]
                 omniscidb_root = os.path.abspath(f"{executables_path}/../../")
-                conda_env.run(cmake_cmdline, cwd=omniscidb_root, print_output=False)
-                conda_env.run(cmake_qe_cmdline, cwd=omniscidb_root, print_output=False)
-                conda_env.run(cmake_thrift_cmdline, cwd=omniscidb_root, print_output=False)
-                conda_env.run(cmake_jar_cmdline, cwd=omniscidb_root, print_output=False)
-                conda_env.run(install_cmdline, cwd=dbe_path, print_output=False)
+                conda_env.run(cmake_cmdline, cwd=omniscidb_root)
+                conda_env.run(cmake_qe_cmdline, cwd=omniscidb_root)
+                conda_env.run(cmake_thrift_cmdline, cwd=omniscidb_root)
+                conda_env.run(cmake_jar_cmdline, cwd=omniscidb_root)
+                conda_env.run(install_cmdline, cwd=dbe_path)
             else:
                 print("Using Omnisci server")
 

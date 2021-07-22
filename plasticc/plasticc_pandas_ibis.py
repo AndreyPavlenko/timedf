@@ -3,7 +3,7 @@ from functools import partial
 from timeit import default_timer as timer
 
 import numpy as np
-import pandas as pd
+import pandas
 from sklearn.preprocessing import LabelEncoder
 import xgboost as xgb
 
@@ -352,27 +352,33 @@ def load_data_ibis(
 
 
 def load_data_pandas(dataset_path, skip_rows, dtypes, meta_dtypes, pandas_mode):
-    train = pd.read_csv("%s/training_set.csv" % dataset_path, dtype=dtypes)
+    # 'pd' module is defined implicitly in 'import_pandas_into_module_namespace'
+    # function so we should use 'noqa: F821' for flake8
+    train = pd.read_csv("%s/training_set.csv" % dataset_path, dtype=dtypes)  # noqa: F821
     # Currently we need to avoid skip_rows in Mode_on_omnisci mode since
     # pyarrow uses it in incompatible way
     if pandas_mode == "Modin_on_omnisci":
-        test = pd.read_csv(
+        test = pd.read_csv(  # noqa: F821
             "%s/test_set_skiprows.csv" % dataset_path,
             names=list(dtypes.keys()),
             dtype=dtypes,
             header=0,
         )
     else:
-        test = pd.read_csv(
+        test = pd.read_csv(  # noqa: F821
             "%s/test_set.csv" % dataset_path,
             names=list(dtypes.keys()),
             dtype=dtypes,
             skiprows=skip_rows,
         )
 
-    train_meta = pd.read_csv("%s/training_set_metadata.csv" % dataset_path, dtype=meta_dtypes)
+    train_meta = pd.read_csv(  # noqa: F821
+        "%s/training_set_metadata.csv" % dataset_path, dtype=meta_dtypes
+    )
     target = meta_dtypes.pop("target")
-    test_meta = pd.read_csv("%s/test_set_metadata.csv" % dataset_path, dtype=meta_dtypes)
+    test_meta = pd.read_csv(  # noqa: F821
+        "%s/test_set_metadata.csv" % dataset_path, dtype=meta_dtypes
+    )
     meta_dtypes["target"] = target
 
     return train, train_meta, test, test_meta
@@ -478,7 +484,7 @@ def multi_weighted_logloss(y_true, y_preds, classes, class_weights):
     multi logloss for PLAsTiCC challenge
     """
     y_p = y_preds.reshape(y_true.shape[0], len(classes), order="F")
-    y_ohe = pd.get_dummies(y_true)
+    y_ohe = pandas.get_dummies(y_true)
     y_p = np.clip(a=y_p, a_min=1e-15, a_max=1 - 1e-15)
     y_p_log = np.log(y_p)
     y_log_ones = np.sum(y_ohe.values * y_p_log, axis=0)
