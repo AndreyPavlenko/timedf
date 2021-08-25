@@ -637,7 +637,7 @@ def run_benchmark(parameters):
             pandas_mode=parameters["pandas_mode"],
         )
 
-        print_results(results=etl_results, backend=parameters["pandas_mode"], unit="ms")
+        print_results(results=etl_results, backend=parameters["pandas_mode"], unit="s")
         etl_results["Backend"] = parameters["pandas_mode"]
         etl_results["dfiles_num"] = parameters["dfiles_num"]
         etl_results["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])
@@ -660,7 +660,7 @@ def run_benchmark(parameters):
             debug_mode=parameters["debug_mode"],
         )
 
-        print_results(results=etl_results_ibis, backend="Ibis", unit="ms")
+        print_results(results=etl_results_ibis, backend="Ibis", unit="s")
         etl_results_ibis["Backend"] = "Ibis"
         etl_results_ibis["dfiles_num"] = parameters["dfiles_num"]
         etl_results_ibis["dataset_size"] = get_ny_taxi_dataset_size(parameters["dfiles_num"])

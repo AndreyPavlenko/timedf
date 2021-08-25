@@ -356,7 +356,7 @@ def print_results(results, backend=None, unit="", ignore_fields=[]):
         print(f"{backend} results:")
     for result_name, result in results_converted.items():
         if result_name not in ignore_fields:
-            print("    {} = {:.5f} {}".format(result_name, result, unit))
+            print("    {} = {:.3f} {}".format(result_name, result, unit))
 
 
 def mse(y_test, y_pred):
