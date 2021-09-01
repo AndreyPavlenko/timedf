@@ -4,6 +4,7 @@
 export MODIN_BACKEND=omnisci
 export MODIN_EXPERIMENTAL=true
 export MODIN_TEST_DATASET_SIZE=big
+export MODIN_ASV_DATASIZE_CONFIG=/home/modin/omniscripts/docker/microbenchmarks-omnisci/modin-asv-datasize-config.json
 
 cd modin/asv_bench
 conda activate modin_on_omnisci

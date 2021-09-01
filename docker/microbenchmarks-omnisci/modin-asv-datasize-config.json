@@ -1,0 +1,21 @@
+{
+    "omnisci.TimeJoin": [[30000000, 10]],
+    "omnisci.TimeBinaryOpDataFrame": [[30000000, 10]],
+    "omnisci.TimeArithmetic": [[30000000, 10]],
+    "omnisci.TimeSortValues": [[10000000, 10]],
+    "omnisci.TimeDrop": [[30000000, 10]],
+    "omnisci.TimeHead": [[30000000, 10]],
+    "omnisci.TimeFillna": [[30000000, 10]],
+    "omnisci.TimeIndexing": [[30000000, 10]],
+    "omnisci.TimeResetIndex": [[30000000, 10]],
+    "omnisci.TimeAstype": [[30000000, 10]],
+    "omnisci.TimeDescribe": [[30000000, 10]],
+    "omnisci.TimeProperties": [[30000000, 10]],
+    "omnisci.TimeGroupByDefaultAggregations": [[30000000, 10]],
+    "omnisci.TimeGroupByMultiColumn": [[30000000, 10]],
+    "omnisci.TimeReadCsvNames": [[30000000, 10]],
+    "omnisci.TimeMerge": [[[15000000, 20], [30000000, 10]]],
+    "omnisci.TimeAppend": [[[15000000, 20], [30000000, 10]]],
+    "omnisci.TimeBinaryOpSeries": [[300000000, 1]],
+    "omnisci.TimeValueCountsSeries": [[300000000, 1]]
+}

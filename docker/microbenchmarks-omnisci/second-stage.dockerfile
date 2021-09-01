@@ -28,7 +28,7 @@ RUN cd modin/asv_bench \
 # There is no way to specify the data size for each benchmark yet -
 # use the following workround.
 RUN cd modin \
- && git apply ../omniscripts/docker/microbenchmarks-omnisci/datasize.patch
+ && git apply ../omniscripts/docker/microbenchmarks-omnisci/timeout.patch
 
 ARG DB_COMMON_OPTS
 ENV DB_COMMON_OPTS ${DB_COMMON_OPTS}
