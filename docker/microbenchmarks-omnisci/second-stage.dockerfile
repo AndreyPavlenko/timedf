@@ -12,7 +12,7 @@ RUN conda activate modin_on_omnisci \
  && pip install git+https://github.com/airspeed-velocity/asv.git@ef016e233cb9a0b19d517135104f49e0a3c380e9 \
  && conda uninstall ray-core -c conda-forge \
  && conda install mysql mysql-connector-python -c conda-forge \
- && pip install ray==1.4.0
+ && pip install "ray[default]>=1.4"
 
 ARG HOST_NAME=docker
 ENV HOST_NAME ${HOST_NAME}

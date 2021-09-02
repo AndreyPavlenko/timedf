@@ -1,5 +1,5 @@
 diff --git a/asv_bench/benchmarks/omnisci/benchmarks.py b/asv_bench/benchmarks/omnisci/benchmarks.py
-index b3dfd205..ab6b90ad 100644
+index b3dfd205..8cee38ed 100644
 --- a/asv_bench/benchmarks/omnisci/benchmarks.py
 +++ b/asv_bench/benchmarks/omnisci/benchmarks.py
 @@ -53,6 +53,7 @@ class TimeMerge:
@@ -50,3 +50,11 @@ index b3dfd205..ab6b90ad 100644
  
      def setup(self, shape):
          self.df = generate_dataframe(ASV_USE_IMPL, "int", *shape, RAND_LOW, RAND_HIGH)
+@@ -419,6 +425,7 @@ class TimeGroupByMultiColumn(BaseTimeGroupBy):
+         GROUPBY_NGROUPS,
+         [6],
+     ]
++    timeout=600
+ 
+     def time_groupby_sum(self, *args, **kwargs):
+         execute(self.df.groupby(by=self.groupby_columns).sum())
