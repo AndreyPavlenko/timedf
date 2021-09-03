@@ -58,3 +58,15 @@ index b3dfd205..8cee38ed 100644
  
      def time_groupby_sum(self, *args, **kwargs):
          execute(self.df.groupby(by=self.groupby_columns).sum())
+diff --git a/asv_bench/benchmarks/omnisci/io.py b/asv_bench/benchmarks/omnisci/io.py
+index 300e02c8..3d5f9c1a 100644
+--- a/asv_bench/benchmarks/omnisci/io.py
++++ b/asv_bench/benchmarks/omnisci/io.py
+@@ -33,6 +33,7 @@ class TimeReadCsvNames:
+     shapes = get_benchmark_shapes("omnisci.TimeReadCsvNames")
+     param_names = ["shape"]
+     params = [shapes]
++    timeout=600
+ 
+     def setup_cache(self, test_filename="io_test_file_csv_names"):
+         # filenames with a metadata of saved dataframes
