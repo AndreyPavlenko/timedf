@@ -31,7 +31,7 @@ mkdir $CURRENT_FOLDER
 cd $CURRENT_FOLDER
 
 git clone https://github.com/modin-project/modin.git
-# need second-stage.dockerfile and helper scripts
+# need asv-benchmarks.dockerfile and helper scripts
 git clone --branch docker-bench https://github.com/intel-ai/omniscripts.git
 tar cf omniscripts/docker/modin-and-omniscripts.tar modin omniscripts
 

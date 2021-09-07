@@ -17,6 +17,6 @@ docker build -t $FIRST_STAGE_NAME -f omniscripts/docker/Dockerfile.omnisci-from-
     omniscripts/docker
 
 mkdir empty-context
-docker build -t $NAME -f omniscripts/docker/microbenchmarks-omnisci/second-stage.dockerfile \
+docker build -t $NAME -f omniscripts/docker/microbenchmarks-omnisci/asv-benchmarks.dockerfile \
     --build-arg https_proxy --build-arg http_proxy --build-arg image_name=$FIRST_STAGE_NAME \
     --build-arg DB_COMMON_OPTS --build-arg HOST_NAME empty-context

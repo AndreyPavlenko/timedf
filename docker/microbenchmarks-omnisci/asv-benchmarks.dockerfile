@@ -25,7 +25,7 @@ RUN cd modin/asv_bench \
  && asv machine --machine ${HOST_NAME}-omnisci --yes \
  && asv machine --machine ${HOST_NAME}-pandas --yes
 
-# There is no way to specify the data size for each benchmark yet -
+# There is no way to specify the timeout for each benchmark yet -
 # use the following workround.
 RUN cd modin \
  && git apply ../omniscripts/docker/microbenchmarks-omnisci/timeout.patch
