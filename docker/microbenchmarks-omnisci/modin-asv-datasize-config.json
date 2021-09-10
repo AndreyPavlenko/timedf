@@ -1,6 +1,6 @@
 {
-    "omnisci.TimeJoin": [[30000000, 10]],
-    "omnisci.TimeBinaryOpDataFrame": [[30000000, 10]],
+    "omnisci.TimeJoin": [[15000000, 10]],
+    "omnisci.TimeBinaryOpDataFrame": [[15000000, 10]],
     "omnisci.TimeArithmetic": [[30000000, 10]],
     "omnisci.TimeSortValues": [[10000000, 10]],
     "omnisci.TimeDrop": [[30000000, 10]],
@@ -14,8 +14,8 @@
     "omnisci.TimeGroupByDefaultAggregations": [[30000000, 10]],
     "omnisci.TimeGroupByMultiColumn": [[30000000, 10]],
     "omnisci.TimeReadCsvNames": [[30000000, 10]],
-    "omnisci.TimeMerge": [[[15000000, 20], [30000000, 10]]],
-    "omnisci.TimeAppend": [[[15000000, 20], [30000000, 10]]],
-    "omnisci.TimeBinaryOpSeries": [[300000000, 1]],
+    "omnisci.TimeMerge": [[[15000000, 10], [12000000, 12]]],
+    "omnisci.TimeAppend": [[[15000000, 10], [12000000, 12]]],
+    "omnisci.TimeBinaryOpSeries": [[150000000, 1]],
     "omnisci.TimeValueCountsSeries": [[300000000, 1]]
 }
