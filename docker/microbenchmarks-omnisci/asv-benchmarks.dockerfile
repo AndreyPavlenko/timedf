@@ -7,11 +7,8 @@
 ARG image_name=microbenchmarks-omnisci-intermediate
 FROM ${image_name}:latest
 
-# include also workaround for incompatible ray
 RUN conda activate modin_on_omnisci \
- && conda uninstall ray-core -c conda-forge \
- && conda install mysql mysql-connector-python -c conda-forge \
- && pip install "ray[default]>=1.4"
+ && conda install mysql mysql-connector-python -c conda-forge
 
 ARG HOST_NAME=docker
 ENV HOST_NAME ${HOST_NAME}

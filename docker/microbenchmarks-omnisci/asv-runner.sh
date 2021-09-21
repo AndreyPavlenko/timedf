@@ -1,6 +1,7 @@
 #!/bin/bash -e
 
 # get performance of modin on omnisci
+export MODIN_ENGINE=native
 export MODIN_BACKEND=omnisci
 export MODIN_EXPERIMENTAL=true
 export MODIN_TEST_DATASET_SIZE=big
