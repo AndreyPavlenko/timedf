@@ -416,11 +416,11 @@ def main():
                         if os.getenv("PYTHONPATH")
                         else args.modin_pkgs_dir
                     )
-                print("INSTALLATION OF MODIN DEPENDENCIES")
-                conda_env.update(str(args.env_name), "environment-dev.yml", cwd=args.modin_path)
+
+                install_cmdline_modin_pip = ["pip", "install", ".[ray]"]
 
                 print("MODIN INSTALLATION")
-                conda_env.run(install_cmdline, cwd=args.modin_path)
+                conda_env.run(install_cmdline_modin_pip, cwd=args.modin_path)
 
             # trying to install dbe extension if omnisci generated it
             executables_path = os.path.dirname(args.executable)
