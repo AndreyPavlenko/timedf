@@ -1,14 +1,20 @@
 #!/bin/bash -e
 
+eval source ${CONDA_PREFIX}/bin/activate ${ENV_NAME}
+
 # get performance of modin on omnisci
 export MODIN_ENGINE=native
 export MODIN_BACKEND=omnisci
 export MODIN_EXPERIMENTAL=true
 export MODIN_TEST_DATASET_SIZE=big
-export MODIN_ASV_DATASIZE_CONFIG=/home/modin/omniscripts/docker/microbenchmarks-omnisci/modin-asv-datasize-config.json
+export MODIN_ASV_DATASIZE_CONFIG=`pwd`/omniscripts/docker/microbenchmarks-omnisci/modin-asv-datasize-config.json
 
 cd modin/asv_bench
-conda activate modin_on_omnisci
+
+# setup ASV machines
+asv machine --yes
+asv machine --machine ${HOST_NAME}-omnisci --yes
+asv machine --machine ${HOST_NAME}-pandas --yes
 
 OMNISCI_MACHINE_NAME=$HOST_NAME-omnisci
 PANDAS_MACHINE_NAME=$HOST_NAME-pandas

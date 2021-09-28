@@ -40,17 +40,11 @@ RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.
     rm -f /tmp/miniconda3.sh && \
     echo ". '${CONDA_DIR}/etc/profile.d/conda.sh'" >> "${HOME}/.profile"
 
-ARG INSTALL_OMNISCRIPTS_REQS=true
-
 # Adding channel_priority strict to the following commands makes conda fail.
 # Luckily we don't need it here because conda resolves environment fairly quickly.
-RUN conda update -n base -c defaults conda -y &&                                     \
-    conda env create --file=modin/requirements/env_omnisci.yml &&                    \
-    conda activate modin_on_omnisci &&                                               \
-    if [ "$INSTALL_OMNISCRIPTS_REQS" = "true" ]; then                                \
-        conda env update -n modin_on_omnisci --file=omniscripts/ci_requirements.yml; \
-    else                                                                             \
-        echo reqs from ci_requirements.yml not installed;                            \
-    fi;                                                                              \
-    conda clean --all --yes &&                                                       \
+RUN conda update -n base -c defaults conda -y &&                                    \
+    conda env create --file=modin/requirements/env_omnisci.yml &&                   \
+    conda activate modin_on_omnisci &&                                              \
+    conda env update -n modin_on_omnisci --file=omniscripts/ci_requirements.yml &&  \
+    conda clean --all --yes &&                                                      \
     cd modin && pip install -e .
