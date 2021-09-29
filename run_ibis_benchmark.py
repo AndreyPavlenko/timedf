@@ -139,6 +139,12 @@ def main():
         help="Do not run machine learning benchmark, only ETL part",
     )
     optional.add_argument(
+        "-use_modin_xgb",
+        default=False,
+        type=str_arg_to_bool,
+        help="Whether to use Modin XGBoost for ML part, relevant for Plasticc benchmark only",
+    )
+    optional.add_argument(
         "-gpu_memory",
         dest="gpu_memory",
         type=int,
@@ -325,6 +331,7 @@ def main():
             "data_file": args.data_file,
             "dfiles_num": args.dfiles_num,
             "no_ml": args.no_ml,
+            "use_modin_xgb": args.use_modin_xgb,
             "no_ibis": args.no_ibis,
             "optimizer": args.optimizer,
             "pandas_mode": args.pandas_mode,

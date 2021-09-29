@@ -307,6 +307,12 @@ def main():
         type=str_arg_to_bool,
         help="Do not run machine learning benchmark, only ETL part",
     )
+    benchmark.add_argument(
+        "-use_modin_xgb",
+        default=False,
+        type=str_arg_to_bool,
+        help="Whether to use Modin XGBoost for ML part, relevant for Plasticc benchmark only",
+    )
     optional.add_argument(
         "-gpu_memory",
         dest="gpu_memory",
@@ -564,6 +570,7 @@ def main():
                 "ray_tmpdir",
                 "ray_memory",
                 "no_ml",
+                "use_modin_xgb",
                 "gpu_memory",
                 "db_server",
                 "db_port",
