@@ -476,7 +476,7 @@ def etl_all_pandas(dataset_path, skip_rows, dtypes, meta_dtypes, etl_keys, panda
     return train_final, test_final, etl_times
 
 
-def multi_weighted_logloss(y_true, y_preds, classes, class_weights):
+def multi_weighted_logloss(y_true, y_preds, classes, class_weights, use_modin_xgb=False):
     """
     refactor from
     @author olivier https://www.kaggle.com/ogrellier
@@ -484,6 +484,15 @@ def multi_weighted_logloss(y_true, y_preds, classes, class_weights):
     """
     y_p = y_preds.reshape(y_true.shape[0], len(classes), order="F")
     y_ohe = pandas.get_dummies(y_true)
+
+    if use_modin_xgb:
+        missed_columns = set(range(len(classes))) - set(np.unique(y_true))
+        y_missed = pandas.DataFrame(
+            np.zeros((len(y_ohe), len(missed_columns))), columns=missed_columns, index=y_ohe.index
+        )
+        y_ohe = pandas.concat([y_ohe, y_missed], axis=1)
+        y_ohe.sort_index(axis=1, inplace=True)
+
     y_p = np.clip(a=y_p, a_min=1e-15, a_max=1 - 1e-15)
     y_p_log = np.log(y_p)
     y_log_ones = np.sum(y_ohe.values * y_p_log, axis=0)
@@ -495,8 +504,10 @@ def multi_weighted_logloss(y_true, y_preds, classes, class_weights):
     return loss
 
 
-def xgb_multi_weighted_logloss(y_predicted, y_true, classes, class_weights):
-    loss = multi_weighted_logloss(y_true.get_label(), y_predicted, classes, class_weights)
+def xgb_multi_weighted_logloss(y_predicted, y_true, classes, class_weights, use_modin_xgb=False):
+    loss = multi_weighted_logloss(
+        y_true.get_label(), y_predicted, classes, class_weights, use_modin_xgb=use_modin_xgb
+    )
     return "wloss", loss
 
 
@@ -530,7 +541,12 @@ def ml(train_final, test_final, ml_keys, use_modin_xgb=False):
         "colsample_bytree": 0.7,
     }
 
-    func_loss = partial(xgb_multi_weighted_logloss, classes=classes, class_weights=class_weights)
+    func_loss = partial(
+        xgb_multi_weighted_logloss,
+        classes=classes,
+        class_weights=class_weights,
+        use_modin_xgb=use_modin_xgb,
+    )
 
     t_ml_start = timer()
     dtrain = xgb.DMatrix(data=X_train, label=y_train)
