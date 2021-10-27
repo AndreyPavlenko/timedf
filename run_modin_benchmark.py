@@ -3,13 +3,12 @@ import argparse
 import os
 import time
 
-from utils_base_env import find_free_port, KeyValueListParser, str_arg_to_bool, add_mysql_arguments
+from utils_base_env import KeyValueListParser, str_arg_to_bool, add_mysql_arguments
 from utils import remove_fields_from_dict, refactor_results_for_reporting
 
 
 def main():
     args = None
-    omnisci_server = None
     port_default_value = -1
 
     benchmarks = {
@@ -20,7 +19,6 @@ def main():
         "mortgage": "mortgage",
         "h2o": "h2o",
     }
-    benchmarks_with_ibis_queries = ["ny_taxi", "santander", "census", "plasticc", "mortgage"]
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
@@ -31,7 +29,7 @@ def main():
         "query_name",
     ]
 
-    parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
+    parser = argparse.ArgumentParser(description="Run benchmarks for Modin perf testing")
     optional = parser._action_groups.pop()
     required = parser.add_argument_group("required arguments")
     parser._action_groups.append(optional)
@@ -90,22 +88,10 @@ def main():
         help="Which optimizer is used",
     )
     optional.add_argument(
-        "-no_ibis",
-        default=False,
-        type=str_arg_to_bool,
-        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
-    )
-    optional.add_argument(
-        "-no_pandas",
-        default=False,
-        type=str_arg_to_bool,
-        help="Do not run Pandas version of benchmark",
-    )
-    optional.add_argument(
         "-pandas_mode",
         choices=["Pandas", "Modin_on_ray", "Modin_on_dask", "Modin_on_python", "Modin_on_omnisci"],
         default="Pandas",
-        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask",
+        help="Specifies which version of Pandas to use: plain Pandas, Modin runing on Ray or on Dask or on Omnisci",
     )
     optional.add_argument(
         "-ray_tmpdir",
@@ -117,6 +103,12 @@ def main():
         default=200 * 1024 * 1024 * 1024,
         type=int,
         help="Size of memory to allocate for Ray plasma store",
+    )
+    optional.add_argument(
+        "-no_ibis",
+        default=False,
+        type=str_arg_to_bool,
+        help="Do not run Ibis benchmark, run only Pandas (or Modin) version",
     )
     optional.add_argument(
         "-no_ml",
@@ -262,12 +254,6 @@ def main():
         help="Omnisci commit hash used for benchmark.",
     )
     optional.add_argument(
-        "-commit_ibis",
-        dest="commit_ibis",
-        default="1234567890123456789012345678901234567890",
-        help="Ibis commit hash used for benchmark.",
-    )
-    optional.add_argument(
         "-commit_omniscripts",
         dest="commit_omniscripts",
         default="1234567890123456789012345678901234567890",
@@ -287,182 +273,114 @@ def main():
         help="Enable debug mode.",
     )
 
-    try:
-        os.environ["PYTHONIOENCODING"] = "UTF-8"
-        os.environ["PYTHONUNBUFFERED"] = "1"
-        omnisci_server_worker = None
-        omnisci_server = None
+    os.environ["PYTHONIOENCODING"] = "UTF-8"
+    os.environ["PYTHONUNBUFFERED"] = "1"
 
-        args = parser.parse_args()
+    args = parser.parse_args()
 
-        launch_omnisci_server = (
-            not args.no_ibis and args.bench_name in benchmarks_with_ibis_queries
-        )
+    run_benchmark = __import__(benchmarks[args.bench_name]).run_benchmark
 
-        if args.port == port_default_value:
-            args.port = find_free_port()
-        if args.http_port == port_default_value:
-            args.http_port = find_free_port()
-        if args.calcite_port == port_default_value:
-            args.calcite_port = find_free_port()
+    parameters = {
+        "data_file": args.data_file,
+        "dfiles_num": args.dfiles_num,
+        "no_ml": args.no_ml,
+        "use_modin_xgb": args.use_modin_xgb,
+        "optimizer": args.optimizer,
+        "pandas_mode": args.pandas_mode,
+        "ray_tmpdir": args.ray_tmpdir,
+        "ray_memory": args.ray_memory,
+        "gpu_memory": args.gpu_memory,
+        "validation": args.validation,
+        "debug_mode": args.debug_mode,
+        "extended_functionality": args.extended_functionality,
+    }
 
-        run_benchmark = __import__(benchmarks[args.bench_name]).run_benchmark
+    etl_results = []
+    ml_results = []
+    print(parameters)
+    run_id = int(round(time.time()))
+    for iter_num in range(1, args.iterations + 1):
+        print(f"Iteration #{iter_num}")
 
         parameters = {
-            "data_file": args.data_file,
-            "dfiles_num": args.dfiles_num,
-            "no_ml": args.no_ml,
-            "use_modin_xgb": args.use_modin_xgb,
-            "no_ibis": args.no_ibis,
-            "optimizer": args.optimizer,
-            "pandas_mode": args.pandas_mode,
-            "ray_tmpdir": args.ray_tmpdir,
-            "ray_memory": args.ray_memory,
-            "gpu_memory": args.gpu_memory,
-            "validation": args.validation,
-            "no_pandas": args.no_pandas,
-            "debug_mode": args.debug_mode,
-            "extended_functionality": args.extended_functionality,
+            key: os.path.expandvars(value) if isinstance(value, str) else value
+            for key, value in parameters.items()
         }
+        benchmark_results = run_benchmark(parameters)
 
-        if launch_omnisci_server:
-            if args.executable is None:
-                parser.error(
-                    "Omnisci executable should be specified with -e/--executable for Ibis part"
+        additional_fields_for_reporting = {
+            "ETL": {"Iteration": iter_num, "run_id": run_id},
+            "ML": {"Iteration": iter_num, "run_id": run_id},
+        }
+        etl_ml_results = refactor_results_for_reporting(
+            benchmark_results=benchmark_results,
+            ignore_fields_for_results_unit_conversion=ignore_fields_for_results_unit_conversion,
+            additional_fields=additional_fields_for_reporting,
+            reporting_unit="ms",
+        )
+        etl_results = list(etl_ml_results["ETL"])
+        ml_results = list(etl_ml_results["ML"])
+
+        # Reporting to MySQL database
+        if args.db_user is not None:
+            import mysql.connector
+            from report import DbReport
+
+            if iter_num == 1:
+                db = mysql.connector.connect(
+                    host=args.db_server,
+                    port=args.db_port,
+                    user=args.db_user,
+                    passwd=args.db_pass,
+                    db=args.db_name,
                 )
-            from server import OmnisciServer
 
-            omnisci_server = OmnisciServer(
-                omnisci_executable=args.executable,
-                omnisci_port=args.port,
-                http_port=args.http_port,
-                calcite_port=args.calcite_port,
-                database_name=args.database_name,
-                omnisci_cwd=args.omnisci_cwd,
-                user=args.user,
-                password=args.password,
-                debug_timer=args.debug_timer,
-                columnar_output=args.columnar_output,
-                lazy_fetch=args.lazy_fetch,
-                multifrag_rs=args.multifrag_rs,
-                omnisci_run_kwargs=args.omnisci_run_kwargs,
-            )
+                reporting_init_fields = {
+                    "OmnisciCommitHash": args.commit_omnisci,
+                    "OmniscriptsCommitHash": args.commit_omniscripts,
+                    "ModinCommitHash": args.commit_modin,
+                }
 
-            parameters["database_name"] = args.database_name
-            parameters["table"] = args.table
-            parameters["dnd"] = args.dnd
-            parameters["dni"] = args.dni
-            parameters["import_mode"] = args.import_mode
-            parameters["fragments_size"] = args.fragments_size
-
-        if parameters["validation"] and (parameters["no_pandas"] or parameters["no_ibis"]):
-            parameters["validation"] = False
-            print("WARNING: validation was turned off as it requires both sides to compare.")
-
-        etl_results = []
-        ml_results = []
-        print(parameters)
-        run_id = int(round(time.time()))
-        for iter_num in range(1, args.iterations + 1):
-            print(f"Iteration #{iter_num}")
-
-            if launch_omnisci_server:
-                from server_worker import OmnisciServerWorker
-
-                omnisci_server_worker = OmnisciServerWorker(omnisci_server)
-                parameters["omnisci_server_worker"] = omnisci_server_worker
-                parameters["ipc_connection"] = args.ipc_conn
-                omnisci_server.launch()
-            parameters = {
-                key: os.path.expandvars(value) if isinstance(value, str) else value
-                for key, value in parameters.items()
-            }
-            benchmark_results = run_benchmark(parameters)
-
-            if launch_omnisci_server:
-                omnisci_server_worker.terminate()
-                omnisci_server.terminate()
-
-            additional_fields_for_reporting = {
-                "ETL": {"Iteration": iter_num, "run_id": run_id},
-                "ML": {"Iteration": iter_num, "run_id": run_id},
-            }
-            etl_ml_results = refactor_results_for_reporting(
-                benchmark_results=benchmark_results,
-                ignore_fields_for_results_unit_conversion=ignore_fields_for_results_unit_conversion,
-                additional_fields=additional_fields_for_reporting,
-                reporting_unit="ms",
-            )
-            etl_results = list(etl_ml_results["ETL"])
-            ml_results = list(etl_ml_results["ML"])
-
-            # Reporting to MySQL database
-            if args.db_user is not None:
-                import mysql.connector
-                from report import DbReport
-
-                if iter_num == 1:
-                    db = mysql.connector.connect(
-                        host=args.db_server,
-                        port=args.db_port,
-                        user=args.db_user,
-                        passwd=args.db_pass,
-                        db=args.db_name,
+                reporting_fields_benchmark_etl = {
+                    x: "VARCHAR(500) NOT NULL" for x in etl_results[0]
+                }
+                if len(etl_results) != 1:
+                    reporting_fields_benchmark_etl.update(
+                        {x: "VARCHAR(500) NOT NULL" for x in etl_results[1]}
                     )
 
-                    reporting_init_fields = {
-                        "OmnisciCommitHash": args.commit_omnisci,
-                        "IbisCommitHash": args.commit_ibis,
-                        "OmniscriptsCommitHash": args.commit_omniscripts,
-                        "ModinCommitHash": args.commit_modin,
-                    }
+                db_reporter_etl = DbReport(
+                    db,
+                    args.db_table_etl,
+                    reporting_fields_benchmark_etl,
+                    reporting_init_fields,
+                )
 
-                    reporting_fields_benchmark_etl = {
-                        x: "VARCHAR(500) NOT NULL" for x in etl_results[0]
+                if len(ml_results) != 0:
+                    reporting_fields_benchmark_ml = {
+                        x: "VARCHAR(500) NOT NULL" for x in ml_results[0]
                     }
-                    if len(etl_results) != 1:
-                        reporting_fields_benchmark_etl.update(
-                            {x: "VARCHAR(500) NOT NULL" for x in etl_results[1]}
+                    if len(ml_results) != 1:
+                        reporting_fields_benchmark_ml.update(
+                            {x: "VARCHAR(500) NOT NULL" for x in ml_results[1]}
                         )
 
-                    db_reporter_etl = DbReport(
+                    db_reporter_ml = DbReport(
                         db,
-                        args.db_table_etl,
-                        reporting_fields_benchmark_etl,
+                        args.db_table_ml,
+                        reporting_fields_benchmark_ml,
                         reporting_init_fields,
                     )
 
-                    if len(ml_results) != 0:
-                        reporting_fields_benchmark_ml = {
-                            x: "VARCHAR(500) NOT NULL" for x in ml_results[0]
-                        }
-                        if len(ml_results) != 1:
-                            reporting_fields_benchmark_ml.update(
-                                {x: "VARCHAR(500) NOT NULL" for x in ml_results[1]}
-                            )
+            if iter_num == args.iterations:
+                for result_etl in etl_results:
+                    remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
+                    db_reporter_etl.submit(result_etl)
 
-                        db_reporter_ml = DbReport(
-                            db,
-                            args.db_table_ml,
-                            reporting_fields_benchmark_ml,
-                            reporting_init_fields,
-                        )
-
-                if iter_num == args.iterations:
-                    for result_etl in etl_results:
-                        remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
-                        db_reporter_etl.submit(result_etl)
-
-                    if len(ml_results) != 0:
-                        for result_ml in ml_results:
-                            remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
-                            db_reporter_ml.submit(result_ml)
-
-    finally:
-        if omnisci_server_worker:
-            omnisci_server_worker.terminate()
-        if omnisci_server:
-            omnisci_server.terminate()
+                if len(ml_results) != 0:
+                    for result_ml in ml_results:
+                        remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
+                        db_reporter_ml.submit(result_ml)
 
 
 if __name__ == "__main__":
