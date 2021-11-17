@@ -16,7 +16,7 @@ The Flyte Sandbox is a fully standalone minimal environment for running Flyte. I
 
 3. Install Flytectl
 
-   > curl -s https://raw.githubusercontent.com/flyteorg/flytectl/master/install.sh | sudo bash -s -- -b /usr/local/bi
+   > curl -s https://raw.githubusercontent.com/flyteorg/flytectl/master/install.sh | sudo bash -s -- -b /usr/local/bin
 
    Test installation:
 
