@@ -563,19 +563,15 @@ def refactor_results_for_reporting(
     etl_ml_results = {"ETL": [], "ML": []}
     for results_category, results in dict(benchmark_results).items():  # ETL or ML part
         for backend_result in results:
-            backend_result_converted = []
-            backend_result_values_list = list(backend_result.values()) if backend_result else None
             if backend_result is not None and all(
-                [
-                    isinstance(backend_result_values_list[i], dict)
-                    for i in range(len(backend_result_values_list))
-                ]
+                isinstance(r, dict) for r in backend_result.values()
             ):  # True if subqueries are used
+                backend_result_converted = []
                 for query_name, query_results in backend_result.items():
                     query_results.update({"query_name": query_name})
                     backend_result_converted.append(query_results)
             else:
-                backend_result_converted.append(backend_result)
+                backend_result_converted = [backend_result]
 
             for result in backend_result_converted:
                 if result:
@@ -584,10 +580,7 @@ def refactor_results_for_reporting(
                         ignore_fields=ignore_fields_for_results_unit_conversion,
                         unit=reporting_unit,
                     )
-                    category_additional_fields = additional_fields.get(results_category, None)
-                    if category_additional_fields:
-                        for field in category_additional_fields.keys():
-                            result[field] = category_additional_fields[field]
+                    result.update(additional_fields.get(results_category, {}))
                     etl_ml_results[results_category].append(result)
 
     return etl_ml_results
@@ -712,6 +705,7 @@ def run_benchmarks(
         "plasticc": "plasticc",
         "mortgage": "mortgage",
         "h2o": "h2o",
+        "taxi_ml": "taxi_ml",
     }
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
@@ -767,11 +761,7 @@ def run_benchmarks(
 
             if iter_num == 1:
                 db = mysql.connector.connect(
-                    host=db_server,
-                    port=db_port,
-                    user=db_user,
-                    passwd=db_pass,
-                    db=db_name,
+                    host=db_server, port=db_port, user=db_user, passwd=db_pass, db=db_name
                 )
 
                 reporting_init_fields = {
@@ -789,10 +779,7 @@ def run_benchmarks(
                     )
 
                 db_reporter_etl = DbReport(
-                    db,
-                    db_table_etl,
-                    reporting_fields_benchmark_etl,
-                    reporting_init_fields,
+                    db, db_table_etl, reporting_fields_benchmark_etl, reporting_init_fields
                 )
 
                 if len(ml_results) != 0:
@@ -805,18 +792,15 @@ def run_benchmarks(
                         )
 
                     db_reporter_ml = DbReport(
-                        db,
-                        db_table_ml,
-                        reporting_fields_benchmark_ml,
-                        reporting_init_fields,
+                        db, db_table_ml, reporting_fields_benchmark_ml, reporting_init_fields
                     )
 
+            # TODO: Bug: we only submit last iteration https://github.com/intel-ai/omniscripts/issues/313
             if iter_num == iterations:
                 for result_etl in etl_results:
                     remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
                     db_reporter_etl.submit(result_etl)
 
-                if len(ml_results) != 0:
-                    for result_ml in ml_results:
-                        remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
-                        db_reporter_ml.submit(result_ml)
+                for result_ml in ml_results:
+                    remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
+                    db_reporter_ml.submit(result_ml)
