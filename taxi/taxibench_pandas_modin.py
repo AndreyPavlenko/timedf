@@ -78,8 +78,8 @@ def q3(df, pandas_mode):
     if pandas_mode != "Modin_on_omnisci":
         transformed = pd.DataFrame(
             {
-                "passenger_count": df["passenger_count"],
                 "pickup_datetime": df["pickup_datetime"].dt.year,
+                "passenger_count": df["passenger_count"],
             }
         )
         q3_output = (
