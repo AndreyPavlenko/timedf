@@ -69,6 +69,7 @@ def read_csv(filepath: Path, *, parse_dates=[], col2dtype: OrderedDict, is_omnis
 @measure_time
 def load_data(dirpath: str, is_omniscidb_mode, debug=False):
     dirpath: Path = Path(dirpath.strip("'\""))
+
     data_types_2014 = OrderedDict(
         [
             (" tolls_amount", "float64"),
@@ -78,6 +79,11 @@ def load_data(dirpath: str, is_omniscidb_mode, debug=False):
             ("tolls_amount", "float64"),
         ]
     )
+    if is_omniscidb_mode:
+        # For OmniSci we need to remove this column because of "object" type
+        # see https://github.com/modin-project/modin/issues/5210
+        # But Ray backend requires fixed type to avoid inconsistent types across partitions
+        del data_types_2014[" store_and_fwd_flag"]
 
     data_types_2015 = OrderedDict([("extra", "float64"), ("tolls_amount", "float64")])
 
@@ -132,27 +138,49 @@ def load_data(dirpath: str, is_omniscidb_mode, debug=False):
 
 
 @measure_time
-def filter_df(df):
-    # apply a list of filter conditions to throw out records with missing or outlier values
-    df = df.query(
-        "(fare_amount > 1) & \
-        (fare_amount < 500) & \
-        (passenger_count > 0) & \
-        (passenger_count < 6) & \
-        (pickup_longitude > -75) & \
-        (pickup_longitude < -73) & \
-        (dropoff_longitude > -75) & \
-        (dropoff_longitude < -73) & \
-        (pickup_latitude > 40) & \
-        (pickup_latitude < 42) & \
-        (dropoff_latitude > 40) & \
-        (dropoff_latitude < 42) & \
-        (trip_distance > 0) & \
-        (trip_distance < 500) & \
-        ((trip_distance <= 50) | (fare_amount >= 50)) & \
-        ((trip_distance >= 10) | (fare_amount <= 300)) & \
-        (dropoff_datetime > pickup_datetime)"
-    )
+def filter_df(df, is_omniscidb_mode):
+    """apply a list of filter conditions to throw out records with missing or outlier values"""
+    # Modin_on_omniscidb does not support query method, but Modin_on_ray works much faster using query method
+    if is_omniscidb_mode:
+        df = df[
+            (df.fare_amount > 1)
+            & (df.fare_amount < 500)
+            & (df.passenger_count > 0)
+            & (df.passenger_count < 6)
+            & (df.pickup_longitude > -75)
+            & (df.pickup_longitude < -73)
+            & (df.dropoff_longitude > -75)
+            & (df.dropoff_longitude < -73)
+            & (df.pickup_latitude > 40)
+            & (df.pickup_latitude < 42)
+            & (df.dropoff_latitude > 40)
+            & (df.dropoff_latitude < 42)
+            & (df.trip_distance > 0)
+            & (df.trip_distance < 500)
+            & ((df.trip_distance <= 50) | (df.fare_amount >= 50))
+            & ((df.trip_distance >= 10) | (df.fare_amount <= 300))
+            & (df.dropoff_datetime > df.pickup_datetime)
+        ]
+    else:
+        df = df.query(
+            "(fare_amount > 1) & \
+            (fare_amount < 500) & \
+            (passenger_count > 0) & \
+            (passenger_count < 6) & \
+            (pickup_longitude > -75) & \
+            (pickup_longitude < -73) & \
+            (dropoff_longitude > -75) & \
+            (dropoff_longitude < -73) & \
+            (pickup_latitude > 40) & \
+            (pickup_latitude < 42) & \
+            (dropoff_latitude > 40) & \
+            (dropoff_latitude < 42) & \
+            (trip_distance > 0) & \
+            (trip_distance < 500) & \
+            ((trip_distance <= 50) | (fare_amount >= 50)) & \
+            ((trip_distance >= 10) | (fare_amount <= 300)) & \
+            (dropoff_datetime > pickup_datetime)"
+        )
 
     df = df.reset_index(drop=True)
     trigger_execution(df)
@@ -279,29 +307,44 @@ def run_benchmark(parameters):
 
     debug = bool(os.getenv("DEBUG", False))
 
-    benchmark2time = {}
+    task2time = {}
     is_omniscidb_mode = parameters["pandas_mode"] == "Modin_on_omnisci"
-    df, benchmark2time["load_data"] = load_data(
+    df, task2time["load_data"] = load_data(
         parameters["data_file"], is_omniscidb_mode=is_omniscidb_mode, debug=debug
     )
-    df, benchmark2time["filter_df"] = filter_df(df)
-    df, benchmark2time["feature_engineering"] = feature_engineering(df)
-    print_results(results=benchmark2time, backend=parameters["pandas_mode"], unit="s")
+    df, task2time["filter_df"] = filter_df(df, is_omniscidb_mode=is_omniscidb_mode)
+    df, task2time["feature_engineering"] = feature_engineering(df)
+    print_results(results=task2time, backend=parameters["pandas_mode"], unit="s")
+
+    task2time["total_data_processing_with_load"] = sum(task2time.values())
+    task2time["total_data_processing_no_load"] = (
+        task2time["total_data_processing_with_load"] - task2time["load_data"]
+    )
 
     backend_name = parameters["pandas_mode"]
     if not parameters["no_ml"]:
         print("using ml with dataframes from Pandas")
 
-        data, benchmark2time["split_time"] = split(df)
+        data, task2time["split_time"] = split(df)
         data: Dict[str, Any]
 
-        benchmark2time["train_time"] = train(
+        task2time["train_time"] = train(
             data, use_modin_xgb=parameters["use_modin_xgb"], debug=debug
         )
 
-        print_results(results=benchmark2time, backend=parameters["pandas_mode"], unit="s")
+        print_results(results=task2time, backend=parameters["pandas_mode"], unit="s")
 
         if parameters["use_modin_xgb"]:
             backend_name = backend_name + "_modin_xgb"
 
-    return {"ETL": [{**benchmark2time, "Backend": backend_name}], "ML": []}
+        task2time["total_time_with_ml"] = (
+            task2time["total_data_processing_with_load"]
+            + task2time["train_time"]
+            + task2time["split_time"]
+        )
+
+    results = [
+        {"query_name": b, "result": t, "Backend": backend_name} for b, t in task2time.items()
+    ]
+
+    return {"ETL": results}
