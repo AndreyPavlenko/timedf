@@ -76,30 +76,6 @@ def run_build_task(args):
         print("MODIN INSTALLATION")
         execute_process(install_cmdline_modin_pip, cwd=args.modin_path)
 
-    # trying to install dbe extension if omnisci generated it
-    executables_path = os.path.dirname(args.executable)
-    dbe_path = os.path.join(os.path.abspath(f"{executables_path}/.."), "Embedded")
-
-    if os.path.exists(dbe_path):
-        print("DBE INSTALLATION")
-
-        omniscidb_root = os.path.abspath(f"{executables_path}/../../")
-        for component in ("DBE", "QE", "thrift", "jar"):
-            cmake_cmdline = [
-                "cmake",
-                "--install",
-                "build",
-                "--component",
-                component,
-                "--prefix",
-                "$CONDA_PREFIX",
-            ]
-
-            execute_process(cmake_cmdline, cwd=omniscidb_root)
-        execute_process(["python3", "setup.py", "install"], cwd=dbe_path)
-    else:
-        print("Using Omnisci server")
-
 
 def run_benchmark_task(args):
     from utils import run_benchmarks
@@ -130,8 +106,7 @@ def run_benchmark_task(args):
         args.db_name,
         args.db_table_etl,
         args.db_table_ml,
-        args.executable,
-        args.commit_omnisci,
+        args.commit_hdk,
         args.commit_omniscripts,
         args.commit_modin,
     )
