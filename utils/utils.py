@@ -6,8 +6,9 @@ import warnings
 from dataclasses import dataclass
 from timeit import default_timer as timer
 from collections import OrderedDict
-import psutil
 from tempfile import mkstemp
+
+import psutil
 
 from .namespace_utils import import_pandas_into_module_namespace
 from .pandas_backend import set_backend
