@@ -51,14 +51,16 @@ class TimerManager:
             raise ValueError("Attempted to start timer, but it has no name")
 
         self.timer_stack.push(self.prepared_name)
-        print(f"enter {self.timer_stack.get_full_name()}")
+        if self.verbose:
+            print(f"enter {self.timer_stack.get_full_name()}")
         self.prepared_name = None
         return self
 
     def __exit__(self, type, value, traceback):
         fullname = self.timer_stack.get_full_name()
         self.timer_stack.pop()
-        print(f"exit  {fullname}: {self.timer_stack.fullname2time[fullname]}")
+        if self.verbose:
+            print(f"exit  {fullname}: {self.timer_stack.fullname2time[fullname]}")
 
     def get_results(self):
         return self.timer_stack.get_results()
