@@ -51,14 +51,14 @@ class TimerManager:
             raise ValueError("Attempted to start timer, but it has no name")
 
         self.timer_stack.push(self.prepared_name)
-        print(f"enter {self.timer_stack._get_full_name()}")
+        print(f"enter {self.timer_stack.get_full_name()}")
 
         self.prepared_name = None
 
         return self
 
     def __exit__(self, type, value, traceback):
-        fullname = self.timer_stack._get_full_name()
+        fullname = self.timer_stack.get_full_name()
         self.timer_stack.pop()
         print(f"exit  {fullname}: {self.timer_stack.fullname2time[fullname]}")
 
@@ -83,7 +83,7 @@ class TimerManager:
             self.name_stack.append(name)
 
         def pop(self):
-            fullname = self._get_full_name()
+            fullname = self.get_full_name()
             self.name_stack.pop()
 
             self._check_overwrite(fullname)
@@ -99,7 +99,7 @@ class TimerManager:
             if not self.allow_overwrite and fullname in self.fullname2time:
                 raise ValueError(f"Trying to rewrite measurment for {fullname}")
 
-        def _get_full_name(self):
+        def get_full_name(self):
             return self.SEPARATOR.join(self.name_stack)
 
         def get_results(self):
