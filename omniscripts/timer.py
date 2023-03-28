@@ -52,9 +52,7 @@ class TimerManager:
 
         self.timer_stack.push(self.prepared_name)
         print(f"enter {self.timer_stack.get_full_name()}")
-
         self.prepared_name = None
-
         return self
 
     def __exit__(self, type, value, traceback):
