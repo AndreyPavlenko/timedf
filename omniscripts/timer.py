@@ -22,7 +22,7 @@ class TimerManager:
     >>>     heavy_call()
     """
 
-    def __init__(self, allow_overwrite=False, verbose=False) -> None:
+    def __init__(self, allow_overwrite=False, verbose: int = 0) -> None:
         """Initialize root timer.
 
         Parameters
@@ -31,12 +31,18 @@ class TimerManager:
             Allow rewriting of measured time, by default False
 
         verbose:
-            Write timer stack status to stdout, turned off by default.
+            Write timer stack status to stdout.
+            Possible values:
+                0: no writing (default)
+                1: write about exit only
+                2: write about exit and enter
         """
         # name for the next timer to start, also acts as timer state
         self.prepared_name = None
         self.timer_stack = self.TimerStack(allow_overwrite=allow_overwrite)
 
+        if verbose not in (0, 1, 2):
+            raise ValueError(f"Provided verbose={verbose}, but possible values are (0, 1, 2)")
         self.verbose = verbose
 
     def timeit(self, name):
@@ -51,16 +57,18 @@ class TimerManager:
             raise ValueError("Attempted to start timer, but it has no name")
 
         self.timer_stack.push(self.prepared_name)
-        if self.verbose:
-            print(f"enter {self.timer_stack.get_full_name()}")
+        if self.verbose > 1:
+            level = self.timer_stack.get_current_level() - 1
+            print("  " * level + f"{self.timer_stack.get_full_name()} started")
         self.prepared_name = None
         return self
 
     def __exit__(self, type, value, traceback):
         fullname = self.timer_stack.get_full_name()
         self.timer_stack.pop()
-        if self.verbose:
-            print(f"exit  {fullname}: {self.timer_stack.fullname2time[fullname]}")
+        if self.verbose > 0:
+            level = self.timer_stack.get_current_level()
+            print("  " * level + f"{fullname}: {self.timer_stack.fullname2time[fullname]}")
 
     def get_results(self):
         return self.timer_stack.get_results()
@@ -101,6 +109,9 @@ class TimerManager:
 
         def get_full_name(self):
             return self.SEPARATOR.join(self.name_stack)
+
+        def get_current_level(self):
+            return len(self.start_stack)
 
         def get_results(self):
             return dict(self.fullname2time)
