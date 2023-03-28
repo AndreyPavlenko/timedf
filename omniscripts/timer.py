@@ -22,17 +22,22 @@ class TimerManager:
     >>>     heavy_call()
     """
 
-    def __init__(self, allow_overwrite=False) -> None:
+    def __init__(self, allow_overwrite=False, verbose=False) -> None:
         """Initialize root timer.
 
         Parameters
         ----------
         allow_overwrite, optional
             Allow rewriting of measured time, by default False
+
+        verbose:
+            Write timer stack status to stdout, turned off by default.
         """
         # name for the next timer to start, also acts as timer state
         self.prepared_name = None
         self.timer_stack = self.TimerStack(allow_overwrite=allow_overwrite)
+
+        self.verbose = verbose
 
     def timeit(self, name):
         if self.prepared_name is not None:
@@ -46,11 +51,16 @@ class TimerManager:
             raise ValueError("Attempted to start timer, but it has no name")
 
         self.timer_stack.push(self.prepared_name)
+        print(f"enter {self.timer_stack._get_full_name()}")
+
         self.prepared_name = None
+
         return self
 
     def __exit__(self, type, value, traceback):
+        fullname = self.timer_stack._get_full_name()
         self.timer_stack.pop()
+        print(f"exit  {fullname}: {self.timer_stack.fullname2time[fullname]}")
 
     def get_results(self):
         return self.timer_stack.get_results()
