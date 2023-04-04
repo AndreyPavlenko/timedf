@@ -6,7 +6,6 @@
 # This will be replaced by modin.pandas after set_backend call
 import pandas as pd  # noqa: F401 this import exists to provide vscode support for backend users
 
-from env_manager.arg_parser import supported_backends
 from .modin_utils import (
     import_pandas_into_module_namespace,
     trigger_execution_base as _trigger_execution_pandas,
@@ -27,19 +26,13 @@ nonpandas_backends = [
     "polars",
 ]
 
-if sorted(supported_backends) != sorted([*pandas_backends, *nonpandas_backends]):
-    raise ValueError(
-        "Discovered inconsistency in supported backends\n"
-        f"According to argparser supported backends are: {sorted(supported_backends)}\n"
-        "According to backend module supported backends are: "
-        f"{sorted([*pandas_backends, nonpandas_backends])}"
-    )
+supported_backends = pandas_backends + nonpandas_backends
 
 
 class Backend:
     """Singleton storing backend utilities and configurations"""
 
-    _supported_backends = supported_backends
+    supported_backends = supported_backends
 
     # Backend was initalized and ready for work
     _ready = False
