@@ -7,11 +7,7 @@ from timeit import default_timer as timer
 
 from omniscripts import BenchmarkResults, BaseBenchmark
 from omniscripts.pandas_backend import pd
-from omniscripts.benchmark_utils import (
-    load_data_pandas,
-    load_data_modin_on_hdk,
-    print_results,
-)
+from omniscripts.benchmark_utils import load_data_pandas, load_data_modin_on_hdk, print_results
 
 
 accepted_data_files_for_pandas_import_mode = ["trips_xaa", "trips_xab", "trips_xac"]
@@ -398,3 +394,14 @@ class Benchmark(BaseBenchmark):
 
     def run_benchmark(self, params) -> BenchmarkResults:
         return run_benchmark(params)
+
+    def load_data(self, target_dir, reload=False):
+        from omniscripts.tools.s3_load import download_folder
+
+        download_folder(
+            "modin-datasets",
+            "taxi",
+            target_dir,
+            reload=reload,
+            pattern="trips_xa[abcdefghijklmnopqrst].csv",
+        )
