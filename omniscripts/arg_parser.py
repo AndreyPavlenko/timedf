@@ -25,8 +25,8 @@ class DbConfig:
     password: str = None
     name: str = None
 
-    def is_config_complete(self):
-        return self.user is not None
+    def is_config_available(self):
+        return self.name is not None
 
     def _create_engine(self):
         from sqlalchemy import create_engine
@@ -43,7 +43,7 @@ class DbConfig:
         return create_engine(url)
 
     def maybeCreateBenchmarkDb(self):
-        if self.is_config_complete():
+        if self.is_config_available():
             from .report import BenchmarkDb
 
             return BenchmarkDb(self._create_engine())
