@@ -1,8 +1,12 @@
 """Utils to be used by inividual benchmarks"""
 import os
+import re
+import warnings
 from timeit import default_timer as timer
 
 import psutil
+
+_VM_PEAK_PATTERN = r"VmHWM:\s+(\d+)"
 
 
 repository_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -156,6 +160,26 @@ def split(X, y, test_size=0.1, stratify=None, random_state=None, optimizer="inte
 def memory_usage():
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / (1024**3)  # GB units
+
+
+def get_max_memory_usage(proc=psutil.Process()):
+    """Reads maximum memory usage in MB from process history. Returns None if query failed, which is
+    expected on non-linux systems."""
+    max_mem = 0
+    try:
+        with open(f"/proc/{proc.pid}/status", "r") as stat:
+            for match in re.finditer(_VM_PEAK_PATTERN, stat.read()):
+                max_mem = float(match.group(1))
+                # MB conversion
+                max_mem = int(max_mem / 1024)
+                break
+    except FileNotFoundError:
+        warnings.warn(
+            "Couldn't open `/proc/{proc_id}/status` is this linux?. Couldn't find max memory usage"
+        )
+        return None
+
+    return max_mem + sum(get_max_memory_usage(c) for c in proc.children())
 
 
 def getsize(filename: str):
