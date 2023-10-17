@@ -109,10 +109,6 @@ class RunParams:
         "gpu_memory",
         "validation",
         "extended_functionality",
-        # Commit hashes
-        "commit_hdk",
-        "commit_timedf",
-        "commit_modin",
         "num_threads",
         # Optional tag to label specific runs by user
         "tag",
